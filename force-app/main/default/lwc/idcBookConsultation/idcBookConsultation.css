@@ -1,0 +1,93 @@
+.consult-strip {
+    padding: 60px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.consult-inner {
+    display: grid;
+    grid-template-columns: 1.4fr 1.2fr;
+    gap: 40px;
+    align-items: center;
+    background: linear-gradient(135deg, #F6F3EA, #E7E3D8); /* warm beige gradient */
+    border-radius: 28px;
+    border: 1px solid #D6CDAF; /* soft champagne border */
+    box-shadow: 0 20px 45px rgba(70, 65, 55, 0.25); /* warm taupe shadow */
+    padding: 32px 36px;
+}
+
+.eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 0.78rem;
+    color: #B8AA82; /* muted gold accent */
+}
+
+.headline {
+    font-size: 2rem;
+    color: #3E3B32; /* deep warm taupe */
+    margin: 8px 0;
+}
+
+.subtext {
+    font-size: 1rem;
+    color: #5A5852; /* warm soft grey */
+    margin-bottom: 20px;
+}
+
+.cta-button {
+    padding: 12px 26px;
+    border-radius: 999px;
+    border: none;
+    background: linear-gradient(135deg, #4A4A3F, #3E3B32); /* greige to taupe */
+    color: #ffffff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s ease;
+    box-shadow: 0 12px 25px rgba(50, 45, 35, 0.4);
+}
+
+.cta-button:hover {
+    transform: translateY(-3px) scale(1.03);
+    background: linear-gradient(135deg, #3E3B32, #2F2C26);
+}
+
+/* RIGHT SIDE — IMAGE */
+.consult-right {
+    display: flex;
+    justify-content: center;
+}
+
+.image-card {
+    max-width: 360px;
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid #D6CDAF;
+    box-shadow: 0 22px 50px rgba(70, 65, 55, 0.3);
+    animation: floatCard 5s ease-in-out infinite;
+}
+
+.consult-img {
+    width: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+@keyframes floatCard {
+    0%   { transform: translateY(0); }
+    50%  { transform: translateY(-6px); }
+    100% { transform: translateY(0); }
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    .consult-inner {
+        grid-template-columns: 1fr;
+        text-align: center;
+        padding: 26px 22px;
+    }
+
+    .consult-right {
+        justify-content: center;
+    }
+}
