@@ -1,0 +1,216 @@
+/* ===== Section layout ===== */
+.why-section {
+    padding: 60px 20px 80px;
+    max-width: 1400px;
+    /* a bit wider so 5 cards fit easily */
+    margin: 0 auto;
+    text-align: center;
+    background-color: #FFFFFF;
+}
+
+/* ===== Heading ===== */
+.heading-wrapper {
+    margin-bottom: 40px;
+}
+
+.section-title {
+    font-size: 2rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5A4A72;
+    /* deep lavender */
+    font-weight: 700;
+}
+
+.section-underline {
+    width: 80px;
+    height: 3px;
+    background-color: #8C6FA8;
+    /* lavender accent */
+    margin: 10px auto 0;
+    border-radius: 999px;
+}
+
+/* ===== Card row ===== */
+.hex-grid {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: 24px;
+    flex-wrap: nowrap;
+    /* 🔹 FORCE single row on large screens */
+}
+
+/* ===== Card base ===== */
+.hex-card {
+    position: relative;
+    width: 240px;
+    /* fixed width so 5 fit in a row */
+    border-radius: 22px;
+    border: 1px solid #CDC3E0;
+    padding: 24px 20px 22px;
+    text-align: center;
+    color: #2c3e50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+
+    background: linear-gradient(145deg, #FFFFFF, #F7F3FF);
+    box-shadow: 0 14px 28px rgba(183, 168, 214, 0.35);
+
+    /* entrance animation */
+    opacity: 0;
+    transform: translateY(26px) scale(0.97);
+    animation: cardIn 0.6s ease forwards;
+    animation-delay: var(--delay, 0s);
+
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease,
+        border-color 0.25s ease,
+        background 0.25s ease;
+}
+
+/* 🎨 subtle different tint per tile */
+.hex-card:nth-child(1) {
+    background: linear-gradient(145deg, #FFFFFF, #FBEFF7);
+    border-color: #E3B7C9;
+}
+
+.hex-card:nth-child(2) {
+    background: linear-gradient(145deg, #FFFFFF, #F3EEFF);
+    border-color: #B7A8D6;
+}
+
+.hex-card:nth-child(3) {
+    background: linear-gradient(145deg, #FFFFFF, #EEF4FF);
+    border-color: #CDC3E0;
+}
+
+.hex-card:nth-child(4) {
+    background: linear-gradient(145deg, #FFFFFF, #F6F0FF);
+    border-color: #C2B0E4;
+}
+
+.hex-card:nth-child(5) {
+    background: linear-gradient(145deg, #FFFFFF, #FFF6E7);
+    border-color: #D8B467;
+}
+
+/* Hover: lift + glow + slight tilt */
+.hex-card:hover {
+    transform: translateY(-8px) scale(1.03) rotateZ(-0.3deg);
+    box-shadow: 0 20px 40px rgba(140, 111, 168, 0.45);
+    border-color: #8C6FA8;
+}
+
+/* ===== Icon in circle ===== */
+.hex-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: rgba(247, 243, 255, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    font-size: 1.45rem;
+    box-shadow: 0 4px 10px rgba(183, 168, 214, 0.4);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* icon float on hover */
+.hex-card:hover .hex-icon {
+    transform: translateY(-5px) scale(1.08);
+    box-shadow: 0 10px 18px rgba(140, 111, 168, 0.55);
+}
+
+/* Optional: gentle continuous float (very subtle) */
+@keyframes iconFloat {
+    0% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-3px);
+    }
+
+    100% {
+        transform: translateY(0);
+    }
+}
+
+.hex-icon {
+    animation: iconFloat 3.5s ease-in-out infinite;
+}
+
+/* ===== Title ===== */
+.hex-heading {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 4px 0 10px;
+    color: #5A4A72;
+}
+
+/* ===== Description ===== */
+.hex-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #6D6D7A;
+    margin: 0;
+}
+
+/* ===== Entrance animation ===== */
+@keyframes cardIn {
+    0% {
+        opacity: 0;
+        transform: translateY(26px) scale(0.97);
+    }
+
+    60% {
+        opacity: 1;
+        transform: translateY(-2px) scale(1.01);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ===== Responsive ===== */
+@media only screen and (max-width: 1200px) {
+
+    /* allow wrapping when screen is smaller */
+    .hex-grid {
+        flex-wrap: wrap;
+    }
+
+    .hex-card {
+        width: 45%;
+        max-width: 260px;
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .section-title {
+        font-size: 1.7rem;
+    }
+
+    .why-section {
+        padding: 40px 16px 60px;
+    }
+
+    .hex-grid {
+        justify-content: center;
+        gap: 18px;
+    }
+
+    .hex-card {
+        width: 100%;
+        max-width: 320px;
+    }
+}

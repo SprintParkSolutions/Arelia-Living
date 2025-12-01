@@ -1,0 +1,151 @@
+/* ============================
+   FOOTER – Luxury Greige Theme
+   ============================ */
+
+.footer {
+    background-color: #4A4A3F; /* Deep Luxury Greige */
+    color: #ffffff; /* Pure white */
+    padding: 120px 40px 30px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.footer-content {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 20px;
+    max-width: 1300px;
+    margin: auto;
+}
+
+.footer-logo {
+    flex: 1.2;
+    min-width: 180px;
+}
+
+.company-logo {
+    max-width: 100px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+.tagline {
+    font-size: 0.95rem;
+    color: #D6CDAF; /* Champagne gold */
+    margin-top: 5px;
+}
+
+.footer-section,
+.footer-links,
+.footer-contact,
+.footer-social {
+    flex: 1;
+    min-width: 200px;
+}
+
+.footer-section h3,
+.footer-links h3,
+.footer-contact h3,
+.footer-social h3 {
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #FFFFFF;
+    text-transform: uppercase;
+}
+
+.footer-section p {
+    color: #EDECE6; /* Soft warm white */
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.footer-links ul {
+    list-style: none;
+    padding: 0;
+}
+
+.footer-links ul li {
+    margin-bottom: 6px;
+}
+
+.footer-links ul li a {
+    color: #D6CDAF; /* Gold links */
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.3s;
+}
+
+.footer-links ul li a:hover {
+    color: #FFFFFF;
+    text-decoration: underline;
+}
+
+.footer-contact p {
+    margin: 6px 0;
+    color: #D6CDAF;
+    font-size: 0.9rem;
+}
+
+.footer-social .social-icons {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.footer-social a {
+    font-size: 1.2rem;
+    color: #D6CDAF; 
+    text-decoration: none;
+    transition: transform 0.2s, color 0.2s;
+}
+
+.footer-social a:hover {
+    transform: scale(1.2);
+    color: #FFFFFF;
+}
+
+.footer-bottom {
+    text-align: center;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+    font-size: 0.85rem;
+    color: #D6CDAF;
+    margin-top: 30px;
+}
+
+.social-icons {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.social-image {
+    width: 28px;
+    height: 28px;
+}
+
+/* ============================
+   RESPONSIVE
+   ============================ */
+@media (max-width: 768px) {
+    .footer-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .footer-logo {
+        margin-bottom: 20px;
+    }
+
+    .footer-section,
+    .footer-links,
+    .footer-contact,
+    .footer-social {
+        margin-bottom: 20px;
+    }
+
+    .footer-bottom {
+        padding-top: 25px;
+    }
+}

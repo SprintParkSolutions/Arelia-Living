@@ -1,0 +1,27 @@
+<template>
+    <section class="consult-strip">
+        <div class="consult-inner">
+
+            <!-- LEFT SIDE -->
+            <div class="consult-left">
+                <p class="eyebrow">Book a Consultation</p>
+                <h2 class="headline">Ready to Transform Your Space?</h2>
+                <p class="subtext">
+                    Talk to our design experts and get a personalized plan for your home or workspace.
+                </p>
+
+                <button class="cta-button" onclick={handleBookClick}>
+                    Book Consultation
+                </button>
+            </div>
+
+            <!-- RIGHT SIDE — STATIC RESOURCE IMAGE -->
+            <div class="consult-right">
+                <div class="image-card">
+                    <img src={appointmentImg} alt="Consultation" class="consult-img" />
+                </div>
+            </div>
+
+        </div>
+    </section>
+</template>
