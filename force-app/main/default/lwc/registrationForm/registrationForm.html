@@ -20,57 +20,31 @@
 
                         <div class="slds-grid slds-wrap slds-gutters_small">
                             <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                <lightning-input
-                                    label="First Name"
-                                    name="firstName"
-                                    value={firstName}
-                                    onchange={handleInputChange}
-                                    required>
+                                <lightning-input label="First Name" name="firstName" value={firstName}
+                                    onchange={handleInputChange} required>
                                 </lightning-input>
                             </div>
 
                             <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                <lightning-input
-                                    label="Last Name"
-                                    name="lastName"
-                                    value={lastName}
-                                    onchange={handleInputChange}
-                                    required>
+                                <lightning-input label="Last Name" name="lastName" value={lastName}
+                                    onchange={handleInputChange} required>
                                 </lightning-input>
                             </div>
 
                             <div class="slds-col slds-size_1-of-1">
-                                <lightning-input
-                                    label="Email"
-                                    name="email"
-                                    data-id="emailInput"
-                                    type="email"
-                                    value={email}
-                                    onchange={handleInputChange}
-                                    required>
+                                <lightning-input label="Email" name="email" data-id="emailInput" type="email"
+                                    value={email} onchange={handleInputChange} required>
                                 </lightning-input>
                             </div>
 
                             <div class="slds-col slds-size_1-of-1">
                                 <div class="phone-row">
-                                    <lightning-combobox
-                                        name="countryCode"
-                                        label="Country Code"
-                                        class="country-code"
-                                        value={countryCode}
-                                        options={countryCodeOptions}
-                                        onchange={handleCountryChange}>
+                                    <lightning-combobox name="countryCode" label="Country Code" class="country-code"
+                                        value={countryCode} options={countryCodeOptions} onchange={handleCountryChange}>
                                     </lightning-combobox>
 
-                                    <lightning-input
-                                        label="Mobile Number"
-                                        name="phone"
-                                        data-id="phoneInput"
-                                        type="tel"
-                                        class="mobile-input"
-                                        value={phone}
-                                        onchange={handleInputChange}
-                                        required>
+                                    <lightning-input label="Mobile Number" name="phone" data-id="phoneInput" type="tel"
+                                        class="mobile-input" value={phone} onchange={handleInputChange} required>
                                     </lightning-input>
                                 </div>
                                 <div class="field-help">
@@ -98,29 +72,18 @@
 
                         <div class="slds-grid slds-wrap slds-gutters_small verification-row">
                             <div class="slds-col slds-size_1-of-1">
-                                <lightning-input
-                                    label="Verification Code"
-                                    name="otpInput"
-                                    value={otpInput}
-                                    onchange={handleOtpChange}
-                                    maxlength="6"
-                                    pattern="[0-9]*">
+                                <lightning-input label="Verification Code" name="otpInput" value={otpInput}
+                                    onchange={handleOtpChange} maxlength="6" pattern="[0-9]*">
                                 </lightning-input>
                             </div>
 
                             <div class="slds-col slds-size_1-of-1">
                                 <div class="verification-buttons">
-                                    <lightning-button
-                                        label={sendCodeButtonLabel}
-                                        variant="neutral"
-                                        onclick={handleSendCode}
-                                        disabled={isSendCodeDisabled}>
+                                    <lightning-button label={sendCodeButtonLabel} variant="neutral"
+                                        onclick={handleSendCode} disabled={isSendCodeDisabled}>
                                     </lightning-button>
 
-                                    <lightning-button
-                                        label="Verify Code"
-                                        variant="brand"
-                                        onclick={handleVerifyCode}
+                                    <lightning-button label="Verify Code" variant="brand" onclick={handleVerifyCode}
                                         disabled={disableVerifyButton}>
                                     </lightning-button>
                                 </div>
@@ -145,10 +108,7 @@
                 </div>
 
                 <div class="form-footer">
-                    <lightning-button
-                        label="Register"
-                        variant="brand"
-                        onclick={handleSubmit}
+                    <lightning-button label="Register" variant="brand" onclick={handleSubmit}
                         disabled={isRegisterDisabled}>
                     </lightning-button>
                 </div>
@@ -168,10 +128,7 @@
                         Our team will review your information and contact you soon with next steps for your
                         interior project.
                     </p>
-                    <lightning-button
-                        label="Close"
-                        variant="brand"
-                        onclick={handleCloseSuccess}>
+                    <lightning-button label="Close" variant="brand" onclick={handleCloseSuccess}>
                     </lightning-button>
                 </div>
             </div>

@@ -212,19 +212,87 @@ public without sharing class RegistrationFormController {
             return;
         }
 
-        Id templateId = getWelcomeTemplateId();
-        if (templateId == null) {
+        EmailTemplate template = getWelcomeTemplate();
+        if (template == null) {
             return;
         }
 
-        Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
-        msg.setTargetObjectId(leadRecord.Id);
-        msg.setTemplateId(templateId);
-        msg.setSaveAsActivity(true);
+        // Build link: label + ?id=<leadId>
+        String projectRequestLink =
+            System.Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
 
+        // Build recipient name
+        String leadName = ((leadRecord.FirstName != null ? leadRecord.FirstName + ' ' : '')
+                        + leadRecord.LastName);
+
+        // Build token data (new object to avoid long parameter list)
+        WelcomeTokenData data = new WelcomeTokenData();
+        data.name        = leadName;
+        data.email       = leadRecord.Email;
+        data.phone       = leadRecord.Phone;
+        data.projectLink = projectRequestLink;
+
+        // Start from template values
+        String subject  = template.Subject;
+        String textBody = template.Body;
+        String htmlBody = template.HtmlValue;
+
+        // Replace tokens in subject and bodies
+        subject  = replaceWelcomeTokens(subject,  data);
+        textBody = replaceWelcomeTokens(textBody, data);
+        htmlBody = replaceWelcomeTokens(htmlBody, data);
+
+        Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
+        msg.setToAddresses(new List<String>{ leadRecord.Email });
+
+        if (String.isNotBlank(subject)) {
+            msg.setSubject(subject);
+        }
+
+        // Prefer HTML when available
+        if (String.isNotBlank(htmlBody)) {
+            msg.setHtmlBody(htmlBody);
+        } else {
+            msg.setPlainTextBody(textBody);
+        }
+
+        msg.setSaveAsActivity(true);
         setOrgWideAddressForGuest(msg);
+
         Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
     }
+
+    /** Small DTO to prevent long-parameter-list PMD issue */
+    private class WelcomeTokenData {
+        String name;
+        String email;
+        String phone;
+        String projectLink;
+    }
+
+    /**
+     * @description Replaces custom welcome tokens in the template.
+     * Supported tokens:
+     *  - {{{Recipient.Name}}}
+     *  - {{{Recipient.Email}}}
+     *  - {{{Recipient.Phone}}}
+     *  - {{{ProjectRequestLink}}}
+     */
+    private static String replaceWelcomeTokens(String source, WelcomeTokenData data) {
+        if (String.isBlank(source)) {
+            return source;
+        }
+
+        String result = source;
+
+        result = result.replace('{{{Recipient.Name}}}',  data.name);
+        result = result.replace('{{{Recipient.Email}}}', data.email  == null ? '' : data.email);
+        result = result.replace('{{{Recipient.Phone}}}', data.phone == null ? '' : data.phone);
+        result = result.replace('{{{ProjectRequestLink}}}', data.projectLink);
+
+        return result;
+    }
+
 
     // ----------------------------------------------------------------------
     // Helpers – Validation, CRUD, and configuration
@@ -256,28 +324,24 @@ public without sharing class RegistrationFormController {
     }
 
     /**
-     * @description Returns the welcome email template Id configured via
+     * @description Returns the welcome email template (full record) configured via
      * custom label Registration_Welcome_Template_DevName.
-     * @return Id of welcome email template, or null if not found.
      */
     @SuppressWarnings('PMD.ApexCRUDViolation')
-    private static Id getWelcomeTemplateId() {
-        if (cachedWelcomeTemplateId != null) {
-            return cachedWelcomeTemplateId;
-        }
-
+    private static EmailTemplate getWelcomeTemplate() {
         String devName = System.Label.Registration_Welcome_Template_DevName;
         if (String.isBlank(devName)) {
             return null;
         }
 
-        List<EmailTemplate> templates = [SELECT Id FROM EmailTemplate
-            WHERE DeveloperName = :devName LIMIT 1];
+        List<EmailTemplate> templates = [
+            SELECT Id, Subject, Body, HtmlValue
+            FROM EmailTemplate
+            WHERE DeveloperName = :devName
+            LIMIT 1
+        ];
 
-        if (!templates.isEmpty()) {
-            cachedWelcomeTemplateId = templates[0].Id;
-        }
-        return cachedWelcomeTemplateId;
+        return templates.isEmpty() ? null : templates[0];
     }
 
     /**

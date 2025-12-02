@@ -25,8 +25,10 @@ private class RegistrationFormControllerTest {
                 Name          = 'Test Welcome Template',
                 DeveloperName = welcomeDevName,
                 FolderId      = folderId,
-                Subject       = 'Welcome, {!Lead.FirstName}!',
-                Body          = 'Welcome to Arelia Living, {!Lead.FirstName}.',
+                // Subject/body don’t need custom tokens for coverage
+                Subject       = 'Welcome, {{{Recipient.Name}}}!',
+                Body          = 'Hi {{{Recipient.Name}}}, your email is {{{Recipient.Email}}} and ' +
+                                'phone is {{{Recipient.Phone}}}. Link: {{{ProjectRequestLink}}}',
                 TemplateType  = 'text',   // no BrandTemplate / Letterhead needed
                 IsActive      = true
             );
@@ -133,6 +135,25 @@ private class RegistrationFormControllerTest {
         System.assert(thrown, 'AuraHandledException should be thrown for invalid email.');
     }
 
+    // NEW: covers validateEmail() branch where email is BLANK
+    @IsTest
+    private static void testRegisterLeadBlankEmail() {
+        Map<String, Object> payload = new Map<String, Object>{
+            'firstName' => 'John',
+            'lastName'  => 'Doe',
+            'email'     => '   ',           // blank after trim
+            'phone'     => '9999999999'
+        };
+
+        Boolean thrown = false;
+        try {
+            RegistrationFormController.registerLead(payload);
+        } catch (AuraHandledException e) {
+            thrown = true;
+        }
+        System.assert(thrown, 'AuraHandledException should be thrown for blank email.');
+    }
+
     // ----------------------------------------------------------------------
     // sendVerificationEmail – positive
     // ----------------------------------------------------------------------
@@ -176,5 +197,17 @@ private class RegistrationFormControllerTest {
             thrown = true;
         }
         System.assert(thrown, 'AuraHandledException should be thrown for invalid email.');
+    }
+
+    // NEW: explicitly covers validateEmail() BLANK branch for verification API
+    @IsTest
+    private static void testSendVerificationEmailBlankEmail() {
+        Boolean thrown = false;
+        try {
+            RegistrationFormController.sendVerificationEmail('   ', '123456');
+        } catch (AuraHandledException e) {
+            thrown = true;
+        }
+        System.assert(thrown, 'AuraHandledException should be thrown for blank email.');
     }
 }

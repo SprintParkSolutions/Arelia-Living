@@ -1,6 +1,7 @@
 .app-shell {
     min-height: 100vh;
-    background: #f1e7c9; /* soft beige */
+    background: #f1e7c9;
+    /* soft beige */
     display: flex;
     justify-content: center;
     padding: 2rem 1rem;
@@ -42,8 +43,13 @@
 }
 
 @keyframes bar-slide {
-    0% { background-position: 0% 0; }
-    100% { background-position: 200% 0; }
+    0% {
+        background-position: 0% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
 }
 
 /* Card */
