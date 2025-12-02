@@ -1,11 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
     <labels>
+        <fullName>Arelia_Living_Enrollment_Members</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Enrollment Members</shortDescription>
+        <value>Monikag@sprintpark.com</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Project_Request_Page_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Project Request Page URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/project-request-page</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Site_Label</fullName>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Arelia Site Label</shortDescription>
         <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/</value>
+    </labels>
+    <labels>
+        <fullName>Registration_Enrollment_Template_DevName</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Registration_Enrollment_Template_DevName</shortDescription>
+        <value>Arelia_Living_Registration_Enrollment_Template</value>
     </labels>
     <labels>
         <fullName>Registration_Verification_From_Address</fullName>
