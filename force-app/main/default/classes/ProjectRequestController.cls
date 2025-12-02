@@ -7,7 +7,7 @@ public without sharing class ProjectRequestController {
     public static List<String> getProjectQuotationTypeValues() {
         List<String> values = new List<String>();
 
-        // Describe the picklist field
+        // Describe the picklist fields
         Schema.DescribeFieldResult fieldResult = Lead.Project_Request_Quotation_Type__c.getDescribe();
         
         // Extract values
