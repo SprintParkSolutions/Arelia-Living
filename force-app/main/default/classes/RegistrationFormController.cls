@@ -43,6 +43,7 @@ public without sharing class RegistrationFormController {
             throw new AuraHandledException('Verification code is required.');
         }
     }
+    // system.debug('Custom Debug: ' + 'test debug');
 
     /**
      * @description Returns a verification email template and validates that it is usable.
