@@ -33,7 +33,7 @@ public without sharing class RegistrationFormController {
 
         Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
     }
-
+// system.debug('Custom Debug: ' + 'test debug');
     /**
      * @description Ensures verification code is not blank.
      * @param verificationCode Generated OTP.
