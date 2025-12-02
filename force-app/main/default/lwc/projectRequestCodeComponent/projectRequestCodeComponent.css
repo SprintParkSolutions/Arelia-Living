@@ -1,0 +1,164 @@
+.card {
+    border-radius: 14px;
+    background: white;
+    padding: 1.7rem;
+    margin: 1rem;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.10);
+    transition: transform .3s ease, box-shadow .3s ease;
+    text-align: center;
+}
+
+.title {
+    font-size: 1.35rem;
+    font-weight: 600;
+    margin-bottom: 0.8rem;
+}
+
+/* Description bullets */
+.description {
+    margin-bottom: 0.5rem;
+    text-align: left;
+    display: inline-block;
+}
+
+.description ul {
+    padding-left: 0;
+    margin: 0;
+}
+
+.description li {
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: flex-start;
+}
+
+.bullet-icon {
+    color: #1b96ff;
+    font-weight: bold;
+    margin-right: 0.6rem;
+    flex-shrink: 0;
+    font-size: 1rem;
+}
+
+/* Center the radio options container */
+.options-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+/* Radio row container */
+.radio-row {
+    position: relative;
+    margin: 0.5rem 0;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .2s ease, box-shadow .2s ease;
+    display: flex;
+    justify-content: center;
+    width: auto;
+}
+
+.radio-row:hover {
+    background: #f1f5fe;
+    box-shadow: inset 0 0 0 1px #d4ddf5;
+}
+
+/* Label with proper alignment */
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    position: relative;
+}
+
+/* Radio input circle */
+.radio-label input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+/* SLDS faux radio fallback */
+.slds-radio_faux {
+    width: 18px;
+    height: 18px;
+}
+
+/* Label text */
+.label-text {
+    font-size: 1rem;
+    line-height: 1.2rem;
+}
+
+/* Check icon aligned to the right */
+.check-icon {
+    margin-left: auto;
+    color: #1b96ff;
+    font-size: 1rem;
+    opacity: 0;
+    transform: scale(0.5);
+    animation: checkPop .35s ease forwards;
+}
+
+/****************************
+    RIPPLE EFFECT
+*****************************/
+.ripple {
+    position: absolute;
+    background: rgba(27, 150, 255, 0.3);
+    border-radius: 50%;
+    transform: scale(0);
+    opacity: 0;
+    pointer-events: none;
+    width: 120px;
+    height: 120px;
+    top: -35px;
+    left: -35px;
+}
+
+.ripple.run {
+    animation: rippleAnim .6s ease-out forwards;
+}
+
+/****************************
+    SELECTED TEXT
+*****************************/
+.selected-text {
+    color: #1b7e38;
+    font-weight: 600;
+    margin-top: 0.7rem;
+}
+
+/****************************
+    ANIMATIONS
+*****************************/
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.animate-fade-in {
+    animation: fadeIn .6s ease-out;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+    animation: slideUp .7s ease-out;
+}
+
+.animate-stagger {
+    opacity: 0;
+    animation: fadeIn .8s ease-out forwards;
+}
+
+.stagger-0 { animation-delay: 0s; }
+.stagger-1 { animation-delay: 0.15s; }
+.stagger-2 { animation-delay: 0.3s; }
+.stagger-3 { animation-delay: 0.45s; }
+.stagger-4 { animation-delay: 0.6s; }
+.stagger-5 { animation-delay: 0.75s; }
