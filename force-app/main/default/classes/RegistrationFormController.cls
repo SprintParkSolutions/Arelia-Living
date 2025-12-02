@@ -96,6 +96,7 @@ public without sharing class RegistrationFormController {
             msg.setHtmlBody(htmlBody);
         } else {
             msg.setPlainTextBody(textBody);
+            //System.debug('Hello');
         }
 
         return msg;
