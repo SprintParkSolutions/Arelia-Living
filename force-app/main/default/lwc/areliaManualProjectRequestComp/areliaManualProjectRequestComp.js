@@ -2,7 +2,7 @@ import { LightningElement, track } from 'lwc';
 import createLead from '@salesforce/apex/Arelia_ManualProjectRequestController.createLead';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
-export default class Arelia_ManualProjectRequestComp extends LightningElement {
+export default class AreliaManualProjectRequestComp extends LightningElement {
     @track firstName = '';
     @track lastName = '';
     @track email = '';
