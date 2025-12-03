@@ -9,7 +9,7 @@
  * @company     Arelia Living
  * @version     1.0
  */
-public with sharing class Arelia_ManualProjectRequestController {
+public without sharing class Arelia_ManualProjectRequestController {
 
     /**
      * @description Creates a new Lead record in the system using the provided field values.
@@ -29,8 +29,25 @@ public with sharing class Arelia_ManualProjectRequestController {
      * @return                  The ID of the newly created Lead record.
      * @throws                  AuraHandledException If DML operation fails or another unexpected error occurs.
      */
+    @AuraEnabled(cacheable=true)
+    public static Lead getLeadById(Id leadId) {
+        List<Lead> leads = [
+            SELECT Id, FirstName, LastName, Email, Phone, Company, Customer_Budget__c, 
+                   Type_Of_Project__c, Project_Scope__c, Project_Description__c, Site_Location__c
+            FROM Lead
+            WHERE Id = :leadId
+            LIMIT 1
+        ];
+        
+        if (!leads.isEmpty()) {
+            return leads[0];
+        }
+        return null; // No lead found
+    }
+
     @AuraEnabled
-    public static String createLead(
+    public static void updateLead(
+        Id leadId,
         String firstName, 
         String lastName, 
         String email, 
@@ -42,25 +59,19 @@ public with sharing class Arelia_ManualProjectRequestController {
         String projectDescription,
         String siteLocation
     ) {
-        try {
-            Lead newLeadRecord = new Lead(
-                FirstName = firstName,
-                LastName = lastName,
-                Email = email,
-                Phone = phone,
-                Company = company,
-                Customer_Budget__c = budget,
-                Type_Of_Project__c = typeOfProject,
-                Project_Scope__c = projectScope,
-                Project_Description__c = projectDescription,
-                Site_Location__c = siteLocation
-            );
+        Lead existingLead = [SELECT Id FROM Lead WHERE Id = :leadId LIMIT 1];
 
-            insert newLeadRecord;
-            return newLeadRecord.Id;
+        existingLead.FirstName = firstName;
+        existingLead.LastName = lastName;
+        existingLead.Email = email;
+        existingLead.Phone = phone;
+        existingLead.Type_Of_Project__c = typeOfProject;
+        existingLead.Project_Scope__c = projectScope;
+        existingLead.Company = company;
+        existingLead.Customer_Budget__c = budget;
+        existingLead.Project_Description__c = projectDescription;
+        existingLead.Site_Location__c = siteLocation;
 
-        } catch (Exception ex) {
-            throw new AuraHandledException('Unexpected error: ' + ex.getMessage());
-        }
+        update existingLead;
     }
 }
