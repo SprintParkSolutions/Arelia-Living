@@ -8,6 +8,13 @@
         <value>Monikag@sprintpark.com</value>
     </labels>
     <labels>
+        <fullName>Arelia_OWD</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia_OWD</shortDescription>
+        <value>nareshp@sprintpark.com</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Project_Request_Page_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -48,5 +55,12 @@
         <protected>false</protected>
         <shortDescription>Registration_Welcome_Template_DevName</shortDescription>
         <value>Registration_Welcome_Template</value>
+    </labels>
+    <labels>
+        <fullName>Site_Appointment_Link_Page</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Site_Appointment_Link_Page</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/appointment-approval</value>
     </labels>
 </CustomLabels>
