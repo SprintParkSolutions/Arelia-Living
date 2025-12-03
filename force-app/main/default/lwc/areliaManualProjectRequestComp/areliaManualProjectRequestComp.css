@@ -1,0 +1,207 @@
+/* Wrapper centers the form on a nice background */
+.form-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 4rem 1rem;
+    background: linear-gradient(120deg, #e0f7fa, #e8eaf6);
+}
+
+/* Lightning card container styling */
+lightning-card {
+    width: 100%;
+    max-width: 750px;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Main form container with glass-like effect */
+lightning-card .slds-card {
+    border: none !important;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.85);
+    /* translucent white */
+    backdrop-filter: blur(12px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+    padding: 2.5rem 2rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Hover lifts the entire form */
+lightning-card:hover .slds-card {
+    transform: scale(1.01);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Gradient bar across the top of the form */
+lightning-card .slds-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 10px;
+    width: 100%;
+    background: linear-gradient(90deg, #8e24aa, #3949ab, #00acc1);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+}
+
+/* Inputs and textarea spacing */
+lightning-input,
+lightning-textarea,
+lightning-combobox {
+    margin-bottom: 1.5rem;
+}
+
+/* Form label styling */
+lightning-input label,
+lightning-textarea label,
+lightning-combobox label {
+    font-weight: 600;
+    color: #3949ab;
+    font-size: 0.92rem;
+}
+
+/* Modern input box design */
+lightning-input input,
+lightning-textarea textarea,
+lightning-combobox .slds-combobox {
+    border-radius: 10px;
+    border: 1px solid #cfd8dc;
+    padding: 0.75rem 1rem;
+    background: #f9fbfc;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+}
+
+/* Input hover/focus states */
+lightning-input input:hover,
+lightning-textarea textarea:hover,
+lightning-combobox .slds-combobox:hover {
+    background: #ffffff;
+}
+
+lightning-input input:focus,
+lightning-textarea textarea:focus,
+lightning-combobox .slds-combobox:focus-within {
+    border-color: #5e35b1;
+    box-shadow: 0 0 6px rgba(94, 53, 177, 0.3);
+}
+
+/* Optional: subtle form section divider */
+.section-divider {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 1.5rem 0;
+    border-radius: 1px;
+}
+
+/* Card Design */
+.thank-you-card {
+    width: 100%;
+    max-width: 550px;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Header Design */
+.thank-you-header {
+    background-color: #388e3c;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+/* Body Styling */
+.thank-you-body {
+    padding: 2rem;
+    text-align: center;
+}
+
+.success-icon {
+    --slds-c-icon-color-foreground-default: #388e3c;
+    margin-bottom: 1rem;
+}
+
+.thank-you-text {
+    font-size: 1rem;
+    margin: 1rem 0 2rem;
+    color: #333;
+}
+
+.thank-you-close-btn {
+    font-weight: bold;
+}
+
+/* ====================== */
+/* 🌍 PHONE FIELD STYLING */
+/* ====================== */
+
+/* 🌍 PHONE FIELD FIX — FINAL VERSION */
+.phone-field {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ✅ Keep the input group perfectly aligned */
+.phone-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    height: 2.5rem; /* match other inputs */
+    margin-top: 0;
+}
+
+/* 📌 Input containers: no extra space inside */
+.phone-wrapper lightning-combobox::part(form-element),
+.phone-wrapper lightning-input::part(form-element) {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.phone-wrapper lightning-combobox::part(input-container),
+.phone-wrapper lightning-input::part(input-container) {
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    padding: 0 !important;
+}
+
+/* 📞 Inputs sizing */
+.country-box {
+    flex: 0 0 25%;
+    min-width: 90px;
+}
+
+.phone-box {
+    flex: 1;
+}
+
+/* Match styling */
+.phone-wrapper .slds-input {
+    border-radius: 10px;
+    background: #f9fbfc;
+    height: 2.5rem;
+    line-height: 2.5rem;
+}
+
+/* 🚨 Absolute positioning for error message */
+.phone-field .slds-form-element__help {
+    position: absolute;
+    top: calc(100% + 0.1rem);
+    left: 0;
+    font-size: 0.75rem;
+    color: #c23934; /* standard SLDS error red */
+    line-height: 1rem;
+}
+
+/* Prevent input shift */
+.phone-field .slds-form-element__control {
+    margin-bottom: 0 !important;
+}
