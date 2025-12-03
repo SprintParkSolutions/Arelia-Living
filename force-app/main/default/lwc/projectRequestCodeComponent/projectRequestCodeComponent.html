@@ -1,55 +1,66 @@
 <template>
-    <div class="card animate-fade-in">
 
-        <!-- Centered header -->
-        <h2 class="title animate-slide-up">Project Request Quotation Type</h2>
+    <!-- SCREEN 1: QUOTATION TYPE SELECTOR -->
+    <template if:true={showScreen1}>
+        <div class="card animate-fade-in">
 
-        <!-- Description / bullet points with custom icons -->
-        <div class="description animate-slide-up">
-            <ul>
-                <li><span class="bullet-icon">✔</span> Select the type of quotation you want to create.</li>
-                <li><span class="bullet-icon">✔</span> Manual quotation allows custom inputs.</li>
-                <li><span class="bullet-icon">✔</span> Automatic quotation uses default rules and pricing.</li>
-            </ul>
+            <h2 class="title animate-slide-up">Project Request Quotation Type</h2>
+
+            <div class="description animate-slide-up">
+                <ul>
+                    <li><span class="bullet-icon">✔</span> Select the type of quotation you want to create.</li>
+                    <li><span class="bullet-icon">✔</span> Manual quotation allows custom inputs.</li>
+                    <li><span class="bullet-icon">✔</span> Automatic quotation uses default rules and pricing.</li>
+                </ul>
+            </div>
+
+            <template if:true={options}>
+                <fieldset class="slds-form-element animate-slide-up">
+                    <div class="options-container">
+
+                        <template for:each={options} for:item="opt">
+                            <div key={opt.value} class={opt.cssClass} onclick={handleRipple}>
+
+                                <label class="radio-label">
+                                    <input 
+                                        type="radio"
+                                        name="quoteType"
+                                        value={opt.value}
+                                        onchange={handleChange}
+                                    />
+
+                                    <span class="label-text">{opt.label}</span>
+
+                                    <template if:true={opt.selected}>
+                                        <span class="check-icon">✔</span>
+                                    </template>
+
+                                    <span class="ripple"></span>
+                                </label>
+
+                            </div>
+                        </template>
+
+                    </div>
+                </fieldset>
+            </template>
+
+            <div class="next-button-wrapper animate-slide-up">
+                <lightning-button 
+                    variant="brand" 
+                    label="Next"
+                    onclick={goNext}
+                    disabled={disableNext}>
+                </lightning-button>
+            </div>
+
         </div>
+    </template>
 
-        <template if:true={options}>
-            <fieldset class="slds-form-element animate-slide-up">
 
-                <div class="slds-form-element__control options-container">
+    <!-- SCREEN 2: MANUAL PROJECT FORM -->
+    <template if:true={showScreen2}>
+        <c-arelia-manual-project-request-comp lead-id={leadId} onprevious={handlePrevious}></c-arelia-manual-project-request-comp>
+    </template>
 
-                    <template for:each={options} for:item="opt">
-                        <div key={opt.value} class={opt.cssClass} onclick={handleRipple}>
-
-                            <label class="radio-label">
-                                <input 
-                                    type="radio"
-                                    name="quoteType"
-                                    value={opt.value}
-                                    onchange={handleChange}
-                                />
-                                <span class="slds-radio_faux"></span>
-                                <span class="label-text">{opt.label}</span>
-
-                                <template if:true={opt.selected}>
-                                    <span class="check-icon">✔</span>
-                                </template>
-
-                                <span class="ripple"></span>
-                            </label>
-
-                        </div>
-                    </template>
-
-                </div>
-            </fieldset>
-        </template>
-
-        <template if:true={value}>
-            <p class="selected-text animate-slide-up">
-                Selected: <strong>{value}</strong>
-            </p>
-        </template>
-
-    </div>
 </template>

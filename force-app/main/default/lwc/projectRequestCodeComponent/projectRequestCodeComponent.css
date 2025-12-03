@@ -1,22 +1,22 @@
+/* CARD LAYOUT */
 .card {
     border-radius: 14px;
     background: white;
     padding: 1.7rem;
     margin: 1rem;
     box-shadow: 0 6px 16px rgba(0,0,0,0.10);
-    transition: transform .3s ease, box-shadow .3s ease;
     text-align: center;
 }
 
 .title {
     font-size: 1.35rem;
     font-weight: 600;
-    margin-bottom: 0.8rem;
+    margin-bottom: 1rem;
 }
 
-/* Description bullets */
+/* BULLETS */
 .description {
-    margin-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
     text-align: left;
     display: inline-block;
 }
@@ -27,38 +27,35 @@
 }
 
 .description li {
-    margin-bottom: 0.5rem;
     display: flex;
     align-items: flex-start;
+    margin-bottom: 0.5rem;
 }
 
 .bullet-icon {
     color: #1b96ff;
-    font-weight: bold;
+    font-size: 1rem;
     margin-right: 0.6rem;
     flex-shrink: 0;
-    font-size: 1rem;
 }
 
-/* Center the radio options container */
+/* RADIO OPTION CONTAINER */
 .options-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 100%;
 }
 
-/* Radio row container */
+/* RADIO ROW */
 .radio-row {
     position: relative;
     margin: 0.5rem 0;
     padding: 0.6rem 0.8rem;
     border-radius: 8px;
     cursor: pointer;
-    transition: background .2s ease, box-shadow .2s ease;
+    transition: 0.2s ease;
     display: flex;
     justify-content: center;
-    width: auto;
 }
 
 .radio-row:hover {
@@ -66,7 +63,7 @@
     box-shadow: inset 0 0 0 1px #d4ddf5;
 }
 
-/* Label with proper alignment */
+/* RADIO LABEL */
 .radio-label {
     display: flex;
     align-items: center;
@@ -74,38 +71,22 @@
     position: relative;
 }
 
-/* Radio input circle */
-.radio-label input[type="radio"] {
-    width: 18px;
-    height: 18px;
-    margin: 0;
-}
-
-/* SLDS faux radio fallback */
-.slds-radio_faux {
-    width: 18px;
-    height: 18px;
-}
-
-/* Label text */
+/* LABEL TEXT */
 .label-text {
     font-size: 1rem;
-    line-height: 1.2rem;
 }
 
-/* Check icon aligned to the right */
+/* SELECTED CHECK ICON */
 .check-icon {
-    margin-left: auto;
     color: #1b96ff;
+    margin-left: auto;
     font-size: 1rem;
     opacity: 0;
     transform: scale(0.5);
     animation: checkPop .35s ease forwards;
 }
 
-/****************************
-    RIPPLE EFFECT
-*****************************/
+/* RIPPLE EFFECT */
 .ripple {
     position: absolute;
     background: rgba(27, 150, 255, 0.3);
@@ -123,42 +104,34 @@
     animation: rippleAnim .6s ease-out forwards;
 }
 
-/****************************
-    SELECTED TEXT
-*****************************/
-.selected-text {
-    color: #1b7e38;
-    font-weight: 600;
-    margin-top: 0.7rem;
+/* NEXT BUTTON ALIGNMENT */
+.next-button-wrapper {
+    margin-top: 1.5rem;
+    text-align: center;
 }
 
-/****************************
-    ANIMATIONS
-*****************************/
+/* ANIMATION KEYFRAMES */
 @keyframes fadeIn {
     from { opacity: 0; }
     to   { opacity: 1; }
 }
-.animate-fade-in {
-    animation: fadeIn .6s ease-out;
-}
 
 @keyframes slideUp {
-    from { opacity: 0; transform: translateY(12px); }
+    from { opacity: 0; transform: translateY(14px); }
     to   { opacity: 1; transform: translateY(0); }
 }
-.animate-slide-up {
-    animation: slideUp .7s ease-out;
-}
 
-.animate-stagger {
-    opacity: 0;
-    animation: fadeIn .8s ease-out forwards;
-}
+.animate-fade-in { animation: fadeIn .6s ease-out; }
+.animate-slide-up { animation: slideUp .6s ease-out; }
 
+.animate-stagger { opacity: 0; animation: fadeIn .8s forwards; }
 .stagger-0 { animation-delay: 0s; }
 .stagger-1 { animation-delay: 0.15s; }
 .stagger-2 { animation-delay: 0.3s; }
 .stagger-3 { animation-delay: 0.45s; }
-.stagger-4 { animation-delay: 0.6s; }
-.stagger-5 { animation-delay: 0.75s; }
+
+/* CHECK POP */
+@keyframes checkPop {
+    0% { opacity: 0; transform: scale(0.5); }
+    100% { opacity: 1; transform: scale(1); }
+}

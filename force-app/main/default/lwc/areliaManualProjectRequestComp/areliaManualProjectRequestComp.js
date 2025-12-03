@@ -1,8 +1,10 @@
-import { LightningElement, track } from 'lwc';
-import createLead from '@salesforce/apex/Arelia_ManualProjectRequestController.createLead';
+import { LightningElement, api, track } from 'lwc';
+import getLeadById from '@salesforce/apex/Arelia_ManualProjectRequestController.getLeadById';
+import updateLead from '@salesforce/apex/Arelia_ManualProjectRequestController.updateLead';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 export default class AreliaManualProjectRequestComp extends LightningElement {
+    @api leadId; // Receive leadId from parent
     @track firstName = '';
     @track lastName = '';
     @track email = '';
@@ -14,13 +16,10 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
     @track typeOfProject = '';
     @track projectScope = '';
     @track projectScopeOptions = [];
-
     @track showForm = true;
     @track showSuccess = false;
-
-    @track countryCode = '+91'; // default India 🇮🇳
-    phoneNumber = '';
-
+    @track countryCode = '+91';
+    @track phoneNumber = '';
 
     projectTypeOptions = [
         { label: 'Home', value: 'Home' },
@@ -33,13 +32,7 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
         { label: '🇮🇳 +91 (India)', value: '+91' },
         { label: '🇺🇸 +1 (USA)', value: '+1' },
         { label: '🇬🇧 +44 (UK)', value: '+44' },
-        { label: '🇦🇪 +971 (UAE)', value: '+971' },
-        { label: '🇸🇬 +65 (Singapore)', value: '+65' },
-        { label: '🇦🇺 +61 (Australia)', value: '+61' },
-        { label: '🇨🇦 +1 (Canada)', value: '+1' },
-        { label: '🇩🇪 +49 (Germany)', value: '+49' },
-        { label: '🇫🇷 +33 (France)', value: '+33' },
-        { label: '🇯🇵 +81 (Japan)', value: '+81' }
+        { label: '🇦🇪 +971 (UAE)', value: '+971' }
     ];
 
     scopeMap = {
@@ -61,83 +54,58 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
         'Only Project Plan': []
     };
 
-
-    handleCountryChange(event) {
-        this.countryCode = event.detail.value;
-        this.updatePhone();
-    }
-
-    handlePhoneInput(event) {
-        this.phoneNumber = event.target.value;
-        this.updatePhone();
-
-        if (!this.validatePhone(this.countryCode, this.phoneNumber)) {
-            event.target.setCustomValidity('Invalid phone number for country');
-        } else {
-            event.target.setCustomValidity('');
-        }
-        event.target.reportValidity();
-    }
-
-    updatePhone() {
-        this.phone = `${this.countryCode} ${this.phoneNumber}`.trim();
-    }
-
-    validateEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
-
-    // 🚫 Block alphabetic input while typing in phone field
-    blockAlphabets(event) {
-        const key = event.key;
-        // Allow: digits, Backspace, Delete, Arrow keys, Tab
-        const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'];
-
-        if (!/^[0-9]$/.test(key) && !allowedKeys.includes(key)) {
-            event.preventDefault();
+    // Load lead details whenever leadId is set
+    renderedCallback() {
+        if (this.leadId && !this.hasLoaded) {
+            console.log('renderedCallback: leadId received ->', this.leadId);
+            this.loadLeadDetails();
+            this.hasLoaded = true;
         }
     }
 
-    validatePhone(countryCode, number) {
-        const trimmed = number.replace(/\D/g, ''); // remove spaces, hyphens
+    loadLeadDetails() {
+        console.log('loadLeadDetails called with leadId ->', this.leadId);
 
-        switch (countryCode) {
-            case '+91': // India 🇮🇳
-                return /^[6-9]\d{9}$/.test(trimmed); // starts 6-9 and total 10 digits
-            case '+1': // USA & Canada 🇺🇸🇨🇦
-                return /^[2-9]\d{9}$/.test(trimmed); // cannot start with 0 or 1
-            case '+44': // UK 🇬🇧
-                return /^7\d{9}$/.test(trimmed); // starts with 7, 10 digits
-            case '+971': // UAE 🇦🇪
-                return /^5\d{8}$/.test(trimmed); // 9 digits total
-            case '+65': // Singapore 🇸🇬
-                return /^[89]\d{7}$/.test(trimmed); // starts 8 or 9, 8 digits
-            case '+61': // Australia 🇦🇺
-                return /^4\d{8}$/.test(trimmed); // starts 4, 9 digits total
-            case '+49': // Germany 🇩🇪
-                return /^\d{10,13}$/.test(trimmed); // basic 10–13 digits
-            case '+33': // France 🇫🇷
-                return /^[67]\d{8}$/.test(trimmed); // starts 6 or 7, 9 digits total
-            case '+81': // Japan 🇯🇵
-                return /^\d{10}$/.test(trimmed); // 10 digits
-            default:
-                return trimmed.length >= 8; // fallback minimal rule
-        }
+        getLeadById({ leadId: this.leadId })
+            .then(result => {
+                console.log('Lead data received from Apex ->', result);
+
+                this.firstName = result.FirstName || '';
+                this.lastName = result.LastName || '';
+                this.email = result.Email || '';
+                this.phone = result.Phone || '';
+                this.company = result.Company || '';
+                this.budget = result.Customer_Budget__c || '';
+                this.typeOfProject = result.Type_Of_Project__c || '';
+                this.projectScope = result.Project_Scope__c || '';
+                this.projectDescription = result.Project_Description__c || '';
+                this.siteLocation = result.Site_Location__c || '';
+
+                // Extract country code and phone number
+                if (this.phone) {
+                    const match = this.phone.match(/^(\+\d+)\s?(.*)/);
+                    if (match) {
+                        this.countryCode = match[1];
+                        this.phoneNumber = match[2];
+                    } else {
+                        this.countryCode = '+91';
+                        this.phoneNumber = this.phone;
+                    }
+                }
+
+                if (this.typeOfProject) {
+                    this.projectScopeOptions = this.scopeMap[this.typeOfProject] || [];
+                }
+            })
+            .catch(error => {
+                console.error('Error loading Lead from Apex ->', error);
+            });
     }
 
     handleChange(event) {
         const { name, value } = event.target;
+        console.log(`handleChange: ${name} ->`, value);
         this[name] = value;
-
-        if (name === 'email' && value) {
-            if (!this.validateEmail(value)) {
-                event.target.setCustomValidity('Please enter a valid email address');
-            } else {
-                event.target.setCustomValidity('');
-            }
-            event.target.reportValidity();
-        }
 
         if (name === 'typeOfProject') {
             this.projectScopeOptions = this.scopeMap[value] || [];
@@ -145,81 +113,88 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
         }
     }
 
+    handleCountryChange(event) {
+        console.log('handleCountryChange ->', event.detail.value);
+        this.countryCode = event.detail.value;
+        this.updatePhone();
+    }
+
+    handlePhoneInput(event) {
+        console.log('handlePhoneInput ->', event.target.value);
+        this.phoneNumber = event.target.value;
+        this.updatePhone();
+    }
+
+    updatePhone() {
+        this.phone = `${this.countryCode} ${this.phoneNumber}`.trim();
+        console.log('updatePhone ->', this.phone);
+    }
+
     get isScopeDisabled() {
         return this.projectScopeOptions.length === 0;
     }
 
     submitLead() {
-         // 🚨 Email validation
-        if (!this.validateEmail(this.email)) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Invalid Email',
-                    message: 'Please enter a valid email address.',
-                    variant: 'error'
-                })
-            );
-            return;
-        }
-
-        // 🚨 Phone validation
-        const trimmedPhone = this.phoneNumber.trim();
-        if (!this.validatePhone(this.countryCode, trimmedPhone)) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Invalid Phone Number',
-                    message: `Please enter a valid phone number for ${this.countryCode}.`,
-                    variant: 'error'
-                })
-            );
-            return;
-        }
-        
-        createLead({
+        console.log('submitLead called with data ->', {
+            leadId: this.leadId,
             firstName: this.firstName,
             lastName: this.lastName,
             email: this.email,
             phone: this.phone,
+            company: this.company,
+            budget: this.budget,
+            siteLocation: this.siteLocation,
+            projectDescription: this.projectDescription,
             typeOfProject: this.typeOfProject,
-            projectScope: this.projectScope,
+            projectScope: this.projectScope
+        });
+
+        updateLead({
+            leadId: this.leadId,
+            firstName: this.firstName,
+            lastName: this.lastName,
+            email: this.email,
+            phone: this.phone,
             company: this.company,
             budget: parseFloat(this.budget),
             siteLocation: this.siteLocation,
-            projectDescription: this.projectDescription
+            projectDescription: this.projectDescription,
+            typeOfProject: this.typeOfProject,
+            projectScope: this.projectScope
         })
-            .then(result => {
+            .then(() => {
+                console.log('Lead updated successfully');
                 this.showForm = false;
                 this.showSuccess = true;
-                this.resetForm();
+
+                this.dispatchEvent(
+                    new ShowToastEvent({
+                        title: 'Success',
+                        message: 'Lead updated successfully!',
+                        variant: 'success'
+                    })
+                );
             })
             .catch(error => {
+                console.error('Error updating Lead ->', error);
                 this.dispatchEvent(
                     new ShowToastEvent({
                         title: 'Error',
-                        message: error.body.message,
+                        message: error.body ? error.body.message : 'Unknown error',
                         variant: 'error'
                     })
                 );
             });
     }
 
-    resetForm() {
-        this.firstName = '';
-        this.lastName = '';
-        this.email = '';
-        this.phone = '';
-        this.company = '';
-        this.budget = '';
-        this.siteLocation = '';
-        this.projectDescription = '';
-        this.typeOfProject = '';
-        this.projectScope = '';
-        this.countryCode = '+91';
-        this.phoneNumber = '';
-    }
-
     handleCloseSuccess() {
+        console.log('handleCloseSuccess called');
         this.showSuccess = false;
         this.showForm = true;
+    }
+
+    goToPrevious() {
+        console.log('Child: Dispatching previous event to parent');
+        this.dispatchEvent(new CustomEvent('previous'));
     }
 }

@@ -4,19 +4,26 @@
             <lightning-card title="🎨 Interior Project Request" icon-name="custom:custom63">
                 <div class="form-container slds-p-around_large">
                     <div class="slds-grid slds-wrap slds-gutters">
+
+                        <!-- First Name -->
                         <div class="slds-col slds-size_1-of-2">
                             <lightning-input label="👤 First Name" value={firstName} placeholder="Please Enter your First Name" onchange={handleChange}
-                                name="firstName"></lightning-input>
+                                name="firstName" readonly></lightning-input>
                         </div>
+
+                        <!-- Last Name -->
                         <div class="slds-col slds-size_1-of-2">
                             <lightning-input label="👤 Last Name" value={lastName} placeholder="Please Enter your Last Name" onchange={handleChange}
-                                name="lastName"></lightning-input>
+                                name="lastName" readonly></lightning-input>
                         </div>
+
+                        <!-- Email -->
                         <div class="slds-col slds-size_1-of-2">
                             <lightning-input label="📧 Email" type="email" value={email} placeholder="Please Enter your valid Email" onchange={handleChange}
-                                name="email"></lightning-input>
+                                name="email" readonly></lightning-input>
                         </div>
-                        <!-- 📞 Phone Field -->
+
+                        <!-- Phone -->
                         <div class="slds-col slds-size_1-of-2">
                             <div class="slds-form-element phone-field">
                                 <label class="slds-form-element__label" for="phoneField">📞 Phone</label>
@@ -26,19 +33,21 @@
                                         value={countryCode}
                                         options={countryOptions}
                                         onchange={handleCountryChange}
-                                        class="country-box">
+                                        class="country-box" disabled>
                                     </lightning-combobox>
                                     <lightning-input
                                         type="tel"
                                         placeholder="Enter your valid phone number"
+                                        value={phoneNumber}
                                         onchange={handlePhoneInput}
                                         onkeydown={blockAlphabets} 
-                                        class="phone-box">
+                                        class="phone-box" readonly>
                                     </lightning-input>
                                 </div>
                             </div>
                         </div>
-                        <!-- ✅ Project Type Dropdown -->
+
+                        <!-- Type of Project -->
                         <div class="slds-col slds-size_1-of-2">
                             <lightning-combobox name="typeOfProject" label="📐 Select the Type of Project"
                                 value={typeOfProject} placeholder="Please Select your Project Type"
@@ -46,33 +55,42 @@
                             </lightning-combobox>
                         </div>
 
-                        <!-- ✅ Project Scope Dropdown (Dependent) -->
+                        <!-- Project Scope -->
                         <div class="slds-col slds-size_1-of-2">
                             <lightning-combobox name="projectScope" label="🧱 Project Scope" value={projectScope}
                                 placeholder="Select Project Scope" options={projectScopeOptions} onchange={handleChange}
                                 disabled={isScopeDisabled}>
                             </lightning-combobox>
                         </div>
+
+                        <!-- Company -->
                         <div class="slds-col slds-size_1-of-2">
                             <lightning-input label="🏢 Company" value={company} placeholder="Enter your Company" onchange={handleChange}
                                 name="company"></lightning-input>
                         </div>
-                        
+
+                        <!-- Budget -->
                         <div class="slds-col slds-size_1-of-2">
                             <lightning-input label="💰 Budget" type="number" value={budget} placeholder="Enter your Budget for this Project" onchange={handleChange}
                                 name="budget"></lightning-input>
                         </div>
+
+                        <!-- Project Description -->
                         <div class="slds-col slds-size_1-of-1">
                             <lightning-textarea label="📝 Project Description" value={projectDescription} placeholder="Give us some brief about your project"
                                 onchange={handleChange} name="projectDescription"></lightning-textarea>
                         </div>
+
+                        <!-- Site Location -->
                         <div class="slds-col slds-size_1-of-1">
                             <lightning-textarea label="📝 Site Location" value={siteLocation} placeholder="Enter your Project Location" onchange={handleChange}
                                 name="siteLocation"></lightning-textarea>
                         </div>
                     </div>
+
                     <div class="slds-align_absolute-center slds-m-top_large">
-                        <lightning-button variant="brand" label="🎯 Submit Project Request" onclick={submitLead}
+                        <lightning-button variant="neutral" label="⬅ Previous" onclick={goToPrevious} class="slds-m-right_small"></lightning-button>
+                        <lightning-button variant="brand" label="🎯 Submit" onclick={submitLead}
                             class="submit-btn"></lightning-button>
                     </div>
                 </div>
@@ -88,8 +106,7 @@
                     <div class="thank-you-body">
                         <lightning-icon icon-name="utility:success" size="large" class="success-icon"
                             alternative-text="Success"></lightning-icon>
-                        <p class="thank-you-text">Your details have been successfully submitted.</p>
-                        <p class="thank-you-text">Arelia Team will contact you soon.</p>
+                        <p class="thank-you-text">Your project request has been submitted successfully. We will contact you for the further steps</p>
                         <lightning-button variant="brand" label="Close" onclick={handleCloseSuccess}
                             class="thank-you-close-btn"></lightning-button>
                     </div>

@@ -17,4 +17,11 @@ public without sharing class ProjectRequestController {
 
         return values;
     }
+
+    @AuraEnabled
+    public static void updateQuotationType(Id leadId, String quotationType) {
+        Lead l = [SELECT Id FROM Lead WHERE Id = :leadId LIMIT 1];
+        l.Project_Request_Quotation_Type__c = quotationType;
+        update l;
+    }
 }
