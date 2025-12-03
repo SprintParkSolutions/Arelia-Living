@@ -32,7 +32,8 @@
     align-items: flex-start;
     justify-content: space-between;
     padding: 1.3rem 1.8rem 1.1rem;
-    background: #faf5f0;           /* warm cream */
+    background: #faf5f0;
+    /* warm cream */
     color: #1f2933;
     border-bottom: 1px solid #e5e7eb;
     position: relative;
@@ -60,7 +61,8 @@
     align-items: center;
     padding: 0.18rem 0.7rem;
     border-radius: 999px;
-    background: #e6dbf3;          /* soft lavender */
+    background: #e6dbf3;
+    /* soft lavender */
     border: 1px solid #d4c4e6;
     font-size: 0.68rem;
     letter-spacing: 0.06em;
@@ -182,7 +184,8 @@
 
 /* Active / completed styling – warm taupe + sage */
 .step-item.active .step-circle {
-    border-color: #9a7b4f;         /* warm gold/taupe */
+    border-color: #9a7b4f;
+    /* warm gold/taupe */
     background: #9a7b4f;
     color: #f9fafb;
     box-shadow: 0 0 0 0 rgba(154, 123, 79, 0.4);
@@ -195,7 +198,8 @@
 }
 
 .step-item.completed .step-circle {
-    border-color: #7c8d7a;        /* sage */
+    border-color: #7c8d7a;
+    /* sage */
     background: #7c8d7a;
     color: #f9fafb;
 }
@@ -236,7 +240,8 @@
     width: 40px;
     height: 40px;
     border-radius: 999px;
-    background: #7c8d7a;          /* sage circle */
+    background: #7c8d7a;
+    /* sage circle */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -379,80 +384,121 @@
     background: #fafafa;
 }
 
-/* Success overlay */
+/* ---------- SUCCESS OVERLAY & CARD ---------- */
+
 .success-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(15, 23, 42, 0.45);
+    background: rgba(15, 23, 42, 0.35);
+    /* dim the main modal */
+    backdrop-filter: blur(4px);
+    /* soft blur behind */
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: overlay-fade 0.2s ease-out;
+    animation: overlay-fade 0.22s ease-out;
+    z-index: 20;
 }
 
 .success-box {
     background: #ffffff;
-    border-radius: 16px;
-    padding: 1.9rem 2.2rem 1.8rem;
-    max-width: 460px;
-    width: 90%;
+    border-radius: 20px;
+    padding: 2.2rem 2.6rem 2.1rem;
+    max-width: 520px;
+    width: 95%;
     text-align: center;
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.5);
+    box-shadow: 0 26px 55px rgba(15, 23, 42, 0.45);
     position: relative;
+    overflow: hidden;
+    animation: modal-appear 0.22s ease-out;
 }
 
-/* Success icon */
+/* soft highlight behind the top area */
+.success-box::before {
+    content: "";
+    position: absolute;
+    top: -140px;
+    left: 50%;
+    width: 320px;
+    height: 320px;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, rgba(148, 163, 184, 0.2), transparent 65%);
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+/* icon + glow */
 .success-icon-wrap {
     position: relative;
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 0.7rem;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.2rem;
 }
 
 .success-icon {
-    width: 56px;
-    height: 56px;
+    width: 80px;
+    height: 80px;
     border-radius: 999px;
     background: #7c8d7a;
+    /* sage */
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #f3f4f6;
-    font-size: 1.5rem;
+    color: #f9fafb;
+    font-size: 2.1rem;
     font-weight: 700;
     z-index: 1;
     position: relative;
-    box-shadow: 0 14px 32px rgba(124, 141, 122, 0.6);
+    box-shadow: 0 20px 40px rgba(124, 141, 122, 0.65);
 }
 
 .success-glow {
     position: absolute;
-    inset: -12px;
+    inset: -18px;
     border-radius: inherit;
-    background: radial-gradient(circle, rgba(124, 141, 122, 0.5), transparent 65%);
-    filter: blur(4px);
+    background: radial-gradient(circle, rgba(124, 141, 122, 0.45), transparent 65%);
+    filter: blur(6px);
     opacity: 0.9;
     z-index: 0;
 }
 
+/* text */
 .success-title {
-    margin: 0 0 0.5rem;
-    font-size: 1.35rem;
+    margin: 0 0 0.7rem;
+    font-size: 1.6rem;
     font-weight: 700;
     color: #111827;
 }
 
 .success-message {
-    margin: 0 0 0.4rem;
-    font-size: 0.95rem;
+    margin: 0 0 0.35rem;
+    font-size: 0.98rem;
+    line-height: 1.6;
     color: #4b5563;
 }
 
 .success-secondary {
-    margin: 0 0 1.1rem;
-    font-size: 0.83rem;
+    margin: 0 0 1.4rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
     color: #6b7280;
 }
+
+/* style the Close button inside the box */
+.success-box lightning-button .slds-button {
+    min-width: 110px;
+    border-radius: 999px;
+    background: #4b5e4e;
+    /* deep sage */
+    border-color: #4b5e4e;
+}
+
+.success-box lightning-button .slds-button:hover,
+.success-box lightning-button .slds-button:focus {
+    background: #3d4e41;
+    border-color: #3d4e41;
+}
+
 
 /* Animations */
 @keyframes modal-appear {
@@ -460,6 +506,7 @@
         opacity: 0;
         transform: translateY(10px) scale(0.97);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -470,9 +517,11 @@
     0% {
         box-shadow: 0 0 0 0 rgba(154, 123, 79, 0.4);
     }
+
     70% {
         box-shadow: 0 0 0 10px rgba(154, 123, 79, 0);
     }
+
     100% {
         box-shadow: 0 0 0 0 rgba(154, 123, 79, 0);
     }
@@ -482,6 +531,7 @@
     0% {
         background-position: 0% 0;
     }
+
     100% {
         background-position: 200% 0;
     }
@@ -491,6 +541,7 @@
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
