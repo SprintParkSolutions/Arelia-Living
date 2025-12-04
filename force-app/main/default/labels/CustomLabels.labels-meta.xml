@@ -8,10 +8,46 @@
         <value>Monikag@sprintpark.com</value>
     </labels>
     <labels>
-        <fullName>Arelia_OWD</fullName>
+        <fullName>Arelia_Living_Lead_Email_Template</fullName>
         <language>en_US</language>
         <protected>false</protected>
-        <shortDescription>Arelia_OWD</shortDescription>
+        <shortDescription>Arelia Living Lead Email Template</shortDescription>
+        <value>Details_To_Lead</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Lead_Site_Visiting_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Lead Site Visiting Email Template</shortDescription>
+        <value>Lead_Site_Visiting_Email_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Management_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Management Email Template</shortDescription>
+        <value>Details_To_Management</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Supervisor_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Supervisor Email Template</shortDescription>
+        <value>Assign_Lead_to_Supervisior_Email_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Supervisor_Site_Visiting_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Supervisor Site Visiting Email Template</shortDescription>
+        <value>Supervisor_Site_Visiting_Email_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_OWD</fullName>
+        <categories>It is used to send email as a from address.</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia OWD</shortDescription>
         <value>nareshp@sprintpark.com</value>
     </labels>
     <labels>
@@ -20,6 +56,13 @@
         <protected>false</protected>
         <shortDescription>Arelia Project Request Page URL</shortDescription>
         <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/project-request-page</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Queue_Name</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Queue Name</shortDescription>
+        <value>Arelia_Customers_Queue</value>
     </labels>
     <labels>
         <fullName>Arelia_Site_Label</fullName>
@@ -60,7 +103,7 @@
         <fullName>Site_Appointment_Link_Page</fullName>
         <language>en_US</language>
         <protected>false</protected>
-        <shortDescription>Site_Appointment_Link_Page</shortDescription>
-        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/appointment-approval</value>
+        <shortDescription>Site Appointment Link Page</shortDescription>
+        <value>arelia-appointment-approval</value>
     </labels>
 </CustomLabels>
