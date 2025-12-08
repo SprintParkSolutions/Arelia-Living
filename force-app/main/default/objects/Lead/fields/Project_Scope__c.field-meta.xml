@@ -6,6 +6,7 @@
     <trackFeedHistory>false</trackFeedHistory>
     <type>Picklist</type>
     <valueSet>
+        <controllingField>Type_Of_Project__c</controllingField>
         <restricted>true</restricted>
         <valueSetDefinition>
             <sorted>false</sorted>
@@ -65,5 +66,49 @@
                 <label>Cabins</label>
             </value>
         </valueSetDefinition>
+        <valueSettings>
+            <controllingFieldValue>Home</controllingFieldValue>
+            <valueName>Full Home Interiors</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Home</controllingFieldValue>
+            <valueName>Home Decor</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Home</controllingFieldValue>
+            <valueName>Kitchen</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Home</controllingFieldValue>
+            <valueName>Bed Room</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Home</controllingFieldValue>
+            <valueName>Hall Interior</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Office</controllingFieldValue>
+            <valueName>Conference Hall</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Office</controllingFieldValue>
+            <valueName>Fully Office Interiors</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Office</controllingFieldValue>
+            <valueName>Office Decor</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Office</controllingFieldValue>
+            <valueName>Office Space</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Office</controllingFieldValue>
+            <valueName>Dining Hall</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Office</controllingFieldValue>
+            <valueName>Cabins</valueName>
+        </valueSettings>
     </valueSet>
 </CustomField>
