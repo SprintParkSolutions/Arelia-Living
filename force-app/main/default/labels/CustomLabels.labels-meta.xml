@@ -8,6 +8,13 @@
         <value>Monikag@sprintpark.com</value>
     </labels>
     <labels>
+        <fullName>Arelia_Living_Lead_Conversion_Approval_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Lead Conversion Approval Email Template</shortDescription>
+        <value>Lead_Conversion_Approval_Email_Template</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Lead_Email_Template</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -29,6 +36,27 @@
         <value>Details_To_Management</value>
     </labels>
     <labels>
+        <fullName>Arelia_Living_Opportunity_Re_Visit_Site_Manager_Approval_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Opportunity Re-Visit Site Manager Approval Email Template</shortDescription>
+        <value>Opportunity_Re_Visit_Site_Manager_Approval_Email_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Site_Visit_Approval_by_Manager_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Site Visit Approval by Manager Template</shortDescription>
+        <value>Site_Visit_Approval_by_Manager_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Site_Visit_Negotation_by_Manager_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Site Visit Negotation by Manager Template</shortDescription>
+        <value>Site_Visit_Negotation_by_Manager_Template</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Supervisor_Email_Template</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -48,14 +76,14 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Arelia OWD</shortDescription>
-        <value>nareshp@sprintpark.com</value>
+        <value>monikag@sprintpark.com</value>
     </labels>
     <labels>
         <fullName>Arelia_Project_Request_Page_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Arelia Project Request Page URL</shortDescription>
-        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/project-request-page</value>
+        <value>project-request-page</value>
     </labels>
     <labels>
         <fullName>Arelia_Queue_Name</fullName>
