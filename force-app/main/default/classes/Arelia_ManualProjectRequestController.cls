@@ -5,6 +5,7 @@
  *                - Returns dynamic picklist values for Type_Of_Project__c
  *                - Updates Lead with project info and quotation type
  */
+@SuppressWarnings('PMD.CognitiveComplexity')
 public without sharing class Arelia_ManualProjectRequestController {
 
     /**
@@ -49,6 +50,7 @@ public without sharing class Arelia_ManualProjectRequestController {
      *              Uses a payload map to avoid ExcessiveParameterList PMD rule.
      *              Also prevents second submission using Project_Request_Submitted__c.
      */
+    @SuppressWarnings('PMD.ApexCRUDViolation')
     @AuraEnabled
     public static void updateLead(Map<String, Object> payload) {
         // No payload / no lead – nothing to do (fail silently for UI)
@@ -97,7 +99,6 @@ public without sharing class Arelia_ManualProjectRequestController {
         } else {
             existingLead.Customer_Budget__c = null;
         }
-
         // ---- Mark as submitted (first successfully saved submission) ----
         existingLead.Project_Request_Submitted__c = true;
 
