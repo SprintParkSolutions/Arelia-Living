@@ -47,8 +47,8 @@ public with sharing class ScheduleAppointmentController {
 
             String formattedDate = selectedDate.format();
 
-            EmailTemplate leadTemplate = fetchTemplate('Lead_Site_Visiting_Email_Template');
-            EmailTemplate supervisorTemplate = fetchTemplate('Supervisor_Site_Visiting_Email_Template');
+            EmailTemplate leadTemplate = fetchTemplate(Label.Arelia_Living_Lead_Site_Visiting_Email_Template);
+            EmailTemplate supervisorTemplate = fetchTemplate(Label.Arelia_Living_Supervisor_Site_Visiting_Email_Template);
 
             List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>{
                 prepareLeadEmail(lead, leadTemplate, formattedDate, slot,appointmentType),
@@ -165,7 +165,7 @@ public with sharing class ScheduleAppointmentController {
      */
     private static Messaging.SingleEmailMessage prepareLeadEmail(Lead lead, EmailTemplate template, String formattedDate, String timeSlot, String appointmentType) {
         String leadName = lead.FirstName + ' ' + lead.LastName;
-        String approvalLink = Label.Site_Appointment_Link_Page + '?id=' + lead.Id;
+        String approvalLink = Label.Arelia_Site_Label+ Label.Site_Appointment_Link_Page + '?id=' + lead.Id;
 
         String htmlBody = template.HtmlValue
             .replace('{{{Recipient.Name}}}', leadName)

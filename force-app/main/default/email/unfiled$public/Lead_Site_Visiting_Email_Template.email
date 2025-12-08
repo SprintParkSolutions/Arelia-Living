@@ -14,7 +14,7 @@ Mobile Number: <strong>{{{Supervisor_User__c.Phone}}}&nbsp;</strong><br />
 <br />
 Your appointment is scheduled on&nbsp;</span></span><strong>{{{appointmentDate}}} </strong>at&nbsp;<strong>{{{timeSlot}}}</strong><br />
 <br />
-<span style="font-size:16px;"><span style="font-family:Times New Roman,Times New Roman,Times,serif;">To confirm or reject this appointment, please click the following:</span></span><a href="{{{appointmentApprovalLink}}}">Link</a><br />
+<span style="font-size:16px;"><span style="font-family:Times New Roman,Times New Roman,Times,serif;">To confirm or reject this appointment, please click the following:&nbsp;</span></span><a href="{{{appointmentApprovalLink}}}">Link</a><br />
 <br />
 <br />
 <span style="font-size:16px;"><span style="font-family:Times New Roman,Times New Roman,Times,serif;">We look forward to assisting you in bringing your vision to life.<br />
