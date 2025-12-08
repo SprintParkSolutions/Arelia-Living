@@ -273,12 +273,9 @@ export default class RegistrationPopupForm extends LightningElement {
         this.closeModal();
     }
 
-    // ---------- Validation ----------
     validateEmailField() {
+        // Try to find the input (it exists only on Step 1)
         const input = this.template.querySelector('[data-id="emailInput"]');
-        if (!input) {
-            return false;
-        }
 
         const value = (this.email || '').trim();
         let message = '';
@@ -289,16 +286,17 @@ export default class RegistrationPopupForm extends LightningElement {
             message = 'Enter a valid email address (e.g. name@example.com).';
         }
 
-        input.setCustomValidity(message);
-        input.reportValidity();
+        // When we are on Step 1, show the error on the field
+        if (input) {
+            input.setCustomValidity(message);
+            input.reportValidity();
+        }
         return !message;
     }
 
     validatePhoneField() {
+        // Input exists only on Step 1
         const input = this.template.querySelector('[data-id="phoneInput"]');
-        if (!input) {
-            return false;
-        }
 
         const digits = this.getPhoneDigits();
         let message = '';
@@ -309,10 +307,16 @@ export default class RegistrationPopupForm extends LightningElement {
             message = 'Enter a 10-digit mobile number.';
         }
 
-        input.setCustomValidity(message);
-        input.reportValidity();
+        // Show field-level error only when the input is in the DOM (Step 1)
+        if (input) {
+            input.setCustomValidity(message);
+            input.reportValidity();
+        }
+
+        // On Step 2 this still validates based on stored value in this.phone
         return !message;
     }
+
 
     getPhoneDigits() {
         return (this.phone || '').replace(/\D/g, '');
