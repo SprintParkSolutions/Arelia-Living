@@ -1,10 +1,18 @@
-import { LightningElement, api, track } from 'lwc';
-import getLeadById from '@salesforce/apex/Arelia_ManualProjectRequestController.getLeadById';
-import updateLead from '@salesforce/apex/Arelia_ManualProjectRequestController.updateLead';
+import { LightningElement, api, track, wire } from 'lwc';
+import getLeadById
+    from '@salesforce/apex/Arelia_ManualProjectRequestController.getLeadById';
+import getTypeOfProjectPicklistValues
+    from '@salesforce/apex/Arelia_ManualProjectRequestController.getTypeOfProjectPicklistValues';
+import updateLead
+    from '@salesforce/apex/Arelia_ManualProjectRequestController.updateLead';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import Arelia_Site_Label from '@salesforce/label/c.Arelia_Site_Label';
+
 
 export default class AreliaManualProjectRequestComp extends LightningElement {
-    @api leadId; // Receive leadId from parent
+    @api leadId;
+    @api quotationType;
+
     @track firstName = '';
     @track lastName = '';
     @track email = '';
@@ -16,25 +24,15 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
     @track typeOfProject = '';
     @track projectScope = '';
     @track projectScopeOptions = [];
+    @track projectTypeOptions = [];
     @track showForm = true;
     @track showSuccess = false;
     @track countryCode = '+91';
     @track phoneNumber = '';
 
-    projectTypeOptions = [
-        { label: 'Home', value: 'Home' },
-        { label: 'Office', value: 'Office' },
-        { label: 'Only Project Plan', value: 'Only Project Plan' },
-        { label: 'Other', value: 'Other' }
-    ];
+    hasLoaded = false;
 
-    countryOptions = [
-        { label: '🇮🇳 +91 (India)', value: '+91' },
-        { label: '🇺🇸 +1 (USA)', value: '+1' },
-        { label: '🇬🇧 +44 (UK)', value: '+44' },
-        { label: '🇦🇪 +971 (UAE)', value: '+971' }
-    ];
-
+    // Static dependency map as you requested
     scopeMap = {
         Home: [
             { label: 'Full Home Interiors', value: 'Full Home Interiors' },
@@ -54,21 +52,47 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
         'Only Project Plan': []
     };
 
-    // Load lead details whenever leadId is set
-    renderedCallback() {
-        if (this.leadId && !this.hasLoaded) {
-            console.log('renderedCallback: leadId received ->', this.leadId);
-            this.loadLeadDetails();
-            this.hasLoaded = true;
+    countryOptions = [
+        { label: '+91 (India)', value: '+91' },
+        { label: '+1 (USA)', value: '+1' },
+        { label: '+44 (UK)', value: '+44' },
+        { label: '+971 (UAE)', value: '+971' }
+    ];
+
+    // 🔹 Dynamic Type_Of_Project__c picklist
+    @wire(getTypeOfProjectPicklistValues)
+    wiredTypePicklist({ data, error }) {
+        if (data) {
+            this.projectTypeOptions = data.map((label) => ({
+                label,
+                value: label
+            }));
+
+            // If Lead already has a type, ensure scope options are in sync
+            if (this.typeOfProject) {
+                this.projectScopeOptions = this.scopeMap[this.typeOfProject] || [];
+            }
+        } else if (error) {
+            // eslint-disable-next-line no-console
+            console.error('Error loading Type_Of_Project__c picklist', error);
         }
     }
 
-    loadLeadDetails() {
-        console.log('loadLeadDetails called with leadId ->', this.leadId);
+    // Load lead only once when leadId is set
+    renderedCallback() {
+        if (!this.leadId || this.hasLoaded) {
+            return;
+        }
+        this.hasLoaded = true;
+        this.loadLeadDetails();
+    }
 
+    loadLeadDetails() {
         getLeadById({ leadId: this.leadId })
-            .then(result => {
-                console.log('Lead data received from Apex ->', result);
+            .then((result) => {
+                if (!result) {
+                    return;
+                }
 
                 this.firstName = result.FirstName || '';
                 this.lastName = result.LastName || '';
@@ -81,7 +105,7 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
                 this.projectDescription = result.Project_Description__c || '';
                 this.siteLocation = result.Site_Location__c || '';
 
-                // Extract country code and phone number
+                // Split phone into countryCode + number if possible
                 if (this.phone) {
                     const match = this.phone.match(/^(\+\d+)\s?(.*)/);
                     if (match) {
@@ -93,18 +117,19 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
                     }
                 }
 
+                // If type already has a value, set scope options from static map
                 if (this.typeOfProject) {
                     this.projectScopeOptions = this.scopeMap[this.typeOfProject] || [];
                 }
             })
-            .catch(error => {
-                console.error('Error loading Lead from Apex ->', error);
+            .catch((error) => {
+                // eslint-disable-next-line no-console
+                console.error('Error loading Lead from Apex', error);
             });
     }
 
     handleChange(event) {
         const { name, value } = event.target;
-        console.log(`handleChange: ${name} ->`, value);
         this[name] = value;
 
         if (name === 'typeOfProject') {
@@ -114,20 +139,17 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
     }
 
     handleCountryChange(event) {
-        console.log('handleCountryChange ->', event.detail.value);
         this.countryCode = event.detail.value;
         this.updatePhone();
     }
 
     handlePhoneInput(event) {
-        console.log('handlePhoneInput ->', event.target.value);
         this.phoneNumber = event.target.value;
         this.updatePhone();
     }
 
     updatePhone() {
         this.phone = `${this.countryCode} ${this.phoneNumber}`.trim();
-        console.log('updatePhone ->', this.phone);
     }
 
     get isScopeDisabled() {
@@ -135,66 +157,76 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
     }
 
     submitLead() {
-        console.log('submitLead called with data ->', {
-            leadId: this.leadId,
-            firstName: this.firstName,
-            lastName: this.lastName,
-            email: this.email,
-            phone: this.phone,
-            company: this.company,
-            budget: this.budget,
-            siteLocation: this.siteLocation,
-            projectDescription: this.projectDescription,
-            typeOfProject: this.typeOfProject,
-            projectScope: this.projectScope
-        });
+        if (!this.leadId) {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Missing Lead',
+                    message:
+                        'Lead Id is not available. Please open this page from a valid project link.',
+                    variant: 'error'
+                })
+            );
+            return;
+        }
 
-        updateLead({
+        const numericBudget =
+            this.budget && this.budget !== '' ? parseFloat(this.budget) : null;
+
+        const payload = {
             leadId: this.leadId,
             firstName: this.firstName,
             lastName: this.lastName,
             email: this.email,
             phone: this.phone,
-            company: this.company,
-            budget: parseFloat(this.budget),
-            siteLocation: this.siteLocation,
-            projectDescription: this.projectDescription,
             typeOfProject: this.typeOfProject,
-            projectScope: this.projectScope
-        })
+            projectScope: this.projectScope,
+            company: this.company,
+            budget: numericBudget,
+            projectDescription: this.projectDescription,
+            siteLocation: this.siteLocation,
+            quotationType: this.quotationType // from parent (Manual / Automatic)
+        };
+
+        updateLead({ payload })
             .then(() => {
-                console.log('Lead updated successfully');
                 this.showForm = false;
                 this.showSuccess = true;
 
                 this.dispatchEvent(
                     new ShowToastEvent({
-                        title: 'Success',
-                        message: 'Lead updated successfully!',
+                        title: 'Request Submitted',
+                        message: 'Your project request has been updated successfully.',
                         variant: 'success'
                     })
                 );
             })
-            .catch(error => {
-                console.error('Error updating Lead ->', error);
+            .catch((error) => {
+                // eslint-disable-next-line no-console
+                console.error('Error updating Lead', error);
+
                 this.dispatchEvent(
                     new ShowToastEvent({
                         title: 'Error',
-                        message: error.body ? error.body.message : 'Unknown error',
+                        message:
+                            error && error.body && error.body.message
+                                ? error.body.message
+                                : 'Unable to submit project request.',
                         variant: 'error'
                     })
                 );
             });
+
     }
+
 
     handleCloseSuccess() {
-        console.log('handleCloseSuccess called');
-        this.showSuccess = false;
-        this.showForm = true;
+        // this.showSuccess = false;
+        // this.showForm = true;
+        window.location.href = Arelia_Site_Label;
     }
 
+
     goToPrevious() {
-        console.log('Child: Dispatching previous event to parent');
         this.dispatchEvent(new CustomEvent('previous'));
     }
 }

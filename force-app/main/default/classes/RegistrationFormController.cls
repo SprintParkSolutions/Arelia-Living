@@ -224,8 +224,7 @@ public without sharing class RegistrationFormController {
         }
 
         // Build link: label + ?id=<leadId>
-        String projectRequestLink =
-            System.Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
+        String projectRequestLink = Label.Arelia_Site_Label + Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
 
         // Build recipient name
         String leadName = ((leadRecord.FirstName != null ? leadRecord.FirstName + ' ' : '')
