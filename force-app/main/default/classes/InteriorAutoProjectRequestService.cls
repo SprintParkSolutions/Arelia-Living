@@ -481,6 +481,7 @@ public without sharing class InteriorAutoProjectRequestService {
         try {
             Messaging.sendEmail(new Messaging.SingleEmailMessage[]{ msg });
         } catch (Exception e) {
+            System.debug('Custom Exception occurred: ' + ex.getMessage());
             // Swallow – main business save must not fail because of email.
         }
     }
