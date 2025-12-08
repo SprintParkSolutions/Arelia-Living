@@ -3,6 +3,7 @@
  * @description    : Handles registration form operations - email verification and lead creation.
  * @author         : Arelia Living
  */
+@SuppressWarnings('PMD.CognitiveComplexity')
 public without sharing class RegistrationFormController {
 
     private static Id cachedWelcomeTemplateId;
@@ -95,6 +96,7 @@ public without sharing class RegistrationFormController {
             msg.setHtmlBody(htmlBody);
         } else {
             msg.setPlainTextBody(textBody);
+            //System.debug('Hello');
         }
 
         return msg;
@@ -192,7 +194,11 @@ public without sharing class RegistrationFormController {
      */
     private static void sendWelcomeEmailSafely(Lead leadRecord) {
         try {
+             // 1) Customer welcome email
             sendWelcomeEmail(leadRecord);
+
+            // 2) Internal notification to enrollment team
+            sendEnrollmentNotification(leadRecord);
         } catch (Exception ex) {
             System.debug('Custom Exception occurred: ' + ex.getMessage());
             // Intentionally ignore email failure – registration succeeded.
@@ -218,14 +224,88 @@ public without sharing class RegistrationFormController {
         }
 
         // Build link: label + ?id=<leadId>
-        String projectRequestLink =
-            System.Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
+        String projectRequestLink = Label.Arelia_Site_Label + Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
 
         // Build recipient name
         String leadName = ((leadRecord.FirstName != null ? leadRecord.FirstName + ' ' : '')
                         + leadRecord.LastName);
 
-        // Build token data (new object to avoid long parameter list)
+        WelcomeTokenData data = new WelcomeTokenData();
+        data.name        = leadName;
+        data.email       = leadRecord.Email;
+        data.phone       = leadRecord.Phone;
+        data.projectLink = projectRequestLink;
+
+        String subject  = template.Subject;
+        String textBody = template.Body;
+        String htmlBody = template.HtmlValue;
+
+        subject  = replaceWelcomeTokens(subject,  data);
+        textBody = replaceWelcomeTokens(textBody, data);
+        htmlBody = replaceWelcomeTokens(htmlBody, data);
+
+        Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
+
+        // 🔹 IMPORTANT: relate email to the Lead so it appears in Activity
+        msg.setTargetObjectId(leadRecord.Id);
+        msg.setTreatTargetObjectAsRecipient(true); // Lead is the actual recipient
+
+        // (Optional, but fine to keep)
+        msg.setToAddresses(new List<String>{ leadRecord.Email });
+
+        if (String.isNotBlank(subject)) {
+            msg.setSubject(subject);
+        }
+
+        if (String.isNotBlank(htmlBody)) {
+            msg.setHtmlBody(htmlBody);
+        } else {
+            msg.setPlainTextBody(textBody);
+        }
+
+        msg.setSaveAsActivity(true);   // now this will WORK because TargetObjectId is set
+        setOrgWideAddressForGuest(msg);
+
+        Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
+    }
+
+
+
+    /**
+     * @description Sends an internal notification email to Arelia Enrollment members
+     * using a separate email template. Recipients are taken from the custom label
+     * Arelia_Living_Enrollment_Members (comma-separated emails).
+     * @param leadRecord Newly registered Lead.
+     */
+    private static void sendEnrollmentNotification(Lead leadRecord) {
+        // Basic guard
+        if (leadRecord == null || leadRecord.Id == null) {
+            return;
+        }
+
+        // Parse enrollment email addresses from label
+        List<String> enrollmentEmails = getEnrollmentEmails();
+        if (enrollmentEmails.isEmpty()) {
+            // No configured recipients – nothing to do
+            return;
+        }
+
+        // Get enrollment template
+        EmailTemplate template = getEnrollmentTemplate();
+        if (template == null) {
+            // No template configured – nothing to do
+            return;
+        }
+
+        // Build project request link: label + ?id=<leadId>
+        String projectRequestLink =
+            System.Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
+
+        // Build customer name
+        String leadName = ((leadRecord.FirstName != null ? leadRecord.FirstName + ' ' : '')
+                        + leadRecord.LastName);
+
+        // Reuse the same DTO used for welcome email
         WelcomeTokenData data = new WelcomeTokenData();
         data.name        = leadName;
         data.email       = leadRecord.Email;
@@ -237,13 +317,14 @@ public without sharing class RegistrationFormController {
         String textBody = template.Body;
         String htmlBody = template.HtmlValue;
 
-        // Replace tokens in subject and bodies
+        // Replace custom tokens
         subject  = replaceWelcomeTokens(subject,  data);
         textBody = replaceWelcomeTokens(textBody, data);
         htmlBody = replaceWelcomeTokens(htmlBody, data);
 
+        // Build message
         Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
-        msg.setToAddresses(new List<String>{ leadRecord.Email });
+        msg.setToAddresses(enrollmentEmails);
 
         if (String.isNotBlank(subject)) {
             msg.setSubject(subject);
@@ -256,11 +337,17 @@ public without sharing class RegistrationFormController {
             msg.setPlainTextBody(textBody);
         }
 
-        msg.setSaveAsActivity(true);
+        // Optional: log as activity on Lead (if you want)
+        msg.setTargetObjectId(leadRecord.Id);
+        msg.setTreatTargetObjectAsRecipient(false);
+        msg.setSaveAsActivity(true); // set true if you want a task on the Lead
+
+        // For guest user, still use OrgWide address
         setOrgWideAddressForGuest(msg);
 
         Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
     }
+
 
     /** Small DTO to prevent long-parameter-list PMD issue */
     private class WelcomeTokenData {
@@ -334,15 +421,29 @@ public without sharing class RegistrationFormController {
             return null;
         }
 
-        List<EmailTemplate> templates = [
-            SELECT Id, Subject, Body, HtmlValue
-            FROM EmailTemplate
-            WHERE DeveloperName = :devName
-            LIMIT 1
-        ];
+        List<EmailTemplate> templates = [SELECT Id, Subject, Body, HtmlValue FROM EmailTemplate
+            WHERE DeveloperName = :devName LIMIT 1];
 
         return templates.isEmpty() ? null : templates[0];
     }
+
+    /**
+     * @description Returns the enrollment notification email template configured via
+     * custom label Registration_Enrollment_Template_DevName.
+     */
+    @SuppressWarnings('PMD.ApexCRUDViolation')
+    private static EmailTemplate getEnrollmentTemplate() {
+        String devName = System.Label.Registration_Enrollment_Template_DevName;
+        if (String.isBlank(devName)) {
+            return null;
+        }
+
+        List<EmailTemplate> templates = [SELECT Id, Subject, Body, HtmlValue FROM EmailTemplate
+            WHERE DeveloperName = :devName LIMIT 1];
+
+        return templates.isEmpty() ? null : templates[0];
+    }
+
 
     /**
      * @description Returns the verification email template configured via
@@ -360,12 +461,8 @@ public without sharing class RegistrationFormController {
             return null;
         }
 
-        List<EmailTemplate> templates = [
-            SELECT Id, Subject, Body, HtmlValue
-            FROM EmailTemplate
-            WHERE DeveloperName = :devName
-            LIMIT 1
-        ];
+        List<EmailTemplate> templates = [SELECT Id, Subject, Body, HtmlValue FROM EmailTemplate
+            WHERE DeveloperName = :devName LIMIT 1];
 
         if (templates.isEmpty()) {
             return null;
@@ -403,4 +500,31 @@ public without sharing class RegistrationFormController {
         }
         return (Id)idStr.trim();
     }
+
+    /**
+     * @description Parses comma-separated enrollment member emails from
+     * custom label Arelia_Living_Enrollment_Members.
+     * @return List of trimmed email addresses.
+     */
+    private static List<String> getEnrollmentEmails() {
+        List<String> result = new List<String>();
+
+        String raw = System.Label.Arelia_Living_Enrollment_Members;
+        if (String.isBlank(raw)) {
+            return result;
+        }
+
+        for (String part : raw.split(',')) {
+            if (String.isNotBlank(part)) {
+                String email = part.trim();
+                // Very light validation – same as other checks
+                if (email.contains('@') && email.contains('.')) {
+                    result.add(email);
+                }
+            }
+        }
+
+        return result;
+    }
+
 }
