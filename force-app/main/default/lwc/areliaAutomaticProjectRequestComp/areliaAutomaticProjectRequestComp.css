@@ -802,3 +802,64 @@ lightning-combobox label {
     color: #3f3422;
     font-weight: 700;
 }
+
+/* ---------- NEW: Hero-style back button only on Step 1 ---------- */
+
+.back-link-hero {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(94, 80, 53, 0.6);
+    background: rgba(255, 255, 255, 0.92);
+    color: #5e5035;
+    font-weight: 600;
+    font-size: 0.86rem;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    cursor: pointer;
+
+    box-shadow: 0 0 0 0 rgba(94, 80, 53, 0.35);
+    animation: back-pulse-zoom 2.4s ease-out infinite;
+}
+
+.back-link-hero::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    border: 1px dashed rgba(94, 80, 53, 0.32);
+    opacity: 0.0;
+    pointer-events: none;
+}
+
+.back-link-hero:hover {
+    transform: scale(1.04);
+    box-shadow: 0 10px 24px rgba(94, 80, 53, 0.35);
+    background: #ffffff;
+}
+
+/* Soft zoom/pulse animation */
+@keyframes back-pulse-zoom {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(94, 80, 53, 0.3);
+    }
+
+    35% {
+        transform: scale(1.03);
+        box-shadow: 0 0 0 10px rgba(94, 80, 53, 0);
+    }
+
+    60% {
+        transform: scale(1.01);
+        box-shadow: 0 0 0 0 rgba(94, 80, 53, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(94, 80, 53, 0);
+    }
+}

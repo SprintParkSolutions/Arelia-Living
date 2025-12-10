@@ -297,9 +297,7 @@ public without sharing class RegistrationFormController {
             return;
         }
 
-        // Build project request link: label + ?id=<leadId>
-        String projectRequestLink =
-            System.Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
+        String projectRequestLink = Label.Arelia_Site_Label + Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
 
         // Build customer name
         String leadName = ((leadRecord.FirstName != null ? leadRecord.FirstName + ' ' : '')

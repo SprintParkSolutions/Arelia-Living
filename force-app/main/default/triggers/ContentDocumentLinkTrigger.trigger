@@ -1,4 +1,4 @@
-trigger ContentDocumentLinkTrigger on ContentDocumentLink (after insert) {
+trigger ContentDocumentLinkTrigger on ContentDocumentLink (after insert) {// NOPMD
     List<ContentDocumentLink> toUpdate = new List<ContentDocumentLink>();
 
     for (ContentDocumentLink cdl : Trigger.new) {
@@ -12,7 +12,7 @@ trigger ContentDocumentLinkTrigger on ContentDocumentLink (after insert) {
         }
     }
 
-    if (!toUpdate.isEmpty()) {
+    if (!toUpdate.isEmpty()) {// NOPMD
         update toUpdate;
     }
 }

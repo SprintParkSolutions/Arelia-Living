@@ -28,6 +28,7 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     lastName = '';
     email = '';
     phone = '';
+    company = '';
     address = '';
     siteSpace = '';
     description = '';
@@ -40,7 +41,6 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     currentRoomIdForDesign;
     @track roomDesignMap = {}; // {roomId: {designId,...}}
 
-    // totals (stored in USD from Base_Price__c)
     totalBudget = 0;
 
     // flags
@@ -154,11 +154,11 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         this.lastName = leadRec.LastName || '';
         this.email = leadRec.Email || '';
         this.phone = leadRec.Phone || '';
+        this.company = leadRec.Company || '';
         this.address = leadRec.Site_Location__c || '';
         this.siteSpace = leadRec.Site_Space__c || '';
         this.description = leadRec.Project_Description__c || '';
 
-        // total budget stored as USD
         this.totalBudget = leadRec.Estimated_Budget__c || 0;
 
         this.selectedProjectTypeId = leadRec.Interior_Project_Type__c || null;
@@ -388,7 +388,7 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             }
             const rd = this.roomDesignMap[roomId];
             const room = this.allRooms.find((r) => r.id === roomId);
-            const lineUsd = rd.lineAmount || 0;
+            const lineAmount = rd.lineAmount || 0;
 
             tiles.push({
                 roomId,
@@ -397,8 +397,9 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
                 imageUrl:
                     rd.imageUrl || 'https://via.placeholder.com/220x140?text=Design',
                 quantity: rd.quantity,
-                lineAmountUsd: lineUsd
+                lineAmount
             });
+
         }
         return tiles;
     }
@@ -431,9 +432,13 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             const rd = this.roomDesignMap[roomId];
             if (rd) {
                 const priceUsd = rd.price || 0;
+                // out.push(
+                //     `${room ? room.name : roomId} (x${qty}) – ${rd.designName} [ $ ${priceUsd} ]`
+                // );
                 out.push(
-                    `${room ? room.name : roomId} (x${qty}) – ${rd.designName} [ $ ${priceUsd} ]`
+                    `${room ? room.name : roomId} (x${qty}) – ${rd.designName} [ ${rd.price} ]`
                 );
+
             } else {
                 out.push(`${room ? room.name : roomId} (x${qty}) – No design chosen`);
             }
@@ -635,6 +640,35 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             this.recalcTotal();
         }
 
+        // 🔴 NEW VALIDATION: Step 7 -> ensure you didn't remove any required design
+        if (this.currentStep === 7) {
+            const roomIdsWithQty = [];
+            for (const roomId in this.roomQuantities) {
+                if (!Object.prototype.hasOwnProperty.call(this.roomQuantities, roomId)) {
+                    continue;
+                }
+                const qty = this.roomQuantities[roomId];
+                if (qty && qty > 0) {
+                    roomIdsWithQty.push(roomId);
+                }
+            }
+
+            const roomsMissingDesign = roomIdsWithQty.filter(
+                (roomId) => !this.roomDesignMap[roomId]
+            );
+
+            if (roomsMissingDesign.length) {
+                this.showToast(
+                    'Design removed',
+                    'You removed one of the room designs. Please go back to "Room Designs" and select a design for every room.',
+                    'error'
+                );
+                // Optional: send user back to Step 6 where designs are chosen
+                this.currentStep = 6;
+                return;
+            }
+        }
+
         if (this.currentStep < 8) {
             this.currentStep += 1;
         } else {
@@ -704,6 +738,7 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             lastName: this.lastName,
             email: this.email,
             phone: this.phone,
+            company: this.company,
             address: this.address,
             siteSpace: this.siteSpace,
             description: this.description,
@@ -712,7 +747,7 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             planLevel: this.selectedPlanLevel,
             rooms,
             selectedRoomDesigns,
-            totalBudget: this.totalBudget, // USD stored on Lead
+            totalBudget: this.totalBudget,
             quotationType: this.quotationType
         };
 
