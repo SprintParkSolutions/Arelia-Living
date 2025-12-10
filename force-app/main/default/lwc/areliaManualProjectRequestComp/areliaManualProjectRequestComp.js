@@ -1,10 +1,8 @@
 import { LightningElement, api, track, wire } from 'lwc';
-import getLeadById
-    from '@salesforce/apex/Arelia_ManualProjectRequestController.getLeadById';
-import getTypeOfProjectPicklistValues
-    from '@salesforce/apex/Arelia_ManualProjectRequestController.getTypeOfProjectPicklistValues';
-import updateLead
-    from '@salesforce/apex/Arelia_ManualProjectRequestController.updateLead';
+import getLeadById from '@salesforce/apex/Arelia_ManualProjectRequestController.getLeadById';
+import getTypeOfProjectPicklistValues from '@salesforce/apex/Arelia_ManualProjectRequestController.getTypeOfProjectPicklistValues';
+import getPlanLevelPicklistValues from '@salesforce/apex/Arelia_ManualProjectRequestController.getPlanLevelPicklistValues';
+import updateLead from '@salesforce/apex/Arelia_ManualProjectRequestController.updateLead';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import Arelia_Site_Label from '@salesforce/label/c.Arelia_Site_Label';
 
@@ -23,8 +21,11 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
     @track projectDescription = '';
     @track typeOfProject = '';
     @track projectScope = '';
+    @track planLevel = '';
     @track projectScopeOptions = [];
     @track projectTypeOptions = [];
+    @track planLevelOptions = [];
+    @track siteSpace = '';
     @track showForm = true;
     @track showSuccess = false;
     @track countryCode = '+91';
@@ -78,6 +79,20 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
         }
     }
 
+    // Plan_Level__c picklist
+    @wire(getPlanLevelPicklistValues)
+    wiredPlanLevelPicklist({ data, error }) {
+        if (data) {
+            this.planLevelOptions = data.map((label) => ({
+                label,
+                value: label
+            }));
+        } else if (error) {
+            // eslint-disable-next-line no-console
+            console.error('Error loading Plan_Level__c picklist', error);
+        }
+    }
+
     // Load lead only once when leadId is set
     renderedCallback() {
         if (!this.leadId || this.hasLoaded) {
@@ -102,8 +117,10 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
                 this.budget = result.Customer_Budget__c || '';
                 this.typeOfProject = result.Type_Of_Project__c || '';
                 this.projectScope = result.Project_Scope__c || '';
+                this.planLevel = result.Plan_Level__c || '';
                 this.projectDescription = result.Project_Description__c || '';
                 this.siteLocation = result.Site_Location__c || '';
+                this.siteSpace = result.Site_Space__c || '';
 
                 // Split phone into countryCode + number if possible
                 if (this.phone) {
@@ -172,6 +189,9 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
         const numericBudget =
             this.budget && this.budget !== '' ? parseFloat(this.budget) : null;
 
+        const siteSpaceValue =
+            this.siteSpace && this.siteSpace.trim() !== '' ? this.siteSpace.trim() : null;
+
         const payload = {
             leadId: this.leadId,
             firstName: this.firstName,
@@ -180,8 +200,10 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
             phone: this.phone,
             typeOfProject: this.typeOfProject,
             projectScope: this.projectScope,
+            planLevel: this.planLevel,
             company: this.company,
             budget: numericBudget,
+            siteSpace: siteSpaceValue,
             projectDescription: this.projectDescription,
             siteLocation: this.siteLocation,
             quotationType: this.quotationType // from parent (Manual / Automatic)
@@ -217,6 +239,7 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
             });
 
     }
+
 
     handleCloseSuccess() {
         // this.showSuccess = false;

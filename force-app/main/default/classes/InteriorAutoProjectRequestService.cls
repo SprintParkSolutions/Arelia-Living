@@ -17,7 +17,7 @@
 * 1.0 | Nov 4, 2025    |            | Initial Version (request object)
 * 2.0 | Dec 4, 2025    |            | Refactored to use Lead + your fields
 **/
-@SuppressWarnings('PMD.ApexCRUDViolation')
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public without sharing class InteriorAutoProjectRequestService {
 
     /* ==========================================================
@@ -53,6 +53,7 @@ public without sharing class InteriorAutoProjectRequestService {
      * Expected keys in req:
      * - leadId (mandatory)
      * - firstName, lastName, email, phone
+     * - company
      * - address  (mapped to Lead.Site_Location__c)
      * - siteSpace
      * - description (mapped to Lead.Project_Description__c)
@@ -80,7 +81,7 @@ public without sharing class InteriorAutoProjectRequestService {
         }
         Id leadId = (Id) leadIdStr;
 
-        // ---- NEW: prevent second submission ----
+        // ---- prevent second submission ----
         Lead existingLead = [
             SELECT Id, Project_Request_Submitted__c
             FROM Lead
@@ -101,6 +102,7 @@ public without sharing class InteriorAutoProjectRequestService {
         String lastName      = getStr(top, 'lastName');
         String email         = getStr(top, 'email');
         String phone         = getStr(top, 'phone');
+        String company       = getStr(top, 'company');
         String address       = getStr(top, 'address');      // -> Site_Location__c
         String siteSpace     = getStr(top, 'siteSpace');    // -> Site_Space__c
         String description   = getStr(top, 'description');  // -> Project_Description__c
@@ -114,28 +116,15 @@ public without sharing class InteriorAutoProjectRequestService {
         List<Object> roomDesignsRaw = getList(top, 'selectedRoomDesigns');
 
         // 1) Update Lead with all details using YOUR fields
-        Lead leadToUpdate = buildLeadUpdate(
-            leadId,
-            firstName,
-            lastName,
-            email,
-            phone,
-            address,
-            siteSpace,
-            description,
-            totalBudget,
-            projectTypeId,
-            categoryId,
-            planLevel,
-            quotationType
-        );
+        Lead leadToUpdate = buildLeadUpdate(leadId,firstName,lastName,email,phone,company,address,siteSpace,
+            description,totalBudget,projectTypeId,categoryId,planLevel,quotationType);
 
-        // NEW: mark as submitted
+        // mark as submitted
         leadToUpdate.Project_Request_Submitted__c = true;
 
         update leadToUpdate;
 
-        // 2) Rebuild child records   (unchanged)
+        // 2) Rebuild child records
         deleteExistingChildRecords(leadId);
 
         Map<Id, String> roomNameById = new Map<Id, String>();
@@ -151,11 +140,6 @@ public without sharing class InteriorAutoProjectRequestService {
         // 3) Attach design files to Lead
         if (!designIds.isEmpty()) {
             copyDesignFilesToLead(leadId, designIds);
-        }
-
-        // 4) Send Lightning Email Template to Lead
-        if (String.isNotBlank(email)) {
-            sendRequestEmailWithTemplate(leadId, true);
         }
 
         return leadId;
@@ -176,24 +160,10 @@ public without sharing class InteriorAutoProjectRequestService {
             throw new AuraHandledException('You do not have permission to access Lead records.');
         }
 
-        List<Lead> leads = [
-            SELECT  Id,
-                    FirstName,
-                    LastName,
-                    Email,
-                    Phone,
-                    Site_Location__c,
-                    Site_Space__c,
-                    Project_Description__c,
-                    Estimated_Budget__c,
-                    Plan_Level__c,
-                    Interior_Project_Type__c,
-                    Interior_Category__c,
-                    Project_Request_Quotation_Type__c
-            FROM Lead
-            WHERE Id = :leadId
-            LIMIT 1
-        ];
+        List<Lead> leads = [SELECT  Id,FirstName,LastName,Email,Phone,Company,Site_Location__c,Site_Space__c,
+                    Project_Description__c,Estimated_Budget__c,Plan_Level__c,Interior_Project_Type__c,
+                    Interior_Category__c,Project_Request_Quotation_Type__c FROM Lead
+                    WHERE Id = :leadId LIMIT 1];
 
         return leads.isEmpty() ? null : leads[0];
     }
@@ -215,11 +185,9 @@ public without sharing class InteriorAutoProjectRequestService {
         dto.roomDesigns = new List<RoomDesignLineDTO>();
 
         // Existing rooms
-        for (Interior_Request_Room__c rr : [
-            SELECT Interior_Room__c, Quantity__c
-            FROM Interior_Request_Room__c
-            WHERE Lead__c = :leadId
-        ]) {
+        for (Interior_Request_Room__c rr : [SELECT Interior_Room__c, Quantity__c FROM Interior_Request_Room__c
+                                            WHERE Lead__c = :leadId]) 
+        {
             RoomLineDTO r = new RoomLineDTO();
             r.roomId   = rr.Interior_Room__c;
             r.quantity = rr.Quantity__c != null ? Integer.valueOf(String.valueOf(rr.Quantity__c)) : 0;
@@ -227,14 +195,9 @@ public without sharing class InteriorAutoProjectRequestService {
         }
 
         // Existing room designs
-        for (Interior_Request_Room_Design__c dr : [
-            SELECT Interior_Room__c,
-                   Interior_Design__c,
-                   Quantity__c,
-                   Design_Amount__c
-            FROM Interior_Request_Room_Design__c
-            WHERE Lead__c = :leadId
-        ]) {
+        for (Interior_Request_Room_Design__c dr : [SELECT Interior_Room__c,Interior_Design__c,Quantity__c,Design_Amount__c
+                                                    FROM Interior_Request_Room_Design__c WHERE Lead__c = :leadId]) 
+        {
             RoomDesignLineDTO d = new RoomDesignLineDTO();
             d.roomId     = dr.Interior_Room__c;
             d.designId   = dr.Interior_Design__c;
@@ -252,28 +215,17 @@ public without sharing class InteriorAutoProjectRequestService {
 
     /**
      * Uses ONLY your fields:
-     * - Standard: FirstName, LastName, Email, Phone
+     * - Standard: FirstName, LastName, Email, Phone, Company
      * - Custom:   Site_Location__c, Site_Space__c,
      *             Project_Description__c,
      *             Project_Request_Quotation_Type__c,
      *             Estimated_Budget__c, Plan_Level__c,
      *             Interior_Project_Type__c, Interior_Category__c
      */
-    private static Lead buildLeadUpdate(
-        Id leadId,
-        String firstName,
-        String lastName,
-        String email,
-        String phone,
-        String address,
-        String siteSpace,
-        String description,
-        Decimal totalBudget,
-        String projectTypeId,
-        String categoryId,
-        String planLevel,
-        String quotationType
-    ) {
+    private static Lead buildLeadUpdate(Id leadId,String firstName,String lastName,String email,String phone,
+                String company,String address,String siteSpace,String description,Decimal totalBudget,
+                String projectTypeId,String categoryId,String planLevel,String quotationType) 
+    {
         Lead ld = new Lead();
         ld.Id = leadId;
 
@@ -282,6 +234,7 @@ public without sharing class InteriorAutoProjectRequestService {
         ld.LastName  = lastName;
         ld.Email     = email;
         ld.Phone     = phone;
+        ld.Company   = company;
 
         // Your custom fields / mappings
         ld.Site_Location__c                  = address;
@@ -310,17 +263,11 @@ public without sharing class InteriorAutoProjectRequestService {
             return;
         }
 
-        List<Interior_Request_Room_Design__c> existingDesigns = [
-            SELECT Id
-            FROM Interior_Request_Room_Design__c
-            WHERE Lead__c = :leadId
-        ];
+        List<Interior_Request_Room_Design__c> existingDesigns = [SELECT Id FROM Interior_Request_Room_Design__c
+                                                                WHERE Lead__c = :leadId];
 
-        List<Interior_Request_Room__c> existingRooms = [
-            SELECT Id
-            FROM Interior_Request_Room__c
-            WHERE Lead__c = :leadId
-        ];
+        List<Interior_Request_Room__c> existingRooms = [SELECT Id FROM Interior_Request_Room__c
+                                                        WHERE Lead__c = :leadId];
 
         if (!existingDesigns.isEmpty()) {
             delete existingDesigns;
@@ -368,11 +315,7 @@ public without sharing class InteriorAutoProjectRequestService {
             return out;
         }
 
-        for (Interior_Room__c rr : [
-            SELECT Id, Name
-            FROM Interior_Room__c
-            WHERE Id IN :roomIds
-        ]) {
+        for (Interior_Room__c rr : [SELECT Id, Name FROM Interior_Room__c WHERE Id IN :roomIds]) {
             out.put(rr.Id, rr.Name);
         }
         return out;
@@ -413,11 +356,8 @@ public without sharing class InteriorAutoProjectRequestService {
             return;
         }
 
-        List<ContentDocumentLink> links = [
-            SELECT ContentDocumentId, LinkedEntityId
-            FROM ContentDocumentLink
-            WHERE LinkedEntityId IN :designIds
-        ];
+        List<ContentDocumentLink> links = [SELECT ContentDocumentId, LinkedEntityId
+                                    FROM ContentDocumentLink WHERE LinkedEntityId IN :designIds];
         if (links.isEmpty()) {
             return;
         }
@@ -426,127 +366,15 @@ public without sharing class InteriorAutoProjectRequestService {
         for (ContentDocumentLink dl : links) {
             newLinks.add(new ContentDocumentLink(
                 LinkedEntityId    = leadId,
-                ContentDocumentId = dl.ContentDocumentId,
-                ShareType         = 'V',
-                Visibility        = 'AllUsers'
+                ContentDocumentId = dl.ContentDocumentId
+                //, ShareType         = 'V',
+                // Visibility        = 'AllUsers'
             ));
         }
 
         if (!newLinks.isEmpty()) {
             insert newLinks;
         }
-    }
-
-    /* ==========================================================
-       Email helpers
-       ========================================================== */
-
-    /**
-     * Uses:
-     *  - Template Label:  Arelia_Automated_Project_Request_Quote_Design_Submit_Template
-     *  - OWD Label:       Arelia_OWD
-     */
-    private static void sendRequestEmailWithTemplate(Id leadId, Boolean attachFiles) {
-        if (leadId == null) {
-            return;
-        }
-
-        EmailTemplate tmpl = getTemplateByDeveloperName(
-            Label.Arelia_Automated_Project_Quote_Submite_Template_DevName
-        );
-        if (tmpl == null || !tmpl.IsActive) {
-            return;
-        }
-
-        Id oweaId = getOrgWideEmailAddressIdByAddress(Label.Arelia_OWD);
-
-        Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
-        msg.setTemplateId(tmpl.Id);
-        msg.setTargetObjectId(leadId);
-        msg.setWhatId(leadId);
-        msg.setTreatTargetObjectAsRecipient(true);
-        msg.setSaveAsActivity(true);
-
-        if (oweaId != null) {
-            msg.setOrgWideEmailAddressId(oweaId);
-        }
-
-        if (attachFiles == true) {
-            List<Messaging.EmailFileAttachment> atts = collectLeadFileAttachments(leadId);
-            if (!atts.isEmpty()) {
-                msg.setFileAttachments(atts);
-            }
-        }
-
-        try {
-            Messaging.sendEmail(new Messaging.SingleEmailMessage[]{ msg });
-        } catch (Exception e) {
-            System.debug('Custom Exception occurred: ' + ex.getMessage());
-            // Swallow – main business save must not fail because of email.
-        }
-    }
-
-    private static EmailTemplate getTemplateByDeveloperName(String devName) {
-        if (String.isBlank(devName)) {
-            return null;
-        }
-
-        List<EmailTemplate> found = [
-            SELECT Id, IsActive
-            FROM EmailTemplate
-            WHERE DeveloperName = :devName
-            LIMIT 1
-        ];
-        return found.isEmpty() ? null : found[0];
-    }
-
-    private static Id getOrgWideEmailAddressIdByAddress(String address) {
-        if (String.isBlank(address)) {
-            return null;
-        }
-
-        List<OrgWideEmailAddress> x = [
-            SELECT Id
-            FROM OrgWideEmailAddress
-            WHERE Address = :address
-            LIMIT 1
-        ];
-        return x.isEmpty() ? null : x[0].Id;
-    }
-
-    private static List<Messaging.EmailFileAttachment> collectLeadFileAttachments(Id leadId) {
-        List<Messaging.EmailFileAttachment> out = new List<Messaging.EmailFileAttachment>();
-        if (leadId == null) {
-            return out;
-        }
-
-        List<ContentDocumentLink> links = [
-            SELECT ContentDocumentId
-            FROM ContentDocumentLink
-            WHERE LinkedEntityId = :leadId
-        ];
-        if (links.isEmpty()) {
-            return out;
-        }
-
-        List<Id> docIds = new List<Id>();
-        for (ContentDocumentLink l : links) {
-            docIds.add(l.ContentDocumentId);
-        }
-
-        for (ContentVersion v : [
-            SELECT VersionData, Title, FileExtension
-            FROM ContentVersion
-            WHERE IsLatest = true
-            AND ContentDocumentId IN :docIds
-        ]) {
-            Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
-            String safeExtension = (v.FileExtension != null) ? '.' + v.FileExtension : '';
-            efa.setFileName(v.Title + safeExtension);
-            efa.setBody(v.VersionData);
-            out.add(efa);
-        }
-        return out;
     }
 
     /* ==========================================================
