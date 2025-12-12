@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Owner_of_Quotations</fullName>
+    <columns>NAME</columns>
+    <columns>Vendor_Category__c</columns>
+    <columns>Item__c</columns>
+    <columns>Quantity__c</columns>
+    <columns>Price__c</columns>
+    <columns>Total_Amount__c</columns>
+    <filterScope>Mine</filterScope>
+    <label>Owner of Quotations</label>
+</ListView>
