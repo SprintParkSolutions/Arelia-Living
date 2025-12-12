@@ -1,11 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
     <labels>
+        <fullName>Arelia_Automated_Project_Quote_Submite_Template_DevName</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Automated Project Quote Submite Template DevName</shortDescription>
+        <value>Arelia_Automated_Project_Request_Quote_Design_Submit_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Appointment_Approved_Email</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Appointment Approved Email</shortDescription>
+        <value>Appointment_Approved_Email</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Appointment_Rescheduled_Email</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Appointment Rescheduled Email</shortDescription>
+        <value>Appointment_Rescheduled_Email</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Automatic_Project_Quote_Management_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia_Living_Automatic_Project_Quote_Management_Email_Template</shortDescription>
+        <value>Arelia_Automated_Project_Request_Quote_Design_Submit_Template_to_Management</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Client_Project_Notification</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Client Project Notification</shortDescription>
+        <value>Client_Project_Notification</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Enrollment_Members</fullName>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Arelia Living Enrollment Members</shortDescription>
-        <value>Monikag@sprintpark.com</value>
+        <value>Monikag@sprintpark.com,mohit.e@sprintpark.com</value>
     </labels>
     <labels>
         <fullName>Arelia_Living_Lead_Conversion_Approval_Email_Template</fullName>
@@ -22,6 +57,13 @@
         <value>Details_To_Lead</value>
     </labels>
     <labels>
+        <fullName>Arelia_Living_Lead_Site_Re_Visiting_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Lead Site Re Visiting Email Template</shortDescription>
+        <value>Lead_Site_Re_Visiting_Email_Template</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Lead_Site_Visiting_Email_Template</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -36,11 +78,60 @@
         <value>Details_To_Management</value>
     </labels>
     <labels>
+        <fullName>Arelia_Living_Opportunity_Appointment_Approved_Email</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Opportunity Appointment Approved Email</shortDescription>
+        <value>Opportunity_Appointment_Approved_Email</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Opportunity_Appointment_Rescheduled_Email</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Opportunity Appointment Rescheduled Email</shortDescription>
+        <value>Opportunity_Appointment_Rescheduled_Email</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Opportunity_Re_Visit_Site_Manager_Approval_Email_Template</fullName>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Arelia Living Opportunity Re-Visit Site Manager Approval Email Template</shortDescription>
         <value>Opportunity_Re_Visit_Site_Manager_Approval_Email_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Project_Status_Update_Lead_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Project Status Update Lead Template</shortDescription>
+        <value>Project_Status_Update_Lead_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Project_Status_Update_Supervisor_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Project Status Update Supervisor Template</shortDescription>
+        <value>Project_Status_Update_Supervisor_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Sending_Project_Create_Information_to_Enrollment</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Sending Project Create Information to Enrollment</shortDescription>
+        <value>Sending_Project_Create_Information_to_Enrollment</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Sending_Project_Create_Information_to_Management</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Sending Project Create Information to Management</shortDescription>
+        <value>Sending_Project_Create_Information_to_Management</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Sending_Project_Create_Information_to_Manager</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Sending Project Create Information to Manager</shortDescription>
+        <value>Sending_Project_Create_Information_to_Manager</value>
     </labels>
     <labels>
         <fullName>Arelia_Living_Site_Visit_Approval_by_Manager_Template</fullName>
@@ -64,6 +155,20 @@
         <value>Assign_Lead_to_Supervisior_Email_Template</value>
     </labels>
     <labels>
+        <fullName>Arelia_Living_Supervisor_Project_Notification</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Supervisor Project Notification</shortDescription>
+        <value>Supervisor_Project_Notification</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Supervisor_Site_Re_Visiting_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Supervisor Site Re Visiting Email Template</shortDescription>
+        <value>Supervisor_Site_Re_Visiting_Email_Template</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Supervisor_Site_Visiting_Email_Template</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -71,12 +176,19 @@
         <value>Supervisor_Site_Visiting_Email_Template</value>
     </labels>
     <labels>
+        <fullName>Arelia_Living_Vendor_Project_Assignment</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Vendor Project Assignment</shortDescription>
+        <value>Vendor_Project_Assignment</value>
+    </labels>
+    <labels>
         <fullName>Arelia_OWD</fullName>
         <categories>It is used to send email as a from address.</categories>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Arelia OWD</shortDescription>
-        <value>monikag@sprintpark.com</value>
+        <value>nareshp@sprintpark.com</value>
     </labels>
     <labels>
         <fullName>Arelia_Project_Request_Page_URL</fullName>
@@ -98,6 +210,13 @@
         <protected>false</protected>
         <shortDescription>Arelia Site Label</shortDescription>
         <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/</value>
+    </labels>
+    <labels>
+        <fullName>Inventory_Catalogue_Site_Base</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Inventory Catalogue Site Base</shortDescription>
+        <value>inventory-catalogue</value>
     </labels>
     <labels>
         <fullName>Registration_Enrollment_Template_DevName</fullName>
@@ -133,5 +252,12 @@
         <protected>false</protected>
         <shortDescription>Site Appointment Link Page</shortDescription>
         <value>arelia-appointment-approval</value>
+    </labels>
+    <labels>
+        <fullName>Site_Appointment_Opp_Link_Page</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Site Appointment Opp Link Page</shortDescription>
+        <value>arelia-opp-appointment-approval</value>
     </labels>
 </CustomLabels>

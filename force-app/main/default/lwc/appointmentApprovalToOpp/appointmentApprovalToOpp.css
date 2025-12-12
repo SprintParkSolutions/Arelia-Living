@@ -1,0 +1,56 @@
+.container {
+    padding: 1rem;
+    background: #f4f6f9;
+    border-radius: 12px;
+    max-width: 540px;
+    margin: auto;
+}
+
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.confirm-box {
+    margin-top: 1rem;
+    background: #fff3cd;
+    border-left: 6px solid #ffc107;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.confirm-actions {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.reschedule-form {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
+}
+
+.submit-btn {
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.confirmation-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1.5rem;
+    background-color: #e6f9ec;
+    color: #1a7f37;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-weight: 600;
+}

@@ -37,8 +37,8 @@ public without sharing class AppointmentController {
         STATUS_APPT_RESCHEDULED
     };
 
-    private static final String TEMPLATE_APPROVED    = 'Appointment_Approved_Email';
-    private static final String TEMPLATE_RESCHEDULED = 'Appointment_Rescheduled_Email';
+    private static final String TEMPLATE_APPROVED    = Label.Arelia_Living_Appointment_Approved_Email;
+    private static final String TEMPLATE_RESCHEDULED = Label.Arelia_Living_Appointment_Rescheduled_Email;
 
     // Prevent instantiation
     private AppointmentController() {}
