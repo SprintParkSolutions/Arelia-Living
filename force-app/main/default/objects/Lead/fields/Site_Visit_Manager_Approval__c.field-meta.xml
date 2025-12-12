@@ -4,5 +4,6 @@
     <defaultValue>false</defaultValue>
     <label>Site Visit Manager Approval</label>
     <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
     <type>Checkbox</type>
 </CustomField>

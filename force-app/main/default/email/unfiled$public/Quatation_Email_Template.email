@@ -1,0 +1,36 @@
+<html>
+<head>
+	<title></title>
+</head>
+<body style="height: auto; min-height: auto;">
+<p>Dear {{{Vendor__c.Name}}},</p>
+&nbsp;
+
+<p>You are formally invited to participate in the tender process for the <b>{{{Vendor_Category__c}}}</b> requirement under our opportunity titled <b>{{{Opportunity.Name}}}</b>.</p>
+
+<p>Please find the attached blueprint and relevant project documents for your review. Kindly confirm your intent to participate by responding to this email with either:</p>
+
+<ul>
+	<li><b>Accepted:</b> if you are willing to proceed with this tender opportunity.</li>
+	<li><b>Declined:</b> if you choose not to participate, please mention a reason.</li>
+</ul>
+
+<p>Below are the project specifications and requirements. Please review them and submit your best quotation at your earliest convenience.</p>
+<br />
+{{{Specification_Table}}}
+<p>If you have any questions or require clarifications, please feel free to contact the opportunity owner:</p>
+
+<ul>
+	<li><b>Owner Name:</b> {{{Opportunity.SupervisorName}}}</li>
+	<li><b>Email:</b> {{{Opportunity.SupervisorEmail}}}</li>
+	<li><b>Phone:</b> {{{Opportunity.SupervisorPhone}}}</li>
+</ul>
+
+<p>Please find the relevant files (including images of specific items) attached for your reference.</p>
+&nbsp;
+
+<p>Sincerely,</p>
+
+<p>Arelia Project Management Team</p>
+</body>
+</html>

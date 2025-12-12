@@ -4,6 +4,7 @@
     <label>Project Scope</label>
     <required>false</required>
     <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>true</trackHistory>
     <type>Picklist</type>
     <valueSet>
         <controllingField>Type_Of_Project__c</controllingField>
