@@ -63,7 +63,8 @@ public with sharing class ScheduleAppointmentController {
             lead.Appointment_Date__c = selectedDate;
             lead.Appointment_Time_Slots__c = slot;
             lead.Appointment_Confirmation_Type__c = appointmentType; // ✅ NEW
-            lead.Appointment_Completed__c = true;
+            lead.Appointment_Sent_date__c = System.Today();
+            lead.Appointment_Completed__c = false;
             update lead;
 
         } catch (AuraHandledException ex) {
@@ -139,9 +140,9 @@ public with sharing class ScheduleAppointmentController {
      * @param lead Lead record.
      */
     private static void validateLeadFields(Lead lead) {
-        if (lead.Appointment_Completed__c) {
-            throw new AuraHandledException('Appointment already scheduled. Please uncheck the "Appointment Completed" field to reschedule.');
-        }
+        // if (lead.Appointment_Completed__c) {
+        //     throw new AuraHandledException('Appointment already scheduled. Please uncheck the "Appointment Completed" field to reschedule.');
+        // }
         if (String.isBlank(lead.Email)) {
             throw new AuraHandledException('Lead email is missing.');
         }
