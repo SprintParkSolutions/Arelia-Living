@@ -79,7 +79,8 @@ public with sharing class VendorAssignmentHandler {
                 assignment.Status__c == 'Completed' &&
                 assignment.Completion__c == 100 &&
                 assignment.Vendor_Work_Start_Date__c != null &&
-                assignment.Vendor_Work_End_Date__c != null
+                assignment.Vendor_Work_End_Date__c != null &&
+                assignment.Vendor_Actual_Completion_Date__c != null
             ) {
                 
                 // --- On-Time or Early Completion ---
@@ -143,14 +144,16 @@ public with sharing class VendorAssignmentHandler {
             GROUP BY Vendor__c
         ]) {
             Id vendorId = (Id) ar.get('Vendor__c');
-            Decimal averageEfficiency = (Decimal) ar.get('avgEff');
-            
+            Decimal avg = (Decimal) ar.get('avgEff');
+
+            Decimal safeAvg = (avg == null ? 0 : avg.setScale(2));
+
             vendorsToUpdate.add(new Vendor__c(
                 Id = vendorId,
-                // Assumes you have a field named Average_Efficiency__c on the Vendor object
-                Average_Efficiency__c = averageEfficiency.setScale(2) 
+                Average_Efficiency__c = safeAvg
             ));
         }
+
 
         // Handle vendors who may now have zero completed assignments left
         Set<Id> vendorsWithAverages = (new Map<Id, SObject>(vendorsToUpdate)).keySet();
