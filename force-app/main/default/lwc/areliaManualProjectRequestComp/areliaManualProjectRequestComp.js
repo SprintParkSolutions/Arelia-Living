@@ -1,8 +1,16 @@
-import { LightningElement, track } from 'lwc';
-import createLead from '@salesforce/apex/Arelia_ManualProjectRequestController.createLead';
+import { LightningElement, api, track, wire } from 'lwc';
+import getLeadById from '@salesforce/apex/Arelia_ManualProjectRequestController.getLeadById';
+import getTypeOfProjectPicklistValues from '@salesforce/apex/Arelia_ManualProjectRequestController.getTypeOfProjectPicklistValues';
+import getPlanLevelPicklistValues from '@salesforce/apex/Arelia_ManualProjectRequestController.getPlanLevelPicklistValues';
+import updateLead from '@salesforce/apex/Arelia_ManualProjectRequestController.updateLead';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import Arelia_Site_Label from '@salesforce/label/c.Arelia_Site_Label';
+
 
 export default class AreliaManualProjectRequestComp extends LightningElement {
+    @api leadId;
+    @api quotationType;
+
     @track firstName = '';
     @track lastName = '';
     @track email = '';
@@ -13,35 +21,19 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
     @track projectDescription = '';
     @track typeOfProject = '';
     @track projectScope = '';
+    @track planLevel = '';
     @track projectScopeOptions = [];
-
+    @track projectTypeOptions = [];
+    @track planLevelOptions = [];
+    @track siteSpace = '';
     @track showForm = true;
     @track showSuccess = false;
+    @track countryCode = '+91';
+    @track phoneNumber = '';
 
-    @track countryCode = '+91'; // default India 🇮🇳
-    phoneNumber = '';
+    hasLoaded = false;
 
-
-    projectTypeOptions = [
-        { label: 'Home', value: 'Home' },
-        { label: 'Office', value: 'Office' },
-        { label: 'Only Project Plan', value: 'Only Project Plan' },
-        { label: 'Other', value: 'Other' }
-    ];
-
-    countryOptions = [
-        { label: '🇮🇳 +91 (India)', value: '+91' },
-        { label: '🇺🇸 +1 (USA)', value: '+1' },
-        { label: '🇬🇧 +44 (UK)', value: '+44' },
-        { label: '🇦🇪 +971 (UAE)', value: '+971' },
-        { label: '🇸🇬 +65 (Singapore)', value: '+65' },
-        { label: '🇦🇺 +61 (Australia)', value: '+61' },
-        { label: '🇨🇦 +1 (Canada)', value: '+1' },
-        { label: '🇩🇪 +49 (Germany)', value: '+49' },
-        { label: '🇫🇷 +33 (France)', value: '+33' },
-        { label: '🇯🇵 +81 (Japan)', value: '+81' }
-    ];
-
+    // Static dependency map as you requested
     scopeMap = {
         Home: [
             { label: 'Full Home Interiors', value: 'Full Home Interiors' },
@@ -61,6 +53,107 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
         'Only Project Plan': []
     };
 
+    countryOptions = [
+        { label: '+91 (India)', value: '+91' },
+        { label: '+1 (USA)', value: '+1' },
+        { label: '+44 (UK)', value: '+44' },
+        { label: '+971 (UAE)', value: '+971' }
+    ];
+
+    // 🔹 Dynamic Type_Of_Project__c picklist
+    @wire(getTypeOfProjectPicklistValues)
+    wiredTypePicklist({ data, error }) {
+        if (data) {
+            this.projectTypeOptions = data.map((label) => ({
+                label,
+                value: label
+            }));
+
+            // If Lead already has a type, ensure scope options are in sync
+            if (this.typeOfProject) {
+                this.projectScopeOptions = this.scopeMap[this.typeOfProject] || [];
+            }
+        } else if (error) {
+            // eslint-disable-next-line no-console
+            console.error('Error loading Type_Of_Project__c picklist', error);
+        }
+    }
+
+    // Plan_Level__c picklist
+    @wire(getPlanLevelPicklistValues)
+    wiredPlanLevelPicklist({ data, error }) {
+        if (data) {
+            this.planLevelOptions = data.map((label) => ({
+                label,
+                value: label
+            }));
+        } else if (error) {
+            // eslint-disable-next-line no-console
+            console.error('Error loading Plan_Level__c picklist', error);
+        }
+    }
+
+    // Load lead only once when leadId is set
+    renderedCallback() {
+        if (!this.leadId || this.hasLoaded) {
+            return;
+        }
+        this.hasLoaded = true;
+        this.loadLeadDetails();
+    }
+
+    loadLeadDetails() {
+        getLeadById({ leadId: this.leadId })
+            .then((result) => {
+                if (!result) {
+                    return;
+                }
+
+                this.firstName = result.FirstName || '';
+                this.lastName = result.LastName || '';
+                this.email = result.Email || '';
+                this.phone = result.Phone || '';
+                this.company = result.Company || '';
+                this.budget = result.Customer_Budget__c || '';
+                this.typeOfProject = result.Type_Of_Project__c || '';
+                this.projectScope = result.Project_Scope__c || '';
+                this.planLevel = result.Plan_Level__c || '';
+                this.projectDescription = result.Project_Description__c || '';
+                this.siteLocation = result.Site_Location__c || '';
+                this.siteSpace = result.Site_Space__c || '';
+
+                // Split phone into countryCode + number if possible
+                if (this.phone) {
+                    const match = this.phone.match(/^(\+\d+)\s?(.*)/);
+                    if (match) {
+                        this.countryCode = match[1];
+                        this.phoneNumber = match[2];
+                    } else {
+                        this.countryCode = '+91';
+                        this.phoneNumber = this.phone;
+                    }
+                }
+
+                // If type already has a value, set scope options from static map
+                if (this.typeOfProject) {
+                    this.projectScopeOptions = this.scopeMap[this.typeOfProject] || [];
+                }
+            })
+            .catch((error) => {
+                // eslint-disable-next-line no-console
+                console.error('Error loading Lead from Apex', error);
+            });
+    }
+
+    handleChange(event) {
+        const { name, value } = event.target;
+        this[name] = value;
+
+        if (name === 'typeOfProject') {
+            this.projectScopeOptions = this.scopeMap[value] || [];
+            this.projectScope = '';
+        }
+    }
 
     handleCountryChange(event) {
         this.countryCode = event.detail.value;
@@ -70,79 +163,10 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
     handlePhoneInput(event) {
         this.phoneNumber = event.target.value;
         this.updatePhone();
-
-        if (!this.validatePhone(this.countryCode, this.phoneNumber)) {
-            event.target.setCustomValidity('Invalid phone number for country');
-        } else {
-            event.target.setCustomValidity('');
-        }
-        event.target.reportValidity();
     }
 
     updatePhone() {
         this.phone = `${this.countryCode} ${this.phoneNumber}`.trim();
-    }
-
-    validateEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
-
-    // 🚫 Block alphabetic input while typing in phone field
-    blockAlphabets(event) {
-        const key = event.key;
-        // Allow: digits, Backspace, Delete, Arrow keys, Tab
-        const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'];
-
-        if (!/^[0-9]$/.test(key) && !allowedKeys.includes(key)) {
-            event.preventDefault();
-        }
-    }
-
-    validatePhone(countryCode, number) {
-        const trimmed = number.replace(/\D/g, ''); // remove spaces, hyphens
-
-        switch (countryCode) {
-            case '+91': // India 🇮🇳
-                return /^[6-9]\d{9}$/.test(trimmed); // starts 6-9 and total 10 digits
-            case '+1': // USA & Canada 🇺🇸🇨🇦
-                return /^[2-9]\d{9}$/.test(trimmed); // cannot start with 0 or 1
-            case '+44': // UK 🇬🇧
-                return /^7\d{9}$/.test(trimmed); // starts with 7, 10 digits
-            case '+971': // UAE 🇦🇪
-                return /^5\d{8}$/.test(trimmed); // 9 digits total
-            case '+65': // Singapore 🇸🇬
-                return /^[89]\d{7}$/.test(trimmed); // starts 8 or 9, 8 digits
-            case '+61': // Australia 🇦🇺
-                return /^4\d{8}$/.test(trimmed); // starts 4, 9 digits total
-            case '+49': // Germany 🇩🇪
-                return /^\d{10,13}$/.test(trimmed); // basic 10–13 digits
-            case '+33': // France 🇫🇷
-                return /^[67]\d{8}$/.test(trimmed); // starts 6 or 7, 9 digits total
-            case '+81': // Japan 🇯🇵
-                return /^\d{10}$/.test(trimmed); // 10 digits
-            default:
-                return trimmed.length >= 8; // fallback minimal rule
-        }
-    }
-
-    handleChange(event) {
-        const { name, value } = event.target;
-        this[name] = value;
-
-        if (name === 'email' && value) {
-            if (!this.validateEmail(value)) {
-                event.target.setCustomValidity('Please enter a valid email address');
-            } else {
-                event.target.setCustomValidity('');
-            }
-            event.target.reportValidity();
-        }
-
-        if (name === 'typeOfProject') {
-            this.projectScopeOptions = this.scopeMap[value] || [];
-            this.projectScope = '';
-        }
     }
 
     get isScopeDisabled() {
@@ -150,76 +174,81 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
     }
 
     submitLead() {
-         // 🚨 Email validation
-        if (!this.validateEmail(this.email)) {
+        if (!this.leadId) {
             this.dispatchEvent(
                 new ShowToastEvent({
-                    title: 'Invalid Email',
-                    message: 'Please enter a valid email address.',
+                    title: 'Missing Lead',
+                    message:
+                        'Lead Id is not available. Please open this page from a valid project link.',
                     variant: 'error'
                 })
             );
             return;
         }
 
-        // 🚨 Phone validation
-        const trimmedPhone = this.phoneNumber.trim();
-        if (!this.validatePhone(this.countryCode, trimmedPhone)) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Invalid Phone Number',
-                    message: `Please enter a valid phone number for ${this.countryCode}.`,
-                    variant: 'error'
-                })
-            );
-            return;
-        }
-        
-        createLead({
+        const numericBudget =
+            this.budget && this.budget !== '' ? parseFloat(this.budget) : null;
+
+        const siteSpaceValue =
+            this.siteSpace && this.siteSpace.trim() !== '' ? this.siteSpace.trim() : null;
+
+        const payload = {
+            leadId: this.leadId,
             firstName: this.firstName,
             lastName: this.lastName,
             email: this.email,
             phone: this.phone,
             typeOfProject: this.typeOfProject,
             projectScope: this.projectScope,
+            planLevel: this.planLevel,
             company: this.company,
-            budget: parseFloat(this.budget),
+            budget: numericBudget,
+            siteSpace: siteSpaceValue,
+            projectDescription: this.projectDescription,
             siteLocation: this.siteLocation,
-            projectDescription: this.projectDescription
-        })
-            .then(result => {
+            quotationType: this.quotationType // from parent (Manual / Automatic)
+        };
+
+        updateLead({ payload })
+            .then(() => {
                 this.showForm = false;
                 this.showSuccess = true;
-                this.resetForm();
+
+                this.dispatchEvent(
+                    new ShowToastEvent({
+                        title: 'Request Submitted',
+                        message: 'Your project request has been updated successfully.',
+                        variant: 'success'
+                    })
+                );
             })
-            .catch(error => {
+            .catch((error) => {
+                // eslint-disable-next-line no-console
+                console.error('Error updating Lead', error);
+
                 this.dispatchEvent(
                     new ShowToastEvent({
                         title: 'Error',
-                        message: error.body.message,
+                        message:
+                            error && error.body && error.body.message
+                                ? error.body.message
+                                : 'Unable to submit project request.',
                         variant: 'error'
                     })
                 );
             });
+
     }
 
-    resetForm() {
-        this.firstName = '';
-        this.lastName = '';
-        this.email = '';
-        this.phone = '';
-        this.company = '';
-        this.budget = '';
-        this.siteLocation = '';
-        this.projectDescription = '';
-        this.typeOfProject = '';
-        this.projectScope = '';
-        this.countryCode = '+91';
-        this.phoneNumber = '';
-    }
 
     handleCloseSuccess() {
-        this.showSuccess = false;
-        this.showForm = true;
+        // this.showSuccess = false;
+        // this.showForm = true;
+        window.location.href = Arelia_Site_Label;
+    }
+
+
+    goToPrevious() {
+        this.dispatchEvent(new CustomEvent('previous'));
     }
 }

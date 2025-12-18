@@ -37,8 +37,8 @@ public without sharing class AppointmentController {
         STATUS_APPT_RESCHEDULED
     };
 
-    private static final String TEMPLATE_APPROVED    = 'Appointment_Approved_Email';
-    private static final String TEMPLATE_RESCHEDULED = 'Appointment_Rescheduled_Email';
+    private static final String TEMPLATE_APPROVED    = Label.Arelia_Living_Appointment_Approved_Email;
+    private static final String TEMPLATE_RESCHEDULED = Label.Arelia_Living_Appointment_Rescheduled_Email;
 
     // Prevent instantiation
     private AppointmentController() {}
@@ -67,7 +67,7 @@ public without sharing class AppointmentController {
         Lead leadRecord = [
             SELECT Id,
                    FirstName, LastName, Email,
-                   Appointment_Status__c,
+                   Appointment_Status__c,Appointment_Completed__c,
                    Appointment_Date__c, Appointment_Time_Slots__c,
                    Appointment_Rescheduled_Time__c, Time_Slots__c,
                    Supervisor_User__c, Supervisor_User__r.Email
@@ -89,6 +89,7 @@ public without sharing class AppointmentController {
             leadRecord.Appointment_Status__c           = STATUS_APPROVED;
             leadRecord.Appointment_Rescheduled_Time__c = null;
             leadRecord.Time_Slots__c                   = null;
+            leadRecord.Appointment_Completed__c = true;
         } else if (RESCHEDULE_STATUSES.contains(normalized)) {
             enforceNotNull(rescheduleDate, 'Please select both a date and a time slot.');
             enforceNotBlank(timeSlot, 'Please select both a date and a time slot.');
@@ -105,6 +106,7 @@ public without sharing class AppointmentController {
             leadRecord.Appointment_Time_Slots__c       = null;
             leadRecord.Appointment_Rescheduled_Time__c = rescheduleDate;
             leadRecord.Time_Slots__c                   = trimmedSlot;
+            leadRecord.Appointment_Completed__c = true;
         } else {
             throw new AuraHandledException('Unsupported status: ' + status);
         }

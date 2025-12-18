@@ -4,5 +4,6 @@
     <defaultValue>false</defaultValue>
     <label>Appointment Confirmed</label>
     <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>true</trackHistory>
     <type>Checkbox</type>
 </CustomField>

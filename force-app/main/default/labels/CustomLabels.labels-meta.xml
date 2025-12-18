@@ -1,66 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
-    <labels>
-        <fullName>Arelia_Living_Enrollment_Members</fullName>
+<labels>
+        <fullName>Residential_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
-        <shortDescription>Arelia Living Enrollment Members</shortDescription>
-        <value>Monikag@sprintpark.com</value>
+        <shortDescription>Residential_URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/residential-portfolio</value>
     </labels>
     <labels>
-        <fullName>Arelia_OWD</fullName>
+        <fullName>Commercial_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
-        <shortDescription>Arelia_OWD</shortDescription>
-        <value>nareshp@sprintpark.com</value>
+        <shortDescription>Commercial_URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/commerical-portifolio</value>
     </labels>
     <labels>
-        <fullName>Arelia_Project_Request_Page_URL</fullName>
+        <fullName>Hospitality_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
-        <shortDescription>Arelia Project Request Page URL</shortDescription>
-        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/project-request-page</value>
+        <shortDescription>Hospitality_URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/hospitality-portfolio</value>
     </labels>
     <labels>
-        <fullName>Arelia_Site_Label</fullName>
+        <fullName>Instagram_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
-        <shortDescription>Arelia Site Label</shortDescription>
-        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/</value>
+        <shortDescription>Instagram_URL</shortDescription>
+        <value>https://www.instagram.com/arelialivin/</value>
     </labels>
     <labels>
-        <fullName>Registration_Enrollment_Template_DevName</fullName>
+        <fullName>Facebook_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
-        <shortDescription>Registration_Enrollment_Template_DevName</shortDescription>
-        <value>Arelia_Living_Registration_Enrollment_Template</value>
+        <shortDescription>Facebook_URL</shortDescription>
+        <value>https://www.facebook.com/profile.php?id=61584344340267</value>
     </labels>
     <labels>
-        <fullName>Registration_Verification_From_Address</fullName>
+        <fullName>LinkedIn_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
-        <shortDescription>Registration_Verification_From_Address</shortDescription>
-        <value>0D2U90000001Wp3KAE</value>
-    </labels>
-    <labels>
-        <fullName>Registration_Verification_Template_DevName</fullName>
-        <language>en_US</language>
-        <protected>false</protected>
-        <shortDescription>Registration_Verification_Template_DevName</shortDescription>
-        <value>Arelia_OTP_Template</value>
-    </labels>
-    <labels>
-        <fullName>Registration_Welcome_Template_DevName</fullName>
-        <language>en_US</language>
-        <protected>false</protected>
-        <shortDescription>Registration_Welcome_Template_DevName</shortDescription>
-        <value>Registration_Welcome_Template</value>
-    </labels>
-    <labels>
-        <fullName>Site_Appointment_Link_Page</fullName>
-        <language>en_US</language>
-        <protected>false</protected>
-        <shortDescription>Site_Appointment_Link_Page</shortDescription>
-        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/appointment-approval</value>
+        <shortDescription>LinkedIn_URL</shortDescription>
+        <value>https://www.linkedin.com/in/arelia-living-363053394/</value>
     </labels>
 </CustomLabels>

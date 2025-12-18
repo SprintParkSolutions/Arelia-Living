@@ -3,9 +3,19 @@
     <fullName>Supervisor_User__c</fullName>
     <deleteConstraint>SetNull</deleteConstraint>
     <label>Supervisor User</label>
+    <lookupFilter>
+        <active>false</active>
+        <filterItems>
+            <field>User.UserRole.Name</field>
+            <operation>equals</operation>
+            <value>Supervisor</value>
+        </filterItems>
+        <isOptional>false</isOptional>
+    </lookupFilter>
     <referenceTo>User</referenceTo>
     <relationshipName>Leads</relationshipName>
     <required>false</required>
     <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
     <type>Lookup</type>
 </CustomField>

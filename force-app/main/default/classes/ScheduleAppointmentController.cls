@@ -47,8 +47,8 @@ public with sharing class ScheduleAppointmentController {
 
             String formattedDate = selectedDate.format();
 
-            EmailTemplate leadTemplate = fetchTemplate('Lead_Site_Visiting_Email_Template');
-            EmailTemplate supervisorTemplate = fetchTemplate('Supervisor_Site_Visiting_Email_Template');
+            EmailTemplate leadTemplate = fetchTemplate(Label.Arelia_Living_Lead_Site_Visiting_Email_Template);
+            EmailTemplate supervisorTemplate = fetchTemplate(Label.Arelia_Living_Supervisor_Site_Visiting_Email_Template);
 
             List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>{
                 prepareLeadEmail(lead, leadTemplate, formattedDate, slot,appointmentType),
@@ -63,7 +63,8 @@ public with sharing class ScheduleAppointmentController {
             lead.Appointment_Date__c = selectedDate;
             lead.Appointment_Time_Slots__c = slot;
             lead.Appointment_Confirmation_Type__c = appointmentType; // ✅ NEW
-            lead.Appointment_Completed__c = true;
+            lead.Appointment_Sent_date__c = System.Today();
+            lead.Appointment_Completed__c = false;
             update lead;
 
         } catch (AuraHandledException ex) {
@@ -139,9 +140,9 @@ public with sharing class ScheduleAppointmentController {
      * @param lead Lead record.
      */
     private static void validateLeadFields(Lead lead) {
-        if (lead.Appointment_Completed__c) {
-            throw new AuraHandledException('Appointment already scheduled. Please uncheck the "Appointment Completed" field to reschedule.');
-        }
+        // if (lead.Appointment_Completed__c) {
+        //     throw new AuraHandledException('Appointment already scheduled. Please uncheck the "Appointment Completed" field to reschedule.');
+        // }
         if (String.isBlank(lead.Email)) {
             throw new AuraHandledException('Lead email is missing.');
         }
@@ -165,7 +166,7 @@ public with sharing class ScheduleAppointmentController {
      */
     private static Messaging.SingleEmailMessage prepareLeadEmail(Lead lead, EmailTemplate template, String formattedDate, String timeSlot, String appointmentType) {
         String leadName = lead.FirstName + ' ' + lead.LastName;
-        String approvalLink = Label.Site_Appointment_Link_Page + '?id=' + lead.Id;
+        String approvalLink = Label.Arelia_Site_Label+ Label.Site_Appointment_Link_Page + '?id=' + lead.Id;
 
         String htmlBody = template.HtmlValue
             .replace('{{{Recipient.Name}}}', leadName)
