@@ -1,0 +1,189 @@
+<template>
+    <div class="catalog-root">
+
+        <!-- Header -->
+        <div class="catalog-header">
+            <div class="title-block">
+                <div class="subtitle">ARELIA LIVING INTERIOR</div>
+                <h1 class="heading">Interior Product Catalogue</h1>
+                <p class="subheading">Pick a room and category, compare options and add them to your project quotation.</p>
+            </div>
+
+            <div class="header-actions">
+                <button class="uiverse-cart-btn" onclick={openCart}>
+                    🛒 {cartLabel}
+                </button>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <section class="filter-section">
+            <div class="filter-block">
+                <div class="filter-label">Choose Room Type</div>
+                <div class="chip-row">
+                    <template for:each={roomTypes} for:item="room">
+                        <div key={room.value} class={room.className} data-value={room.value} onclick={handleRoomSelect}>
+                            {room.value}
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="filter-block">
+                <div class="filter-label">Choose Product Category</div>
+                <div class="chip-row">
+                    <template for:each={categories} for:item="cat">
+                        <div key={cat.value} class={cat.className} data-value={cat.value} onclick={handleCategorySelect}>
+                            {cat.value}
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+        <!-- Selection preview -->
+        <template if:true={selectedRoomType}>
+            <div class="selection-preview-full">
+                <span class="preview-title">Selected:</span>
+                <span class="preview-value">{selectedRoomType}</span>
+
+                <template if:true={selectedCategory}>
+                    <span class="arrow">→</span>
+                    <span class="preview-value">{selectedCategory}</span>
+                </template>
+
+                <template if:true={selectedProductsList.length}>
+                    <span class="arrow">→</span>
+                    <span class="products-list">
+                        <template for:each={selectedProductsList} for:item="prod">
+                            <span key={prod.name} class="product-chip">
+                                {prod.name} ({prod.qty}×, {prod.quality})
+                            </span>
+                        </template>
+                    </span>
+                </template>
+            </div>
+        </template>
+
+        <!-- Spinner -->
+        <template if:true={isLoading}>
+            <lightning-spinner size="medium"></lightning-spinner>
+        </template>
+
+        <!-- Products -->
+        <template if:true={products.length}>
+            <section class="cards-grid">
+                <template for:each={products} for:item="prod">
+                    <article key={prod.Id} class="product-card">
+
+                        <div class="card-media">
+                            <img src={prod.imageUrl} alt={prod.Name} />
+                        </div>
+
+                        <div class="card-body">
+                            <h2 class="product-name">{prod.Name}</h2>
+
+                            <div class="meta-row">
+                                <span>{prod.Room_Type__c}</span>
+                                <span class="dot">•</span>
+                                <span>{prod.Product_Category__c}</span>
+                            </div>
+
+                            <!-- Quality radio group -->
+                            <div class="glass-radio-group" data-id={prod.Id} onchange={handleQualityRadio}>
+                                <input type="radio" name={prod.qualityGroupName} id={prod.standardId} value="Standard"
+                                    checked={prod.isStandard} />
+                                <label for={prod.standardId}>Standard</label>
+
+                                <input type="radio" name={prod.qualityGroupName} id={prod.premiumId} value="Premium"
+                                    checked={prod.isPremium} />
+                                <label for={prod.premiumId}>Premium</label>
+
+                                <input type="radio" name={prod.qualityGroupName} id={prod.luxuryId} value="Luxury"
+                                    checked={prod.isLuxury} />
+                                <label for={prod.luxuryId}>Luxury</label>
+
+                                <div class="glass-glider"></div>
+                            </div>
+
+                            <div class="price-block">
+                                <div class="price-label">Estimated Price</div>
+                                <div class="price-value">₹ {prod.displayPrice}</div>
+                            </div>
+
+                            <div class="cart-actions">
+                                <template if:false={prod.inCart}>
+                                    <lightning-button variant="brand-outline" label="Add to Cart"
+                                        icon-name="utility:add" data-id={prod.Id} onclick={handleAddToCart}>
+                                    </lightning-button>
+                                </template>
+
+                                <template if:true={prod.inCart}>
+                                    <div class="qty-wrapper">
+                                        <button class="qty-circle minus" data-id={prod.Id} onclick={handleQtyMinus}>-</button>
+
+                                        <input class="qty-center-input" type="number" value={prod.qty} min="1" max="999"
+                                            data-id={prod.Id} onchange={handleQtyInput} />
+
+                                        <button class="qty-circle plus" data-id={prod.Id} onclick={handleQtyPlus}>+</button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </article>
+                </template>
+            </section>
+        </template>
+
+        <!-- Cart Modal -->
+        <template if:true={isCartOpen}>
+            <section class="modal-backdrop">
+                <div class="modal-panel">
+                    <div class="cart-header-row">
+                        <h2>🛒 Cart Preview</h2>
+                        <lightning-button-icon icon-name="utility:close" class="close-btn" onclick={closeCart}></lightning-button-icon>
+                    </div>
+
+                    <template if:true={cartItems.length}>
+                        <template for:each={cartItems} for:item="item">
+                            <div key={item.Interior_Product__c} class="cart-line-row">
+                                <div>{item.Quantity__c}× {item.Name} ({item.Quality__c})</div>
+                                <div>₹ {item.Total_Amount__c}</div>
+                            </div>
+                        </template>
+
+                        <div class="cart-total-row">
+                            <strong>Total</strong>
+                            <span class="cart-total">₹ {cartTotal}</span>
+                        </div>
+
+                        <div class="modal-actions">
+                            <lightning-button label="Close" onclick={closeCart}></lightning-button>
+                            <lightning-button variant="brand" label="Generate PDF" onclick={handleGenerateQuote}></lightning-button>
+                        </div>
+
+                        <div class="clear-btn-wrap">
+                            <lightning-button variant="destructive" label="Clear Cart" onclick={handleClearCart}></lightning-button>
+                        </div>
+                    </template>
+
+                    <template if:false={cartItems.length}>
+                        <div class="empty-state">Your cart is empty.</div>
+                    </template>
+                </div>
+            </section>
+        </template>
+
+        <!-- Toast / Popup -->
+        <template if:true={showPopup}>
+            <section class="toast-overlay">
+                <div class="toast-box">
+                    <span class="toast-title">{popupTitle}</span>
+                    <p class="toast-msg">{popupMessage}</p>
+                    <button class="toast-close-btn" onclick={closePopup}>Close</button>
+                </div>
+            </section>
+        </template>
+
+    </div>
+</template>
