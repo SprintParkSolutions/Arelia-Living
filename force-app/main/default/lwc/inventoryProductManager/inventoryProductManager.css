@@ -1,4 +1,4 @@
-/* paste your entire CSS from top — it's identical to the file you provided */
+
 .catalog-root {
     padding: 1.5rem;
     background: radial-gradient(circle at top left, #0b1220 0, #020617 40%, #000 100%);
@@ -567,4 +567,138 @@ input[id^="luxury-"]:checked ~ .glass-glider {
     font-size: 0.75rem;
     color: #e5e7eb;
     font-weight: 600;
+}
+/* ===== PRODUCT PREVIEW MODAL ===== */
+.modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.78);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index: 100000; /* higher than toast */
+    backdrop-filter: blur(6px);
+}
+
+.modal-container {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    padding: 22px 26px;
+    border-radius: 14px;
+    width: min(520px, 92%);
+    color: white;
+    border: 1px solid rgba(129,140,248,0.35);
+    box-shadow: 0 0 28px rgba(129,140,248,0.4);
+    animation: modalPop .35s ease;
+}
+
+@keyframes modalPop {
+    0% { transform: scale(.85); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom: 10px;
+}
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #a5b4fc;
+}
+
+/* button ONLY for modal */
+.modal-close-btn {
+    background:none;
+    border:none;
+    color:#e5e7eb;
+    font-size:20px;
+    cursor:pointer;
+    transition: .25s;
+}
+.modal-close-btn:hover {
+    color:#fff;
+    transform: scale(1.18);
+}
+
+/* content */
+.modal-img {
+    width:100%;
+    border-radius:10px;
+    margin:14px 0;
+    border:1px solid rgba(129,140,248,0.25);
+}
+
+/* form controls */
+.modal-label {
+    font-size:.9rem;
+    font-weight:600;
+    margin-top:10px;
+    display:block;
+    color:#c7d2fe;
+}
+
+.modal-container select,
+.modal-container input[type="number"] {
+    width:100%;
+    margin-top:6px;
+    padding:8px;
+    border-radius:6px;
+    border:1px solid rgba(129,140,248,0.45);
+    background:rgba(15,23,42,0.7);
+    color:#fff;
+    font-size:.95rem;
+    transition:.25s;
+}
+.modal-container input[type="number"]:focus,
+.modal-container select:focus {
+    border-color:#818cf8;
+    outline:none;
+    box-shadow:0 0 0 3px rgba(129,140,248,.25);
+}
+
+/* actions */
+.modal-actions {
+    display:flex;
+    justify-content:flex-end;
+    gap:.6rem;
+    margin-top: 18px;
+}
+.btn-primary {
+    padding:10px 24px;
+    background:#6366f1;
+    border:none;
+    border-radius:6px;
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+    transition:.25s;
+}
+.btn-primary:hover {
+    background:#4f46e5;
+}
+.btn-secondary {
+    padding:10px 24px;
+    background:#6b7280;
+    border:none;
+    border-radius:6px;
+    color:white;
+    cursor:pointer;
+    transition:.25s;
+}
+.btn-secondary:hover {
+    background:#4b5563;
+}
+.highlight-product {
+    outline: 3px solid #7a5af8;
+    border-radius: 8px;
+    animation: pulseTile 1.4s ease 2;
+}
+
+@keyframes pulseTile {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
 }

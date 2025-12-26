@@ -1,8 +1,10 @@
+
 import { LightningElement, api, track, wire } from 'lwc';
 import { CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 import getProducts from '@salesforce/apex/InventoryApiService.getProducts';
+import saveCart from '@salesforce/apex/OpportunityQuotePDFController.saveCart';
 import generateQuoteAndSave from '@salesforce/apex/OpportunityQuotePDFController.generateQuoteAndSave';
 import getQualityOptions from '@salesforce/apex/QualityConfigController.getQualityOptions';
 
@@ -208,6 +210,7 @@ getPageRef(pageRef) {
                     Unit_Price__c: price,
                     Quality__c: quality,
                     Total_Amount__c: qty * price
+                   
                 };
             } else {
                 cart.push({
@@ -219,6 +222,7 @@ getPageRef(pageRef) {
                     Unit_Price__c: price,
                     Quality__c: quality,
                     Total_Amount__c: qty * price
+                    
                 });
             }
         } else {
@@ -271,30 +275,28 @@ getPageRef(pageRef) {
 
 
     /* ---------------- GENERATE QUOTE ---------------- */
-    handleGenerateQuote() {
+    handleGenerateClick() {
     if (!this.cartItems.length) {
-    this.showCustomPopup(
-        '⚠️ Cart Empty',
-        'Add items before generating quotation.'
-    );
-    return;
-}
+        this.showCustomPopup('⚠️ Cart Empty','Add items before generating quotation.');
+        return;
+    }
 
+    this.isLoading = true;
 
-        generateQuoteAndSave({
-        opportunityId: this.recordId,
-        cartItems: this.cartItems
-    })
+    // 1️⃣ save cart ➜ 2️⃣ generate pdf
+    saveCart({ opportunityId: this.recordId, cartItems: this.cartItems })
+        .then(() => generateQuoteAndSave({ opportunityId: this.recordId }))
         .then(() => {
-    this.showCustomPopup(
-        '🎉 Quotation Generated',
-        'PDF created successfully & project items saved.'
-    );
-})
-        .catch(e => {
-            this.showToast('Error', e.body?.message || 'Unknown error', 'error');
+            this.isLoading = false;
+            this.showCustomPopup('🎉 Success','Quotation PDF generated & emailed!');
+        })
+        .catch(error => {
+            this.isLoading = false;
+            this.showToast('Error', error.body?.message || 'Unknown error', 'error');
         });
 }
+    
+    
 
 
     /* ---------------- IMAGE (STATIC RESOURCE) ---------------- */
@@ -325,3 +327,4 @@ getPageRef(pageRef) {
     }
     
 }
+
