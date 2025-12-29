@@ -14,6 +14,9 @@ export default class RegistrationForm extends LightningElement {
     @track email = '';
     @track phone = '';
 
+    @track companyName = '';
+
+
     @track otpInput = '';
     @track emailVerified = false;
     @track isSendingCode = false;
@@ -89,6 +92,10 @@ export default class RegistrationForm extends LightningElement {
             this.phone = value;
             this.validatePhoneField();
         }
+        else if (name === 'companyName') {
+            this.companyName = value;
+        }
+
     }
 
     handleCountryChange(event) {
@@ -189,7 +196,8 @@ export default class RegistrationForm extends LightningElement {
             firstName: this.firstName,
             lastName: this.lastName,
             email: this.email,
-            phone: fullPhone
+            phone: fullPhone,
+            companyName: (this.companyName || '').trim() || 'Self'
         };
 
         registerLead({ payload })
@@ -296,6 +304,7 @@ export default class RegistrationForm extends LightningElement {
         this.emailVerified = false;
         this.clearResendTimer();
         this.countryCode = '+91';
+        this.companyName = '';
     }
 
     handleApexError(error, fallbackMessage) {
