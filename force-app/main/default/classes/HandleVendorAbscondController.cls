@@ -25,7 +25,7 @@ public with sharing class HandleVendorAbscondController {
     // -------------------------------------------------------------------
     // 🔹 Folder Name Constant
     // -------------------------------------------------------------------
-    private static final String EMAIL_TEMPLATE_FOLDER_NAME = 'Vendor Abscond Templates';
+    private static final String EMAIL_TEMPLATE_FOLDER_NAME = Label.Arelia_Living_Vendor_Abscond_Templates;
 
     // -------------------------------------------------------------------
     // 🔹 Get Email Templates
