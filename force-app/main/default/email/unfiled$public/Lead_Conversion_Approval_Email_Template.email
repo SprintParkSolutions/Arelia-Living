@@ -1429,7 +1429,7 @@ We are pleased to inform you that a new project has been officially approved by 
 	<li><span style="font-size:16px;"><span style="font-family:Times New Roman,Times New Roman,Times,serif;">Site Visit Date:&nbsp;</span></span><strong>{{{Site_Visit_Report__c.Site_Visit_Date__c}}}</strong></li>
 	<li>Site Visit Time Slot:&nbsp;<strong>{{{Site_Visit_Report__c.Site_Visit_Time_Slot__c}}}</strong></li>
 	<li><span style="font-size:16px;"><span style="font-family:Times New Roman,Times New Roman,Times,serif;">Estimated Completion Date: <strong>{{{Site_Visit_Report__c.Estimated_Completion_Date__c}}}</strong></span></span></li>
-	<li><span style="font-size:16px;"><span style="font-family:Times New Roman,Times New Roman,Times,serif;">Supervisor Finall Estimated&nbsp;Cost: <strong>{{{Site_Visit_Report__c.Total_Estimated_Cost__c}}}</strong></span></span></li>
+	<li><span style="font-size:16px;"><span style="font-family:Times New Roman,Times New Roman,Times,serif;">Supervisor Final&nbsp;Estimated&nbsp;Cost:&nbsp;</span></span>₹<span style="font-size:16px;"><span style="font-family:Times New Roman,Times New Roman,Times,serif;">&nbsp;<strong>{{{Site_Visit_Report__c.Total_Estimated_Cost__c}}}</strong></span></span></li>
 	<li><span style="font-size:16px;"><span style="font-family:Times New Roman,Times New Roman,Times,serif;">Site Visit Report Status: <strong>{{{Site_Visit_Report__c.Site_Visit_Report_Status__c}}}</strong></span></span></li>
 </ul>
 

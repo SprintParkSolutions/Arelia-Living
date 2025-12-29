@@ -226,14 +226,6 @@
         <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/commerical-portifolio</value>
     </labels>
     <labels>
-        <fullName>Enrollment_Email_Addresses</fullName>
-        <categories>It stores all Arelia Enrollment members Email with comma separation</categories>
-        <language>en_US</language>
-        <protected>true</protected>
-        <shortDescription>Enrollment Email Addresses</shortDescription>
-        <value>mohit98409@gmail.com</value>
-    </labels>
-    <labels>
         <fullName>Facebook_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -267,14 +259,6 @@
         <protected>false</protected>
         <shortDescription>LinkedIn_URL</shortDescription>
         <value>https://www.linkedin.com/in/arelia-living-363053394/</value>
-    </labels>
-    <labels>
-        <fullName>Management_Email_Addresses</fullName>
-        <categories>It stores all Arelia Management emails with comma separation.</categories>
-        <language>en_US</language>
-        <protected>false</protected>
-        <shortDescription>Management_Email_Addresses</shortDescription>
-        <value>mohit.e@sprintpark.com</value>
     </labels>
     <labels>
         <fullName>Registration_Enrollment_Template_DevName</fullName>
@@ -312,13 +296,6 @@
         <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/residential-portfolio</value>
     </labels>
     <labels>
-        <fullName>Residential_portfolio</fullName>
-        <language>en_US</language>
-        <protected>false</protected>
-        <shortDescription>Residential_URL</shortDescription>
-        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/residential-portfolio</value>
-    </labels>
-    <labels>
         <fullName>Site_Appointment_Link_Page</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -349,7 +326,7 @@
     <labels>
         <fullName>WA_Verify_Token</fullName>
         <language>en_US</language>
-        <protected>true</protected>
+        <protected>false</protected>
         <shortDescription>WA_Verify_Token</shortDescription>
         <value>MyUltraSecret123</value>
     </labels>

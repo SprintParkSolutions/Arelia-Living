@@ -5,6 +5,7 @@
     <label>Quotation</label>
     <lookupFilter>
         <active>true</active>
+        <errorMessage>Please Select Quotation relted to the Opportunity.</errorMessage>
         <filterItems>
             <field>Quotation__c.Opportunity__c</field>
             <operation>equals</operation>
@@ -15,7 +16,7 @@
     <referenceTo>Quotation__c</referenceTo>
     <relationshipLabel>Vendor Opportunities</relationshipLabel>
     <relationshipName>Vendor_Opportunities</relationshipName>
-    <required>false</required>
+    <required>true</required>
     <trackTrending>false</trackTrending>
     <type>Lookup</type>
 </CustomField>

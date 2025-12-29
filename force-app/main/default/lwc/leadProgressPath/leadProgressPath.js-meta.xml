@@ -3,11 +3,21 @@
 	<apiVersion>63.0</apiVersion>
 	<isExposed>true</isExposed>
 	<targets>
-		<target>lightning__AppPage</target>
-		<target>lightning__HomePage</target>
-		<target>lightning__RecordPage</target>
-		<target>lightningCommunity__Default</target>
-		<target>lightningCommunity__Page</target>
-		<target>lightningCommunity__Page_Layout</target>
-	</targets>
+        <!-- Internal org record page -->
+        <target>lightning__RecordPage</target>
+
+        <!-- Experience Cloud pages -->
+        <target>lightningCommunity__Default</target>
+        <target>lightningCommunity__Page</target>
+        <target>lightningCommunity__Page_Layout</target>
+    </targets>
+
+    <targetConfigs>
+        <!-- Restrict internal record page usage to Lead -->
+        <targetConfig targets="lightning__RecordPage">
+            <objects>
+                <object>Lead</object>
+            </objects>
+        </targetConfig>
+    </targetConfigs>
 </LightningComponentBundle>
