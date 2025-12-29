@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Open_Catalogue_Link__c</fullName>
+    <externalId>false</externalId>
+    <formula>HYPERLINK(
+  IF(
+    RIGHT($Label.Arelia_Site_Label,1) = &apos;/&apos;,
+    $Label.Arelia_Site_Label &amp; $Label.Inventory_Catalogue_Site_Base &amp; &apos;?c__opportunityId=&apos; &amp; Id,
+    $Label.Arelia_Site_Label &amp; &apos;/&apos; &amp; $Label.Inventory_Catalogue_Site_Base &amp; &apos;?c__opportunityId=&apos; &amp; Id
+  ),
+  &apos;Open Catalogue&apos;,
+  &apos;_blank&apos;
+)</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>Open Catalogue Link</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>
