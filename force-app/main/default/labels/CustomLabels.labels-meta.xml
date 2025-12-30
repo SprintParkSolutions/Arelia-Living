@@ -176,6 +176,13 @@
         <value>Supervisor_Site_Visiting_Email_Template</value>
     </labels>
     <labels>
+        <fullName>Arelia_Living_Vendor_Abscond_Templates</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Vendor Abscond Templates</shortDescription>
+        <value>Vendor Abscond Templates</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Vendor_Project_Assignment</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -212,11 +219,46 @@
         <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/</value>
     </labels>
     <labels>
+        <fullName>Commercial_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Commercial_URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/commerical-portifolio</value>
+    </labels>
+    <labels>
+        <fullName>Facebook_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Facebook_URL</shortDescription>
+        <value>https://www.facebook.com/profile.php?id=61584344340267</value>
+    </labels>
+    <labels>
+        <fullName>Hospitality_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Hospitality_URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/hospitality-portfolio</value>
+    </labels>
+    <labels>
+        <fullName>Instagram_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Instagram_URL</shortDescription>
+        <value>https://www.instagram.com/arelialivin/</value>
+    </labels>
+    <labels>
         <fullName>Inventory_Catalogue_Site_Base</fullName>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Inventory Catalogue Site Base</shortDescription>
         <value>inventory-catalogue</value>
+    </labels>
+    <labels>
+        <fullName>LinkedIn_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>LinkedIn_URL</shortDescription>
+        <value>https://www.linkedin.com/in/arelia-living-363053394/</value>
     </labels>
     <labels>
         <fullName>Registration_Enrollment_Template_DevName</fullName>
@@ -247,6 +289,13 @@
         <value>Registration_Welcome_Template</value>
     </labels>
     <labels>
+        <fullName>Residential_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Residential_URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/residential-portfolio</value>
+    </labels>
+    <labels>
         <fullName>Site_Appointment_Link_Page</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -259,5 +308,26 @@
         <protected>false</protected>
         <shortDescription>Site Appointment Opp Link Page</shortDescription>
         <value>arelia-opp-appointment-approval</value>
+    </labels>
+    <labels>
+        <fullName>WA_Access_Token</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>WA_Access_Token</shortDescription>
+        <value>EAAURDkLToDYBQGVZAyH8ZCUdThSYMb6YH1FhQZB0j8ruAAU6mYjfp2luz6bK7ci3u0oVBsqvYxVTGDXksIKQuoqTFmVOMBPFZCiky2uZAnfIiKW2Al3uUGw4UEMOWjyUa2Gx6zCxgtYmpKv5eV70PMkbctRpKS8frlMlmPxF3ZCY0uiusZAAwVEQyKmPMavm3gs93BBLJErbwZBNULvdURs1cKiTn8VZCHPGpRedn1r2swwsn5Xjoap8ZCPhoc09bx5iWbftVXHhCT1wIV4LQyy25yZAQZDZD</value>
+    </labels>
+    <labels>
+        <fullName>WA_Phone_Number_Id</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>WA_Phone_Number_Id</shortDescription>
+        <value>940676392452334</value>
+    </labels>
+    <labels>
+        <fullName>WA_Verify_Token</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>WA_Verify_Token</shortDescription>
+        <value>MyUltraSecret123</value>
     </labels>
 </CustomLabels>

@@ -1,27 +1,24 @@
 /**
-* @description  Returns the available picklist values for Lead.Project_Request_Quotation_Type__c.
-*/
-
+ * @FileName    : ProjectRequestController.cls
+ * @description : Provides helper methods for the Project Request wizard
+ *                (quotation type picklist).
+ */
 public without sharing class ProjectRequestController {
+
+    /**
+     * @description Returns the available picklist values for
+     *              Lead.Project_Request_Quotation_Type__c.
+     */
     @AuraEnabled(cacheable=true)
     public static List<String> getProjectQuotationTypeValues() {
         List<String> values = new List<String>();
 
-        // Describe the picklist fields
-        Schema.DescribeFieldResult fieldResult = Lead.Project_Request_Quotation_Type__c.getDescribe();
-        
-        // Extract values
+        Schema.DescribeFieldResult fieldResult =
+            Lead.Project_Request_Quotation_Type__c.getDescribe();
+
         for (Schema.PicklistEntry picklistValue : fieldResult.getPicklistValues()) {
             values.add(picklistValue.getLabel());
         }
-
         return values;
-    }
-
-    @AuraEnabled
-    public static void updateQuotationType(Id leadId, String quotationType) {
-        Lead l = [SELECT Id FROM Lead WHERE Id = :leadId LIMIT 1];
-        l.Project_Request_Quotation_Type__c = quotationType;
-        update l;
     }
 }

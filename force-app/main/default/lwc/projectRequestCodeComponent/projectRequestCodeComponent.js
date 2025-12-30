@@ -1,75 +1,20 @@
 import { LightningElement, track, wire } from 'lwc';
-import getProjectQuotationTypeValues from '@salesforce/apex/ProjectRequestController.getProjectQuotationTypeValues';
-import updateQuotationType from '@salesforce/apex/ProjectRequestController.updateQuotationType';
+import getProjectQuotationTypeValues
+    from '@salesforce/apex/ProjectRequestController.getProjectQuotationTypeValues';
 
 export default class ProjectRequestCodeComponent extends LightningElement {
-        // Screen control
-    // @track showScreen1 = true;
-    // @track showScreen2 = false;
-    // @track leadId;
-
-    // @track value = null;
-    // @track options = [];
-
-    // get disableNext() {
-    //     return !this.value;
-    // }
-
-    // @wire(getProjectQuotationTypeValues)
-    // wiredValues({ data, error }) {
-    //     if (data) {
-    //         this.options = data.map((label, index) => ({
-    //             label,
-    //             value: label,
-    //             cssClass: `radio-row animate-stagger stagger-${index}`,
-    //             selected: false
-    //         }));
-    //     } else if (error) {
-    //         console.error('Error loading picklist values', error);
-    //     }
-    // }
-
-    // handleChange(event) {
-    //     this.value = event.target.value;
-
-    //     this.options = this.options.map(opt => ({
-    //         ...opt,
-    //         selected: opt.value === this.value
-    //     }));
-    // }
-
-    // handleRipple(event) {
-    //     const ripple = event.currentTarget.querySelector('.ripple');
-    //     if (ripple) {
-    //         ripple.classList.remove('run');
-    //         void ripple.offsetWidth;
-    //         ripple.classList.add('run');
-    //     }
-    // }
-
-    // goNext() {
-    //     if (this.value === 'Manual Quotation') {
-    //         // ✅ Extract Lead Id from URL
-    //         const urlParams = new URLSearchParams(window.location.search);
-    //         this.leadId = urlParams.get('id');
-
-    //         this.showScreen1 = false;
-    //         this.showScreen2 = true;
-    //     }
-    // }
-
-    // handlePrevious() {
-    //     console.log('Parent: Received previous event from child');
-    //     this.showScreen1 = true;
-    //     this.showScreen2 = false;
-    // }
-
     @track showScreen1 = true;
-    @track showScreen2 = false;
-    @track leadId;
+    @track showManualScreen = false;
+    @track showAutomaticScreen = false;
 
-    @track value = null;
+    @track leadId;
+    @track value = null; // selected quotation type
     @track options = [];
+
+    connectedCallback() {
+        const urlParams = new URLSearchParams(window.location.search);
+        this.leadId = urlParams.get('id');
+    }
 
     get disableNext() {
         return !this.value;
@@ -81,65 +26,65 @@ export default class ProjectRequestCodeComponent extends LightningElement {
             this.options = data.map((label, index) => ({
                 label,
                 value: label,
-                cssClass: `radio-row animate-stagger stagger-${index}`,
-                selected: false
+                selected: this.value === label,
+                cssClass: this.buildRowClass(label, index)
             }));
         } else if (error) {
+            // eslint-disable-next-line no-console
             console.error('Error loading picklist values', error);
         }
     }
 
-    handleChange(event) {
-        this.value = event.target.value;
-
-        this.options = this.options.map(opt => ({
-            ...opt,
-            selected: opt.value === this.value
-        }));
+    buildRowClass(label, index) {
+        const base = 'radio-row animate-stagger stagger-' + index;
+        const selectedClass = this.value === label ? ' radio-row_selected' : '';
+        return base + selectedClass;
     }
 
-    handleRipple(event) {
-        const ripple = event.currentTarget.querySelector('.ripple');
-        if (ripple) {
-            ripple.classList.remove('run');
-            void ripple.offsetWidth;
-            ripple.classList.add('run');
+    handleChange(event) {
+        const selectedValue = event.target.value;
+        this.setSelectedValue(selectedValue);
+    }
+
+    handleRowClick(event) {
+        const rowValue = event.currentTarget.dataset.value;
+        if (rowValue) {
+            this.setSelectedValue(rowValue);
         }
     }
 
+    setSelectedValue(selectedValue) {
+        this.value = selectedValue;
+        this.options = this.options.map((opt, index) => ({
+            ...opt,
+            selected: opt.value === this.value,
+            cssClass: this.buildRowClass(opt.value, index)
+        }));
+    }
+
     goNext() {
-        console.log('Next clicked. Selected value:', this.value);
+        if (!this.value || !this.leadId) {
+            return;
+        }
 
-        // Extract Lead Id from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        this.leadId = urlParams.get('id');
-        console.log('Lead ID from URL:', this.leadId);
+        this.showScreen1 = false;
+        this.showManualScreen = false;
+        this.showAutomaticScreen = false;
 
-        // 🔥 UPDATE THE PICKLIST IN LEAD RECORD BEFORE GOING TO SCREEN 2
-        updateQuotationType({
-            leadId: this.leadId,
-            quotationType: this.value
-        })
-        .then(() => {
-            console.log('Quotation type updated successfully ✔');
-
-            // Only show screen 2 if Manual
-            if (this.value === 'Manual Quotation') {
-                this.showScreen1 = false;
-                this.showScreen2 = true;
-            } else {
-                // If Automatic, show message or redirect
-                console.log('Automatic quotation selected — you can add redirect or message');
-            }
-        })
-        .catch(error => {
-            console.error('Error updating quotation type:', error);
-        });
+        // You can adjust these string checks to match your picklist labels
+        if (this.value === 'Manual Quotation') {
+            this.showManualScreen = true;
+        } else if (this.value === 'Automatic Quotation') {
+            this.showAutomaticScreen = true;
+        } else {
+            // If you add more quotation types later, you can handle them here
+            this.showManualScreen = true;
+        }
     }
 
     handlePrevious() {
-        console.log('Parent: Received previous event from child');
         this.showScreen1 = true;
-        this.showScreen2 = false;
+        this.showManualScreen = false;
+        this.showAutomaticScreen = false;
     }
 }

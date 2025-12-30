@@ -133,11 +133,12 @@ public without sharing class RegistrationFormController {
         String lastName  = (String)payload.get('lastName');
         String email     = (String)payload.get('email');
         String phone     = (String)payload.get('phone');
+        String companyName = (String)payload.get('companyName');
 
         validateNameFields(firstName, lastName);
         validateEmail(email);
 
-        Lead leadToInsert = buildLead(firstName, lastName, email, phone);
+        Lead leadToInsert = buildLead(firstName, lastName, email, phone, companyName);
 
         assertCanCreateLead();
         // Insert in system mode so guest can create Lead (with explicit CRUD check above)
@@ -177,13 +178,15 @@ public without sharing class RegistrationFormController {
      * @return Lead record (not yet inserted).
      */
     @SuppressWarnings('PMD.ExcessiveParameterList')
-    private static Lead buildLead(String firstName,String lastName,String email,String phone)
+    private static Lead buildLead(String firstName,String lastName,String email,String phone, String companyName)
     {
+        String finalCompany = String.isBlank(companyName) ? 'Self' : companyName.trim();
         return new Lead(
             FirstName = firstName != null ? firstName.trim() : null,
             LastName  = lastName != null ? lastName.trim() : null,
             Email     = email != null ? email.trim() : null,
-            Phone     = phone
+            Phone     = phone,
+            Company   = finalCompany
         );
     }
 
@@ -224,49 +227,51 @@ public without sharing class RegistrationFormController {
         }
 
         // Build link: label + ?id=<leadId>
-        String projectRequestLink =
-            System.Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
+        String projectRequestLink = Label.Arelia_Site_Label + Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
 
         // Build recipient name
         String leadName = ((leadRecord.FirstName != null ? leadRecord.FirstName + ' ' : '')
                         + leadRecord.LastName);
 
-        // Build token data (new object to avoid long parameter list)
         WelcomeTokenData data = new WelcomeTokenData();
         data.name        = leadName;
         data.email       = leadRecord.Email;
         data.phone       = leadRecord.Phone;
         data.projectLink = projectRequestLink;
 
-        // Start from template values
         String subject  = template.Subject;
         String textBody = template.Body;
         String htmlBody = template.HtmlValue;
 
-        // Replace tokens in subject and bodies
         subject  = replaceWelcomeTokens(subject,  data);
         textBody = replaceWelcomeTokens(textBody, data);
         htmlBody = replaceWelcomeTokens(htmlBody, data);
 
         Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
+
+        // 🔹 IMPORTANT: relate email to the Lead so it appears in Activity
+        msg.setTargetObjectId(leadRecord.Id);
+        msg.setTreatTargetObjectAsRecipient(true); // Lead is the actual recipient
+
+        // (Optional, but fine to keep)
         msg.setToAddresses(new List<String>{ leadRecord.Email });
 
         if (String.isNotBlank(subject)) {
             msg.setSubject(subject);
         }
 
-        // Prefer HTML when available
         if (String.isNotBlank(htmlBody)) {
             msg.setHtmlBody(htmlBody);
         } else {
             msg.setPlainTextBody(textBody);
         }
 
-        msg.setSaveAsActivity(true);
+        msg.setSaveAsActivity(true);   // now this will WORK because TargetObjectId is set
         setOrgWideAddressForGuest(msg);
 
         Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
     }
+
 
 
     /**
@@ -295,9 +300,7 @@ public without sharing class RegistrationFormController {
             return;
         }
 
-        // Build project request link: label + ?id=<leadId>
-        String projectRequestLink =
-            System.Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
+        String projectRequestLink = Label.Arelia_Site_Label + Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
 
         // Build customer name
         String leadName = ((leadRecord.FirstName != null ? leadRecord.FirstName + ' ' : '')
@@ -338,7 +341,7 @@ public without sharing class RegistrationFormController {
         // Optional: log as activity on Lead (if you want)
         msg.setTargetObjectId(leadRecord.Id);
         msg.setTreatTargetObjectAsRecipient(false);
-        msg.setSaveAsActivity(false); // set true if you want a task on the Lead
+        msg.setSaveAsActivity(true); // set true if you want a task on the Lead
 
         // For guest user, still use OrgWide address
         setOrgWideAddressForGuest(msg);

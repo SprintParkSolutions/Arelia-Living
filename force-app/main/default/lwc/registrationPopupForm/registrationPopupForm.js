@@ -21,6 +21,8 @@ export default class RegistrationPopupForm extends LightningElement {
     @track lastName = '';
     @track email = '';
     @track phone = '';
+    @track companyName = '';
+
 
     // OTP and state
     @track otpInput = '';
@@ -152,7 +154,10 @@ export default class RegistrationPopupForm extends LightningElement {
         } else if (name === 'phone') {
             this.phone = value;
             this.validatePhoneField();
+        } else if (name === 'companyName') {
+            this.companyName = value;
         }
+
     }
 
     handleCountryChange(event) {
@@ -252,7 +257,8 @@ export default class RegistrationPopupForm extends LightningElement {
             firstName: this.firstName,
             lastName: this.lastName,
             email: this.email,
-            phone: fullPhone
+            phone: fullPhone,
+            companyName: (this.companyName || '').trim() || 'Self'
         };
 
         registerLead({ payload })
@@ -273,12 +279,9 @@ export default class RegistrationPopupForm extends LightningElement {
         this.closeModal();
     }
 
-    // ---------- Validation ----------
     validateEmailField() {
+        // Try to find the input (it exists only on Step 1)
         const input = this.template.querySelector('[data-id="emailInput"]');
-        if (!input) {
-            return false;
-        }
 
         const value = (this.email || '').trim();
         let message = '';
@@ -289,16 +292,17 @@ export default class RegistrationPopupForm extends LightningElement {
             message = 'Enter a valid email address (e.g. name@example.com).';
         }
 
-        input.setCustomValidity(message);
-        input.reportValidity();
+        // When we are on Step 1, show the error on the field
+        if (input) {
+            input.setCustomValidity(message);
+            input.reportValidity();
+        }
         return !message;
     }
 
     validatePhoneField() {
+        // Input exists only on Step 1
         const input = this.template.querySelector('[data-id="phoneInput"]');
-        if (!input) {
-            return false;
-        }
 
         const digits = this.getPhoneDigits();
         let message = '';
@@ -309,10 +313,16 @@ export default class RegistrationPopupForm extends LightningElement {
             message = 'Enter a 10-digit mobile number.';
         }
 
-        input.setCustomValidity(message);
-        input.reportValidity();
+        // Show field-level error only when the input is in the DOM (Step 1)
+        if (input) {
+            input.setCustomValidity(message);
+            input.reportValidity();
+        }
+
+        // On Step 2 this still validates based on stored value in this.phone
         return !message;
     }
+
 
     getPhoneDigits() {
         return (this.phone || '').replace(/\D/g, '');
@@ -357,6 +367,7 @@ export default class RegistrationPopupForm extends LightningElement {
         this.emailVerified = false;
         this.clearResendTimer();
         this.countryCode = '+91';
+        this.companyName = '';
     }
 
     handleApexError(error, fallbackMessage) {

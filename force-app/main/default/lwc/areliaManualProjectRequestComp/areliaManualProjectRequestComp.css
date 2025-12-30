@@ -1,181 +1,116 @@
-/* Wrapper centers the form on a nice background */
+:host {
+    display: block;
+}
+
+/* Shell background aligned with site */
 .form-wrapper {
     display: flex;
     justify-content: center;
-    padding: 4rem 1rem;
-    background: linear-gradient(120deg, #e0f7fa, #e8eaf6);
+    padding: 3rem 1rem 4rem;
+    background: linear-gradient(180deg, #e9ddbb 0%, #f6ecd0 55%, #f0e4c3 100%);
 }
 
-/* Lightning card container styling */
-lightning-card {
+/* Card */
+.card-shell {
     width: 100%;
-    max-width: 750px;
-    border: none !important;
-    box-shadow: none !important;
-}
-
-/* Main form container with glass-like effect */
-lightning-card .slds-card {
-    border: none !important;
+    max-width: 820px;
     border-radius: 20px;
-    background: rgba(255, 255, 255, 0.85);
-    /* translucent white */
-    backdrop-filter: blur(12px);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
-    padding: 2.5rem 2rem;
-    position: relative;
+    background: #fffaf0;
+    border: 1px solid rgba(120, 96, 60, 0.2);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.23);
     overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+/* Header */
+.card-header {
+    padding: 1.8rem 2.2rem 1.2rem;
+    background: linear-gradient(90deg, #736448, #5e5035);
+    color: #fff;
 }
 
-/* Hover lifts the entire form */
-lightning-card:hover .slds-card {
-    transform: scale(1.01);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
+.card-title {
+    margin: 0 0 0.4rem;
+    font-size: 1.45rem;
+    font-weight: 600;
 }
 
-/* Gradient bar across the top of the form */
-lightning-card .slds-card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 10px;
-    width: 100%;
-    background: linear-gradient(90deg, #8e24aa, #3949ab, #00acc1);
-    border-top-left-radius: 20px;
-    border-top-right-radius: 20px;
+.card-subtitle {
+    margin: 0;
+    font-size: 0.95rem;
+    opacity: 0.92;
 }
 
-/* Inputs and textarea spacing */
+/* Body */
+.card-body {
+    padding: 1.8rem 2.2rem 1.8rem;
+}
+
+/* Footer */
+.card-footer {
+    padding: 1.2rem 2.2rem 1.4rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    background: #f3e7c6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.footer-left {
+    font-size: 0.86rem;
+}
+
+.footer-right {
+    display: flex;
+    align-items: center;
+}
+
+/* Small pill for quotation type */
+.quote-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(121, 100, 63, 0.35);
+    color: #5e5035;
+    font-weight: 500;
+}
+
+/* Inputs spacing & labels */
 lightning-input,
 lightning-textarea,
 lightning-combobox {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.4rem;
 }
 
-/* Form label styling */
 lightning-input label,
 lightning-textarea label,
 lightning-combobox label {
     font-weight: 600;
-    color: #3949ab;
-    font-size: 0.92rem;
+    color: #4a3b24;
+    font-size: 0.93rem;
 }
 
-/* Modern input box design */
-lightning-input input,
-lightning-textarea textarea,
-lightning-combobox .slds-combobox {
-    border-radius: 10px;
-    border: 1px solid #cfd8dc;
-    padding: 0.75rem 1rem;
-    background: #f9fbfc;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
-}
+/* ========== PHONE FIELD ========== */
 
-/* Input hover/focus states */
-lightning-input input:hover,
-lightning-textarea textarea:hover,
-lightning-combobox .slds-combobox:hover {
-    background: #ffffff;
-}
-
-lightning-input input:focus,
-lightning-textarea textarea:focus,
-lightning-combobox .slds-combobox:focus-within {
-    border-color: #5e35b1;
-    box-shadow: 0 0 6px rgba(94, 53, 177, 0.3);
-}
-
-/* Optional: subtle form section divider */
-.section-divider {
-    height: 1px;
-    background: #e0e0e0;
-    margin: 1.5rem 0;
-    border-radius: 1px;
-}
-
-/* Card Design */
-.thank-you-card {
-    width: 100%;
-    max-width: 550px;
-    border-radius: 8px;
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-}
-
-/* Header Design */
-.thank-you-header {
-    background-color: #388e3c;
-    color: white;
-    padding: 1rem;
-    text-align: center;
-    font-size: 1.5rem;
-    font-weight: bold;
-}
-
-/* Body Styling */
-.thank-you-body {
-    padding: 2rem;
-    text-align: center;
-}
-
-.success-icon {
-    --slds-c-icon-color-foreground-default: #388e3c;
-    margin-bottom: 1rem;
-}
-
-.thank-you-text {
-    font-size: 1rem;
-    margin: 1rem 0 2rem;
-    color: #333;
-}
-
-.thank-you-close-btn {
-    font-weight: bold;
-}
-
-/* ====================== */
-/* 🌍 PHONE FIELD STYLING */
-/* ====================== */
-
-/* 🌍 PHONE FIELD FIX — FINAL VERSION */
 .phone-field {
-    position: relative;
     display: flex;
     flex-direction: column;
 }
 
-/* ✅ Keep the input group perfectly aligned */
 .phone-wrapper {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     width: 100%;
-    height: 2.5rem; /* match other inputs */
-    margin-top: 0;
 }
 
-/* 📌 Input containers: no extra space inside */
-.phone-wrapper lightning-combobox::part(form-element),
-.phone-wrapper lightning-input::part(form-element) {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-.phone-wrapper lightning-combobox::part(input-container),
-.phone-wrapper lightning-input::part(input-container) {
-    height: 2.5rem;
-    display: flex;
-    align-items: center;
-    padding: 0 !important;
-}
-
-/* 📞 Inputs sizing */
 .country-box {
-    flex: 0 0 25%;
+    flex: 0 0 30%;
     min-width: 90px;
 }
 
@@ -183,25 +118,68 @@ lightning-combobox .slds-combobox:focus-within {
     flex: 1;
 }
 
-/* Match styling */
-.phone-wrapper .slds-input {
-    border-radius: 10px;
-    background: #f9fbfc;
-    height: 2.5rem;
-    line-height: 2.5rem;
+/* SUCCESS SCREEN */
+.success-shell {
+    display: flex;
+    justify-content: center;
+    width: 100%;
 }
 
-/* 🚨 Absolute positioning for error message */
-.phone-field .slds-form-element__help {
-    position: absolute;
-    top: calc(100% + 0.1rem);
-    left: 0;
-    font-size: 0.75rem;
-    color: #c23934; /* standard SLDS error red */
-    line-height: 1rem;
+.thank-you-card {
+    width: 100%;
+    max-width: 540px;
+    border-radius: 16px;
+    background: #fffef6;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    margin-top: 3rem;
 }
 
-/* Prevent input shift */
-.phone-field .slds-form-element__control {
-    margin-bottom: 0 !important;
+.thank-you-header {
+    background: linear-gradient(90deg, #4f773c, #3e5e2f);
+    color: white;
+    padding: 1.1rem 1.5rem;
+    text-align: center;
+    font-size: 1.35rem;
+    font-weight: 600;
+}
+
+.thank-you-body {
+    padding: 2.2rem 2rem 2rem;
+    text-align: center;
+}
+
+.success-icon {
+    --slds-c-icon-color-foreground-default: #4f773c;
+    margin-bottom: 1rem;
+}
+
+.thank-you-text {
+    font-size: 1rem;
+    margin: 1rem 0 2rem;
+    color: #3f3422;
+}
+
+.thank-you-close-btn {
+    font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+
+    .card-header,
+    .card-body,
+    .card-footer {
+        padding-left: 1.2rem;
+        padding-right: 1.2rem;
+    }
+
+    .card-title {
+        font-size: 1.3rem;
+    }
+
+    .footer-right {
+        width: 100%;
+        justify-content: flex-end;
+    }
 }
