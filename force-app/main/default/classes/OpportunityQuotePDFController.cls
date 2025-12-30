@@ -1,203 +1,190 @@
 public without sharing class OpportunityQuotePDFController {
 
-    // ----------------------------------------------------
-    // PROPERTIES USED BY VISUALFORCE PDF PAGE
-    // ----------------------------------------------------
-    public Opportunity Opp { get; set; }
-    public List<Project_Specification__c> specItems { get; set; }
-    public Decimal grandTotal { get; set; }
+    /* ===============================
+       PROPERTIES USED BY VF
+    =============================== */
+    public Opportunity Opp { get; private set; }
+    public List<Project_Specification__c> specItems { get; private set; }
+    public Decimal grandTotal { get; private set; }
+    public Datetime generatedOn { get; private set; } 
 
-    // ----------------------------------------------------
-    // CONSTRUCTOR (called when VF PDF loads)
-    // ----------------------------------------------------
+    /* ===============================
+       VF CONTROLLER (PDF RENDER)
+    =============================== */
     public OpportunityQuotePDFController() {
-        try {
-            Id opportunityId = ApexPages.currentPage().getParameters().get('opportunityId');
 
-            Opp = [
-                SELECT Id, Name, Lead_Name__c, Email__c, Lead_Phone__c,
-                       CreatedDate, Type_of_Project__c, Owner.Name,
-                       Supervisor_User__r.Name, Supervisor_User_Email__c
-                FROM Opportunity
-                WHERE Id = :opportunityId
-                LIMIT 1
-            ];
+        generatedOn = Datetime.now();
+        specItems = new List<Project_Specification__c>();
+        grandTotal = 0;
 
-            specItems = [
-                SELECT Quantity__c, Unit_Price__c, Total_Amount__c, Quality__c,
-                       Interior_Product__r.Name,
-                       Interior_Product__r.Product_Category__c,
-                       Interior_Product__r.Room_Type__c
-                FROM Project_Specification__c
-                WHERE Opportunity__c = :opportunityId
-                ORDER BY CreatedDate DESC
-            ];
+        // VF is called with ?id=<OpportunityId>
+        Id oppId = ApexPages.currentPage().getParameters().get('id');
+        if (oppId == null) return;
 
-            grandTotal = 0;
-            for (Project_Specification__c s : specItems) {
-                grandTotal += (s.Total_Amount__c != null ? s.Total_Amount__c : 0);
-            }
-
-        } catch (Exception ex) {
-            throw new AuraHandledException('PDF Page Error: ' + ex.getMessage());
-        }
-    }
-
-
-    // ----------------------------------------------------
-    // METHOD CALLED FROM LWC TO CREATE SPEC + PDF
-    // ----------------------------------------------------
-    @AuraEnabled
-    public static String generateQuoteAndSave(Id opportunityId, List<Project_Specification__c> cartItems) {
-
-        if (opportunityId == null) {
-            throw new AuraHandledException('Opportunity Id is required');
-        }
-
-        try {
-            // Delete old items
-            List<Project_Specification__c> oldItems = [
-                SELECT Id FROM Project_Specification__c WHERE Opportunity__c = :opportunityId
-            ];
-            if (!oldItems.isEmpty()) delete oldItems;
-
-            // Insert new spec items
-            List<Project_Specification__c> toInsert = new List<Project_Specification__c>();
-            for (Project_Specification__c c : cartItems) {
-
-                Interior_Product__c prod = [
-                    SELECT Product_Category__c, Room_Type__c
-                    FROM Interior_Product__c
-                    WHERE Id = :c.Interior_Product__c
-                    LIMIT 1
-                ];
-
-                toInsert.add(new Project_Specification__c(
-                    Opportunity__c = opportunityId,
-                    Interior_Product__c = c.Interior_Product__c,
-                    Quantity__c = c.Quantity__c,
-                    Unit_Price__c = c.Unit_Price__c,
-                    Quality__c = c.Quality__c,
-                    Vendor_Category__c = prod.Product_Category__c
-                ));
-            }
-            insert toInsert;
-
-            // Generate PDF + Save + Email
-            generatePdfAndEmail(opportunityId);
-
-            return 'SUCCESS';
-
-        } catch (Exception ex) {
-            throw new AuraHandledException('Quotation Error: ' + ex.getMessage());
-        }
-    }
-
-
-    // ----------------------------------------------------
-    // MAIN PDF + EMAIL METHOD
-    // ----------------------------------------------------
-    @AuraEnabled
-    public static void generatePdfAndEmail(Id oppId) {
-
-        // Generate PDF
-        PageReference pdfPage = Page.Opportunity_Quote_PDF;
-        pdfPage.getParameters().put('opportunityId', oppId);
-        Blob pdfBlob = pdfPage.getContentAsPDF();
-
-        // Create Quotation record
-        Quotation__c qt = new Quotation__c(
-            Opportunity__c = oppId,
-            Manager_Approval__c = false,
-            Name = 'Quotation - ' + Datetime.now().format('yyyyMMdd_HHmmss')
-        );
-        insert qt;
-
-        // Attach PDF to Quotation__c
-        Attachment att = new Attachment(
-            Name = 'Quotation_' + Datetime.now().format('yyyyMMdd_HHmmss') + '.pdf',
-            ParentId = qt.Id,
-            Body = pdfBlob,
-            ContentType = 'application/pdf'
-        );
-        insert att;
-
-
-        // Fetch Opportunity
-        Opportunity opp = [
-            SELECT Id, Lead_Name__c, Email__c, Lead_Phone__c,
-                   Supervisor_User__r.Name, Supervisor_User_Email__c
+        // 🔹 Load Opportunity
+        Opp = [
+            SELECT Id, Name, Lead_Name__c, Email__c, Lead_Phone__c,
+                   Type_of_Project__c,
+                   Supervisor_User__c
             FROM Opportunity
             WHERE Id = :oppId
             LIMIT 1
         ];
 
-        // Email Customer
-        sendEmailUsingTemplate(
-            'Opportunity_Catalogue_Quotation_Lead',
-            opp.Email__c,
-            opp,
-            att
-        );
-
-        // Email Supervisor
-       /* if (!String.isBlank(opp.Supervisor_User_Email__c)) {
-            sendEmailUsingTemplate(
-                'Opportunity_Catalogue_Quotation_Supervisor',
-                opp.Supervisor_User_Email__c,
-                opp,
-                att
-            );
-        }*/
-    }
-
-
-    // ----------------------------------------------------
-    // EMAIL HELPER METHOD
-    // ----------------------------------------------------
-    private static void sendEmailUsingTemplate(
-        String developerName, String toEmail,
-        Opportunity opp, Attachment att
-    ) {
-        if (String.isBlank(toEmail)) return;
-
-        EmailTemplate tpl = [
-            SELECT Id, HtmlValue, Subject
-            FROM EmailTemplate
-            WHERE DeveloperName = :developerName
-            LIMIT 1
+        // 🔹 Load CURRENT cart items only
+        specItems = [
+            SELECT Quantity__c,
+                   Unit_Price__c,
+                   Total_Amount__c,
+                   Quality__c,
+                   Vendor_Category__c,
+                   Interior_Product__r.Name,
+                   Interior_Product__r.Product_Category__c,
+                   Interior_Product__r.Room_Type__c
+            FROM Project_Specification__c
+            WHERE Opportunity__c = :oppId
+            ORDER BY CreatedDate ASC
         ];
 
-        String htmlBody = tpl.HtmlValue
-            .replace('{{{CustomerName}}}', opp.Lead_Name__c)
-            .replace('{{{CustomerEmail}}}', opp.Email__c)
-            .replace('{{{CustomerPhone}}}', opp.Lead_Phone__c)
-            .replace('{{{SupervisorName}}}', opp.Supervisor_User__r != null ? opp.Supervisor_User__r.Name : '');
-
-        String subject = tpl.Subject
-            .replace('{{{CustomerName}}}', opp.Lead_Name__c)
-            .replace('{{{SupervisorName}}}', opp.Supervisor_User__r != null ? opp.Supervisor_User__r.Name : '');
-
-        Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
-        efa.setBody(att.Body);
-        efa.setFileName(att.Name);
-        efa.setContentType('application/pdf');
-
-        Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
-        msg.setToAddresses(new List<String>{ toEmail });
-        msg.setSubject(subject);
-        msg.setHtmlBody(htmlBody);
-        msg.setFileAttachments(new Messaging.EmailFileAttachment[]{efa});
-        msg.setOrgWideEmailAddressId(getOWD());
-        msg.setWhatId(opp.Id);
-        msg.setSaveAsActivity(true);
-
-        Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
+        // 🔹 Calculate grand total
+        for (Project_Specification__c s : specItems) {
+            if (s.Total_Amount__c != null) {
+                grandTotal += s.Total_Amount__c;
+            }
+        }
     }
 
-    private static Id getOWD() {
+    /* ===============================
+       SAVE CART + CREATE QUOTE
+    =============================== */
+    /* -------------------- SAVE CART ITEMS -------------------- */
+    @AuraEnabled(cacheable=true)
+public static List<Project_Specification__c> getSavedCart(Id opportunityId) {
+    if (opportunityId == null) return new List<Project_Specification__c>();
+
+    return [
+        SELECT Id, Name, Opportunity__c, Interior_Product__c,
+               Quantity__c, Unit_Price__c, Total_Amount__c,
+               Quality__c, Vendor_Category__c
+        FROM Project_Specification__c
+        WHERE Opportunity__c = :opportunityId
+        ORDER BY CreatedDate ASC
+    ];
+}
+    @AuraEnabled
+public static void saveCart(Id opportunityId, List<Project_Specification__c> cartItems) {
+
+    if (opportunityId == null || cartItems == null || cartItems.isEmpty()) {
+        throw new AuraHandledException('Nothing to save');
+    }
+
+    // --------------------------------------
+    // 1️⃣ Delete old cart items for this opp
+    // --------------------------------------
+    /*delete [
+        SELECT Id 
+        FROM Project_Specification__c
+        WHERE Opportunity__c = :opportunityId
+    ];*/
+
+    // --------------------------------------
+    // 2️⃣ Collect product IDs from cart items
+    // --------------------------------------
+    Set<Id> productIds = new Set<Id>();
+    for (Project_Specification__c ci : cartItems) {
+        if (ci.Interior_Product__c != null) {
+            productIds.add(ci.Interior_Product__c);
+        }
+    }
+
+    // --------------------------------------
+    // 3️⃣ Query correct product object
+    //     (Vendor category stored here)
+    // --------------------------------------
+    Map<Id, Interior_Product__c> productMap =
+        new Map<Id, Interior_Product__c>(
+            [SELECT Id, Product_Category__c
+             FROM Interior_Product__c
+             WHERE Id IN :productIds]
+        );
+
+    // --------------------------------------
+    // 4️⃣ Assign Opportunity and Vendor Category
+    //     before inserting cart items
+    // --------------------------------------
+    for (Project_Specification__c ci : cartItems) {
+        ci.Opportunity__c = opportunityId;
+
+        Interior_Product__c prod = productMap.get(ci.Interior_Product__c);
+        if (prod != null && prod.Product_Category__c != null) {
+            ci.Vendor_Category__c = prod.Product_Category__c;
+        }
+    }
+
+    // --------------------------------------
+    // 5️⃣ Insert fresh cart items
+    // --------------------------------------
+    insert cartItems;
+}
+
+    /* -------------------- GENERATE QUOTE & PDF -------------------- */
+    @AuraEnabled
+    public static String generateQuoteAndSave(Id opportunityId) {
+
+        if (opportunityId == null)
+            throw new AuraHandledException('Opportunity Id missing');
+
+        // 1️⃣ Load saved cart
+        List<Project_Specification__c> cartItems = [
+            SELECT Interior_Product__c, Quantity__c, Unit_Price__c, Quality__c,Vendor_Category__c
+            FROM Project_Specification__c
+            WHERE Opportunity__c = :opportunityId
+        ];
+
+        if (cartItems.isEmpty())
+            throw new AuraHandledException('Cart is empty. Save items first.');
+
+        // 2️⃣ Create quotation
+        Quotation__c qt = new Quotation__c(
+            Opportunity__c = opportunityId,
+            Name = 'Quotation - ' + Datetime.now().format('yyyyMMdd_HHmmss'),
+            Manager_Approval__c = false
+        );
+        insert qt;
+
+        // 3️⃣ Generate PDF
+        PageReference pageRef = Page.Opportunity_Quote_PDF;
+        pageRef.getParameters().put('id', opportunityId);
+
+        Blob pdfBlob = Test.isRunningTest()
+            ? Blob.valueOf('TEST PDF')
+            : pageRef.getContentAsPDF();
+
+        // 4️⃣ Attach PDF
+        Attachment att = new Attachment(
+            ParentId    = qt.Id,
+            Name        = 'Quotation.pdf',
+            Body        = pdfBlob,
+            ContentType = 'application/pdf'
+        );
+        insert att;
+
+        // 5️⃣ Send email async
+        System.enqueueJob(new PdfGeneratorAsync(opportunityId, att.Id));
+
+        return 'SUCCESS';
+    }
+
+
+    /* ===============================
+       ORG WIDE EMAIL
+    =============================== */
+    public static Id getOWD() {
         List<OrgWideEmailAddress> ow = [
-            SELECT Id FROM OrgWideEmailAddress WHERE IsAllowAllProfiles = true LIMIT 1
+            SELECT Id
+            FROM OrgWideEmailAddress
+            WHERE IsAllowAllProfiles = true
+            LIMIT 1
         ];
         return ow.isEmpty() ? null : ow[0].Id;
     }

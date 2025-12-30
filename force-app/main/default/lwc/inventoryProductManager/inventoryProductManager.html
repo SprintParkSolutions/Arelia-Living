@@ -71,15 +71,18 @@
         </template>
 
         <!-- Products -->
-        <template if:true={products.length}>
-            <section class="cards-grid">
-                <template for:each={products} for:item="prod">
-                    <article key={prod.Id} class="product-card">
+        <template if:true={visibleProducts.length}>
+    <section class="cards-grid">
+        <template for:each={visibleProducts} for:item="prod">
+            <article key={prod.Id} class="product-card">                   
 
                         <div class="card-media">
-                            <img src={prod.imageUrl} alt={prod.Name} />
-                        </div>
-
+    <img src={prod.imageUrl}
+         alt={prod.Name}
+         data-url={prod.imageUrl}
+         onclick={openImageModal}
+         class="product-image-click"/>
+</div>
                         <div class="card-body">
                             <h2 class="product-name">{prod.Name}</h2>
 
@@ -131,9 +134,25 @@
                             </div>
                         </div>
                     </article>
+                    
                 </template>
             </section>
+            <!-- PAGINATION CONTROLS (FIXED POSITION) -->
+            <div class="pagination-controls">
+                <button class="nav-btn" onclick={prevPage} disabled={isFirstPage}>⟵ Previous</button>
+                <span>Page {currentPage} of {totalPages}</span>
+                <button class="nav-btn" onclick={nextPage} disabled={isLastPage}>Next ⟶</button>
+            </div>
         </template>
+        <!-- IMAGE FULL VIEW MODAL — outside loop -->
+<template if:true={isImageModalOpen}>
+    <section class="image-modal-bg" onclick={closeImageModal}>
+        <div class="image-modal-container" onclick={stopEvent}>
+            <img src={modalImageUrl} class="image-modal-img" />
+            <button class="image-modal-close" onclick={closeImageModal}>×</button>
+        </div>
+    </section>
+</template>
 
         <!-- Cart Modal -->
         <template if:true={isCartOpen}>
@@ -186,4 +205,5 @@
         </template>
 
     </div>
+    
 </template>
