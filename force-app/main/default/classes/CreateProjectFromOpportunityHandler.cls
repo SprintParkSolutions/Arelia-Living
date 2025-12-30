@@ -201,7 +201,12 @@ public without sharing class CreateProjectFromOpportunityHandler {
             Type_Of_Project__c              = opp.Type_of_Project__c,
             Project_Scope__c                = opp.Project_Scope__c,
             End_Date__c                     = endDateVal,
-            Supervisor_Estimated_Budget__c  = estBudgetVal
+            Supervisor_Estimated_Budget__c  = estBudgetVal,
+            // 🔹 NEW FIELD MAPPINGS 🔹
+            Project_Request_Quotation_Type__c = opp.Project_Request_Quotation_Type__c,
+            Site_Location__c                  = opp.Site_Location__c,
+            Site_Space__c                     = opp.Site_Space__c,
+            Plan_Level__c                     = opp.Plan_Level__c
         );
         return p;
     }
