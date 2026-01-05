@@ -192,13 +192,28 @@ export default class RegistrationForm extends LightningElement {
             ? `${this.countryCode} ${this.phone}`
             : this.phone;
 
+        const firstName = (this.firstName || '').trim();
+        const lastName  = (this.lastName || '').trim();
+
         const payload = {
-            firstName: this.firstName,
-            lastName: this.lastName,
+            firstName: firstName,
+            lastName: lastName,
             email: this.email,
             phone: fullPhone,
-            companyName: (this.companyName || '').trim() || 'Self'
+
+            companyName:
+                (this.companyName && this.companyName.trim())
+                ? this.companyName.trim()
+                : `Self-${firstName} ${lastName}`.trim(),
+
+            companySize: '1-10',
+            companyIndustry: 'Other',
+            companyWebsite: 'https://www.arelialiving.com',
+            companyDescription: 'Arelia Living',
+            companyAddress: '123 Main St',
+            companyCity: this.companyCity || 'N/A'
         };
+
 
         registerLead({ payload })
             .then(() => {

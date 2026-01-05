@@ -1,6 +1,7 @@
 import { LightningElement, api, wire } from 'lwc';
 import { getRecord } from 'lightning/uiRecordApi';
 import { CurrentPageReference } from 'lightning/navigation';
+import FORM_FACTOR from '@salesforce/client/formFactor';
 
 const FIELDS = [
     'Lead.Appointment_Completed__c',
@@ -15,13 +16,16 @@ export default class LeadProgressPath extends LightningElement {
     @api recordId;
 
     steps = [];
+    mobileSteps = [];
+
     isReady = false;
     hasAccess = true;
-
-    // ✅ ensures it won’t show on other object pages
     isVisible = true;
 
-    // ✅ Resolve recordId for Experience Cloud pages
+    get isMobile() {
+        return FORM_FACTOR === 'Small'; // ✅ Salesforce Mobile
+    }
+
     @wire(CurrentPageReference)
     wiredPageRef(pageRef) {
         if (this.recordId) return;
@@ -34,12 +38,10 @@ export default class LeadProgressPath extends LightningElement {
             return;
         }
 
-        // Fallback: parse from URL (Experience routes can vary)
         try {
             const href = window.location.href;
-
-            // querystring support
             const url = new URL(href);
+
             const qp =
                 url.searchParams.get('recordId') ||
                 url.searchParams.get('id') ||
@@ -50,14 +52,12 @@ export default class LeadProgressPath extends LightningElement {
                 return;
             }
 
-            // /detail/<Id>
             const detailMatch = href.match(/\/detail\/([a-zA-Z0-9]{15,18})/);
             if (detailMatch?.[1]) {
                 this.recordId = detailMatch[1];
                 return;
             }
 
-            // any 15/18 char Salesforce Id
             const anyId = href.match(/([a-zA-Z0-9]{15,18})/);
             if (anyId?.[1]) {
                 this.recordId = anyId[1];
@@ -67,24 +67,31 @@ export default class LeadProgressPath extends LightningElement {
         }
     }
 
-    // ✅ This will succeed only if recordId is a Lead and user has access
     @wire(getRecord, { recordId: '$recordId', fields: FIELDS })
     wiredLead({ data, error }) {
         if (!this.recordId) return;
 
         if (data) {
-            // Confirmed Lead page
             this.isVisible = true;
             this.hasAccess = true;
             this.isReady = true;
 
             this.buildStepsFromLead(data);
+
+            // ✅ Build mobile steps from the same steps
+            this.mobileSteps = this.steps.map(s => {
+                let mClass = 'mItem';
+                if (s.class.includes('slds-is-complete')) mClass += ' isDone';
+                else if (s.class.includes('slds-is-current')) mClass += ' isCurrent';
+                else mClass += ' isNext';
+
+                return { ...s, mClass };
+            });
+
         } else if (error) {
-            // If dropped on other object record pages => hide the component
             this.isVisible = false;
             this.hasAccess = false;
             this.isReady = true;
-
             // eslint-disable-next-line no-console
             console.warn('LeadProgressPath hidden (not Lead / no access):', JSON.stringify(error));
         }
@@ -101,15 +108,15 @@ export default class LeadProgressPath extends LightningElement {
         const siteVisitMgrApproved = !!data.fields.Site_Visit_Manager_Approval__c?.value;
 
         const stepsList = [];
-        stepsList.push('Lead Created');                         // 0
-        stepsList.push(`Approval - ${approval}`);               // 1
+        stepsList.push('Lead Created');
+        stepsList.push(`Approval - ${approval}`);
 
         if (approval === 'Approved') {
-            stepsList.push(hasSupervisor ? 'Supervisor Assigned' : 'Assign Supervisor'); // 2
-            stepsList.push('Appointment Scheduled');                                     // 3
-            stepsList.push('Create Site Visit Report & Get Approval');                   // 4
-            stepsList.push('Manager Approval of Site Visit Report');                     // 5
-            stepsList.push('Lead Converted');                                            // 6
+            stepsList.push(hasSupervisor ? 'Supervisor Assigned' : 'Assign Supervisor');
+            stepsList.push('Appointment Scheduled');
+            stepsList.push('Create Site Visit Report & Get Approval');
+            stepsList.push('Manager Approval of Site Visit Report');
+            stepsList.push('Lead Converted');
         }
 
         let currentStepIndex = 0;
