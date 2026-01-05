@@ -15,7 +15,7 @@ const FIELDS = [
 ];
 
 export default class AreliaPath extends LightningElement {
-    // 1. Standard API property (Read-Only from Framework)
+    // 1. Standard API property
     _recordId;
     @api 
     get recordId() {
@@ -23,54 +23,51 @@ export default class AreliaPath extends LightningElement {
     }
     set recordId(value) {
         this._recordId = value;
-        // If framework gives us an ID, set our internal tracker
         if (value) {
             this.effectiveRecordId = value;
             this.checkVisibility();
         }
     }
 
-    // 2. Internal Tracker (Writable) - Wires will listen to THIS
     @track effectiveRecordId;
-
     @track steps = [];
     @track isReady = false;
     @track hasAccess = true;
     @track isVisible = true; 
 
+    // Internal storage for the "Race" data
     _allStages = [];
+    _currentPathStatus; 
+    
     wiredPathResult;
 
-    // 3. Resolve ID for Experience Cloud (Robust URL Parsing)
+    // 3. Resolve ID (Kept your logic as is)
     @wire(CurrentPageReference)
     wiredPageRef(pageRef) {
-        // If framework already gave us an ID, don't overwrite it
         if (this._recordId) {
             this.effectiveRecordId = this._recordId;
             return;
         }
-
         const state = pageRef?.state || {};
         const fromState = state.recordId || state.id || state.c__recordId;
 
         if (fromState) {
-            this.effectiveRecordId = fromState; // Write to internal var
+            this.effectiveRecordId = fromState;
             this.checkVisibility();
             return;
         }
 
-        // Fallback: parse from URL
         try {
             const href = window.location.href;
             const url = new URL(href);
             const qp = url.searchParams.get('recordId') || url.searchParams.get('id');
 
             if (qp) {
-                this.effectiveRecordId = qp; // Write to internal var
+                this.effectiveRecordId = qp;
             } else {
                 const anyId = href.match(/([a-zA-Z0-9]{15,18})/);
                 if (anyId?.[1]) {
-                    this.effectiveRecordId = anyId[1]; // Write to internal var
+                    this.effectiveRecordId = anyId[1];
                 }
             }
             this.checkVisibility();
@@ -79,7 +76,6 @@ export default class AreliaPath extends LightningElement {
         }
     }
 
-    // Helper: Check if we are on an Opp (Simple ID Prefix Check)
     checkVisibility() {
         if (this.effectiveRecordId && String(this.effectiveRecordId).startsWith('006')) {
             this.isVisible = true;
@@ -89,16 +85,19 @@ export default class AreliaPath extends LightningElement {
     }
 
     // 4. Load Master List of Stages
+    // FIX: Trigger buildSteps when this finishes
     @wire(getAllStages)
     wiredStages({ error, data }) {
         if (data) {
             this._allStages = data;
+            this.tryBuildSteps(); // <--- TRY TO BUILD NOW
         } else if (error) {
             console.error('Error loading stage definitions:', error);
         }
     }
 
-    // 5. Get Current Active Step (Using effectiveRecordId)
+    // 5. Get Current Active Step
+    // FIX: Trigger buildSteps when this finishes
     @wire(getPathStatus, { oppId: '$effectiveRecordId' })
     wiredPathStatus(result) {
         this.wiredPathResult = result;
@@ -109,7 +108,8 @@ export default class AreliaPath extends LightningElement {
         if (data) {
             this.hasAccess = true;
             this.isReady = true;
-            this.buildSteps(data);
+            this._currentPathStatus = data; // <--- SAVE DATA
+            this.tryBuildSteps(); // <--- TRY TO BUILD NOW
         } else if (error) {
             this.hasAccess = false;
             this.isReady = true;
@@ -117,7 +117,6 @@ export default class AreliaPath extends LightningElement {
         }
     }
 
-    // 6. Watch for Record Changes (Using effectiveRecordId)
     @wire(getRecord, { recordId: '$effectiveRecordId', fields: FIELDS })
     wiredRecordWatcher({ data }) {
         if (data) {
@@ -125,10 +124,15 @@ export default class AreliaPath extends LightningElement {
         }
     }
 
-    // Build Visual Steps
-    buildSteps(currentActiveValue) {
-        if (!this._allStages || this._allStages.length === 0) return;
+    // 6. Centralized Build Logic
+    // Only runs if BOTH pieces of data are present
+    tryBuildSteps() {
+        // Guard clause: Do we have stages? Do we have a status?
+        if (!this._allStages || this._allStages.length === 0 || !this._currentPathStatus) {
+            return;
+        }
 
+        const currentActiveValue = this._currentPathStatus;
         const activeIndex = this._allStages.findIndex(s => s.value === currentActiveValue);
         const targetIndex = activeIndex === -1 ? 0 : activeIndex;
 
@@ -143,13 +147,10 @@ export default class AreliaPath extends LightningElement {
 
         if (index < activeIndex) {
             stepClass += ' slds-is-complete';
-            icon = 'utility:check';
         } else if (index === activeIndex) {
             stepClass += ' slds-is-current slds-is-active';
-            icon = 'utility:check';
         } else {
             stepClass += ' slds-is-incomplete';
-            icon = 'utility:check';
         }
 
         return {
