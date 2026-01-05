@@ -180,7 +180,7 @@ public without sharing class RegistrationFormController {
     @SuppressWarnings('PMD.ExcessiveParameterList')
     private static Lead buildLead(String firstName,String lastName,String email,String phone, String companyName)
     {
-        String finalCompany = String.isBlank(companyName) ? 'Self' : companyName.trim();
+        String finalCompany = String.isBlank(companyName) ? 'Self-'+firstName+' '+lastName : companyName.trim();
         return new Lead(
             FirstName = firstName != null ? firstName.trim() : null,
             LastName  = lastName != null ? lastName.trim() : null,
