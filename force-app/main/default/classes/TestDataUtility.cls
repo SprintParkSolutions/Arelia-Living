@@ -242,4 +242,17 @@ public class TestDataUtility {
         insert q;
         return q;
     }
+
+    // 15. Create Vendor Assignment (Simple)
+    public static Vendor_Assignment__c createVendorAssignment(Id projectId) {
+        Vendor_Assignment__c va = new Vendor_Assignment__c(
+            Project__c = projectId,
+            Vendor_Work_Start_Date__c = Date.today(),
+            Vendor_Work_End_Date__c = Date.today().addDays(10)
+        );
+        insert va;
+        return va;
+    }
+
+    
 }
