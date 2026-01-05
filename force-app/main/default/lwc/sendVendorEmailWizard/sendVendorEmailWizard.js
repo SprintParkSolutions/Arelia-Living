@@ -118,6 +118,10 @@ export default class SendVendorEmailWizard extends LightningElement {
   handleTenderTypeChange(event) {
     this.tenderType = event.detail.value;
   }
+  get isReadyToRender() {
+    // Only show the form if loading is done AND we actually have the ID
+    return !this.isLoading && this.showCreation && this.fetchedOpportunity;
+}
 
   async handleCategoryChange(event) {
     this.selectedCategory = event.detail.value;

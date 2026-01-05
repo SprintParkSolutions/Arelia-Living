@@ -1,0 +1,10 @@
+/* FIX FOR TOOLTIPS:
+   1. overflow-x: auto allows scrolling.
+   2. padding-bottom: 50px gives space for the tooltip to appear 
+      without being cut off by the scrollbar boundary.
+*/
+.slds-progress {
+    overflow-x: auto;
+    overflow-y: visible; /* Try to allow vertical popups */
+    padding-bottom: 50px; /* Crucial: Space for the hover tooltip */
+}
