@@ -45,8 +45,8 @@ trigger VendorAssignmentTrigger on Vendor_Assignment__c (
             VendorAssignmentHandler.updateProjectCompletion(projectIds);
         }
 
-        if (Trigger.isInsert) {
-            vendorAssignmentController.sendVendorAssignmentEmail(Trigger.new);
-        }
+        // if (Trigger.isInsert) {
+        //     vendorAssignmentController.sendVendorAssignmentEmail(Trigger.new);
+        // }
     }
 }

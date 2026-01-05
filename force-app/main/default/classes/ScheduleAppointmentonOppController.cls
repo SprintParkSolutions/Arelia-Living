@@ -135,7 +135,7 @@ public with sharing class ScheduleAppointmentonOppController {
 
     private static Opportunity fetchOpp(Id oppId) {
         return [SELECT Id, Name, Email__c, Supervisor_User__c, Supervisor_User__r.Name, Supervisor_User__r.Email, 
-                Supervisor_User__r.Phone, Re_Visit_Appointmnet_Confirmation__c, IsWon FROM Opportunity WHERE Id = :oppId LIMIT 1];
+                Supervisor_User__r.Phone, Re_Visit_Appointmnet_Confirmation__c, Lead_Name__c, IsWon FROM Opportunity WHERE Id = :oppId LIMIT 1];
     }
 
     private static void validateOppFields(Opportunity opp) {
@@ -171,7 +171,7 @@ public with sharing class ScheduleAppointmentonOppController {
     private static Messaging.SingleEmailMessage prepareClientEmail(Opportunity opp, EmailTemplate tpl, String formattedDate,
                                                                         String timeSlot, String appointmentType) 
     {
-        String clientName = opp.Name; // or derive from Primary Contact if you have it
+        String clientName = opp.Lead_Name__c; // or derive from Primary Contact if you have it
         String approvalLink = Label.Arelia_Site_Label+ Label.Site_Appointment_Opp_Link_Page + '?id=' + opp.Id;
         String html = tpl.HtmlValue
             .replace('{{{Recipient.Name}}}', clientName)
@@ -201,7 +201,7 @@ public with sharing class ScheduleAppointmentonOppController {
     private static Messaging.SingleEmailMessage prepareSupervisorEmail(Opportunity opp, EmailTemplate tpl, String formattedDate,
                                                                             String timeSlot, String appointmentType) 
     {
-        String clientName = opp.Name;
+        String clientName = opp.Lead_Name__c;
 
         String html = tpl.HtmlValue
             .replace('{{{Recipient.Name}}}', opp.Supervisor_User__r.Name)
