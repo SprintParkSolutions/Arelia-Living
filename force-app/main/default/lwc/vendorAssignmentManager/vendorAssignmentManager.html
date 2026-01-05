@@ -1,0 +1,60 @@
+<template>
+    <lightning-quick-action-panel header="Manage Vendor Assignments">
+
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading"></lightning-spinner>
+        </template>
+
+        <template if:true={isReadyToRender}>
+            <div class="slds-scrollable_y" style="max-height:400px">
+
+                <template for:each={rows} for:item="row" for:index="index">
+                    <lightning-record-edit-form
+                        key={row.key}
+                        object-api-name="Vendor_Assignment__c">
+
+                        <div class="slds-box slds-var-m-bottom_small">
+
+                            <!-- 🔴 USER SELECTS OPPORTUNITY -->
+                            <lightning-input-field
+                                field-name="Opportunity__c"
+                                data-row-index={index}
+                                onchange={handleOpportunityChange}
+                                required>
+                            </lightning-input-field>
+
+                            <!-- Vendor Opportunity (FILTER NOW WORKS) -->
+                            <lightning-input-field
+                                field-name="Vendor_Opportunity__c"
+                                required>
+                            </lightning-input-field>
+
+                        </div>
+                    </lightning-record-edit-form>
+                </template>
+
+                <lightning-button
+                    label="Add Row"
+                    icon-name="utility:add"
+                    onclick={addRow}>
+                </lightning-button>
+
+            </div>
+        </template>
+
+        <div slot="footer">
+            <lightning-button
+                variant="brand"
+                label="Create"
+                onclick={handleCreate}>
+            </lightning-button>
+
+            <lightning-button
+                label="Cancel"
+                onclick={closeAction}
+                class="slds-var-m-left_small">
+            </lightning-button>
+        </div>
+
+    </lightning-quick-action-panel>
+</template>
