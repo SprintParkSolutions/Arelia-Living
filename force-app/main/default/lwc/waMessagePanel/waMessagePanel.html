@@ -1,6 +1,15 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 12-18-2025
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
 <template>
+  <template if:true={isVisible}>
     <lightning-card title="WhatsApp Messenger" icon-name="utility:chat">
-      <div class="app">
+      <!-- Force visibility for Experience Cloud Project__c where the container may collapse when no initial height -->
+      <div class="app" style="min-height: 120px;">
         <div class="toolbar">
           <div class="left">
             <span class="label">CONVERSATION</span>
@@ -152,4 +161,9 @@
         </template>
       </div>
     </lightning-card>
+  </template>
+  <template if:false={isVisible}>
+    <!-- Hidden on unsupported objects -->
+    <div class="slds-assistive-text">Component not visible in this context.</div>
+  </template>
 </template>

@@ -23,6 +23,16 @@ public with sharing class VendorAssignmentHandler {
 
         // Map to store Vendor Assignments by Project Id
         Map<Id, List<Decimal>> projectCompletionMap = new Map<Id, List<Decimal>>();
+        Map<Id, Decimal> vendorAmountMap = new Map<Id, Decimal>();
+
+        for (AggregateResult ar : [
+            SELECT Project__c, SUM(Vendor_Amount__c) totalAmount
+            FROM Vendor_Assignment__c
+            WHERE Project__c IN :projectIds
+            GROUP BY Project__c
+        ]) {
+            vendorAmountMap.put((Id)ar.get('Project__c'), (Decimal)ar.get('totalAmount'));
+        }
 
         // Fetch all Vendor Assignments for these projects
         List<Vendor_Assignment__c> assignments = [
@@ -44,8 +54,14 @@ public with sharing class VendorAssignmentHandler {
 
         // Prepare list of projects to update
         List<Project__c> projectsToUpdate = new List<Project__c>();
+         Map<Id, Project__c> projectMap = new Map<Id, Project__c>([
+            SELECT Id, Remaining_Project_Budget__c
+            FROM Project__c
+            WHERE Id IN :projectIds
+        ]);
 
         for (Id projectId : projectIds) {
+             Project__c proj = projectMap.get(projectId);
             List<Decimal> completions = projectCompletionMap.get(projectId);
             Decimal avg = 0;
 
@@ -57,9 +73,15 @@ public with sharing class VendorAssignmentHandler {
                 avg = sum / completions.size();
             }
 
+            Decimal vendorAssignedAmount = vendorAmountMap.containsKey(projectId) ? vendorAmountMap.get(projectId) : 0;
+            Decimal remainingBudget = proj.Remaining_Project_Budget__c != null ? proj.Remaining_Project_Budget__c : 0;
+            Decimal pendingAmount = remainingBudget - vendorAssignedAmount;
+            if (pendingAmount < 0) {pendingAmount = 0;}
+
             projectsToUpdate.add(new Project__c(
                 Id = projectId,
-                Project_Completion_Status__c = avg
+                Project_Completion_Status__c = avg,
+                Remaining_Budget_Pending__c = pendingAmount
             ));
         }
 
@@ -79,7 +101,8 @@ public with sharing class VendorAssignmentHandler {
                 assignment.Status__c == 'Completed' &&
                 assignment.Completion__c == 100 &&
                 assignment.Vendor_Work_Start_Date__c != null &&
-                assignment.Vendor_Work_End_Date__c != null
+                assignment.Vendor_Work_End_Date__c != null &&
+                assignment.Vendor_Actual_Completion_Date__c != null
             ) {
                 
                 // --- On-Time or Early Completion ---
@@ -143,14 +166,16 @@ public with sharing class VendorAssignmentHandler {
             GROUP BY Vendor__c
         ]) {
             Id vendorId = (Id) ar.get('Vendor__c');
-            Decimal averageEfficiency = (Decimal) ar.get('avgEff');
-            
+            Decimal avg = (Decimal) ar.get('avgEff');
+
+            Decimal safeAvg = (avg == null ? 0 : avg.setScale(2));
+
             vendorsToUpdate.add(new Vendor__c(
                 Id = vendorId,
-                // Assumes you have a field named Average_Efficiency__c on the Vendor object
-                Average_Efficiency__c = averageEfficiency.setScale(2) 
+                Average_Efficiency__c = safeAvg
             ));
         }
+
 
         // Handle vendors who may now have zero completed assignments left
         Set<Id> vendorsWithAverages = (new Map<Id, SObject>(vendorsToUpdate)).keySet();

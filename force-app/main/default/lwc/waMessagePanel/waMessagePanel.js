@@ -4,7 +4,7 @@ import { CurrentPageReference } from 'lightning/navigation';
 
 import getUnifiedChat from '@salesforce/apex/WhatsAppController.getUnifiedChat';
 import getUnifiedChatForOpportunity from '@salesforce/apex/WhatsAppController.getUnifiedChatForOpportunity';
-import getUnifiedChatForProject from '@salesforce/apex/WhatsAppController.getUnifiedChatForProject'; // <-- NEW
+import getUnifiedChatForProject from '@salesforce/apex/WhatsAppController.getUnifiedChatForProject';
 import ensureChatForNumber from '@salesforce/apex/WhatsAppController.ensureChatForNumber';
 import getFilesForChat from '@salesforce/apex/WhatsAppController.getFilesForChat';
 import makePublicLink from '@salesforce/apex/WhatsAppController.makePublicLink';
@@ -17,12 +17,14 @@ import sendMediaFromDocument from '@salesforce/apex/WhatsAppService.sendMediaFro
 import LEAD_MOBILE from '@salesforce/schema/Lead.MobilePhone';
 import LEAD_PHONE from '@salesforce/schema/Lead.Phone';
 
-
 const POLL_MS = 5000;
 
 export default class WaMessagePanel extends LightningElement {
   @api recordId;
-  @api objectApiName; // <-- lets us detect Lead vs Opportunity
+  @api objectApiName;
+
+  // runtime visibility guard: only show on Lead, Opportunity, Project__c
+  isVisible = true;
 
   @track toNumber = '';
   @track textBody = '';
@@ -45,8 +47,11 @@ export default class WaMessagePanel extends LightningElement {
   _timer = null;
   _lastSignature = '';
 
+  // NEW: track activation so Experience late context doesn't “freeze” the component
+  _activated = false;
+  _lastVisibility = null;
 
-  // ===== getters (no inline expressions in HTML) =====
+  // ===== getters =====
   get isSendTextDisabled() { return this.sending || !this.toNumber || !this.textBody; }
   get isSendTemplateDisabled() { return this.sending || !this.toNumber || !this.templateName || !this.langCode; }
   get makePublicVariant() { return this.selectedFile.isPublic ? 'neutral' : 'brand-outline'; }
@@ -54,31 +59,39 @@ export default class WaMessagePanel extends LightningElement {
   get isMakePublicDisabled() { return this.selectedFile.isPublic || this.sending; }
   get isPublicSendDisabled() { return !this.selectedFile.isPublic || this.sending || !this.toNumber; }
 
-
-
-  // ===== get recordId from state on community too =====
+  // ===== Experience Cloud recordId/objectApiName detection (FIX) =====
   @wire(CurrentPageReference)
   parsePageRef(pr) {
     try {
-      if (this.recordId) return;
-      if (!pr) return;
-      const st = pr.state || {};
-      const rid = st.recordId || st.id;
-      if (rid) { this.recordId = rid; return; }
+      const st = pr?.state || {};
+      const attrs = pr?.attributes || {};
 
-      // also support /s/detail/{id} paths
-      if (typeof window !== 'undefined') {
-        const path = window.location.pathname || '';
-        const m = path.match(/\/s\/detail\/([a-zA-Z0-9]{15,18})/);
-        if (m && m[1]) this.recordId = m[1];
+      // 1) Best source on Experience record pages:
+      // standard__recordPage -> attributes.recordId + attributes.objectApiName
+      if (!this.recordId) {
+        const rid = attrs.recordId || st.recordId || st.id || st.c__recordId;
+        if (rid) this.recordId = rid;
       }
-    } catch (e) { }
+      if (!this.objectApiName) {
+        const o = attrs.objectApiName || st.objectApiName || st.c__objectApiName;
+        if (o) this.objectApiName = o;
+      }
+
+      // 2) URL fallback (querystring + path)
+      this.ensureRecordIdFromUrl();
+
+      // 3) Recompute visibility and activate when context arrives
+      this.computeVisibility();
+      this.activateIfReady();
+    } catch (e) {
+      // no-op
+    }
   }
 
-  // works in org when FLS/sharing allows — run ONLY on Lead pages
+  // Lead record preload (ONLY for Lead)
   @wire(getRecord, { recordId: '$recordId', fields: [LEAD_MOBILE, LEAD_PHONE] })
   wiredLead({ data }) {
-    if ((this.objectApiName || '').toLowerCase() !== 'lead') return; // guard for Opportunity
+    if ((this.objectApiName || '').toLowerCase() !== 'lead') return;
     if (data && !this.toNumber) {
       const mobile = getFieldValue(data, LEAD_MOBILE);
       const phone = getFieldValue(data, LEAD_PHONE);
@@ -90,20 +103,62 @@ export default class WaMessagePanel extends LightningElement {
 
   // ===== lifecycle =====
   connectedCallback() {
-    this.ensureRecordIdFromUrl();  // extra safety on community}
-    this.refreshChat();
-    this.startTimer();
+    this.ensureRecordIdFromUrl();
+    this.computeVisibility();
+    this.activateIfReady(); // IMPORTANT: don't early-return permanently in Experience
   }
-  disconnectedCallback() { this.stopTimer(); }
+
+  disconnectedCallback() {
+    this.stopTimer();
+  }
 
   ensureRecordIdFromUrl() {
     try {
-      if (!this.recordId && typeof window !== 'undefined') {
-        const u = new URL(window.location.href);
-        const rid = u.searchParams.get('recordId') || u.searchParams.get('id');
-        if (rid) this.recordId = rid;
+      if (typeof window === 'undefined') return;
+
+      const url = new URL(window.location.href);
+
+      // query params commonly used by Experience
+      const rid =
+        this.recordId ||
+        url.searchParams.get('c__recordId') ||
+        url.searchParams.get('recordId') ||
+        url.searchParams.get('id');
+
+      if (rid) this.recordId = rid;
+
+      // robust path capture: last 15/18 char ID anywhere in path
+      if (!this.recordId) {
+        const path = (window.location.pathname || '');
+        const m = path.match(/([a-zA-Z0-9]{15,18})(?:\/)?$/);
+        if (m && m[1]) this.recordId = m[1];
       }
-    } catch (e) { }
+    } catch (e) {
+      // no-op
+    }
+  }
+
+  // ===== activation control (FIX) =====
+  activateIfReady() {
+    // compute visibility based on latest context
+    this.computeVisibility();
+
+    // If not visible, stop polling but DO NOT “lock” forever
+    if (!this.isVisible) {
+      this.stopTimer();
+      this._activated = false;
+      return;
+    }
+
+    // need recordId to run chats
+    if (!this.recordId) return;
+
+    // Activate once when ready (Experience often sets context after mount)
+    if (!this._activated) {
+      this._activated = true;
+      this.refreshChat(true);
+      this.startTimer();
+    }
   }
 
   // ===== chat & files =====
@@ -113,7 +168,9 @@ export default class WaMessagePanel extends LightningElement {
       const id = await ensureChatForNumber({ e164OrDigits: this.toNumber });
       this.chatId = id;
       await this.loadFiles();
-    } catch (e) { }
+    } catch (e) {
+      // keep silent to preserve existing behavior
+    }
   }
 
   async loadFiles() {
@@ -134,24 +191,45 @@ export default class WaMessagePanel extends LightningElement {
   }
 
   // ===== refresh loop =====
-  startTimer() { this.stopTimer(); if (this.autoRefresh) this._timer = setInterval(() => this.refreshChat(), POLL_MS); }
-  stopTimer() { if (this._timer) { clearInterval(this._timer); this._timer = null; } }
-  toggleAutoRefresh = (e) => { this.autoRefresh = !!e.target.checked; this.startTimer(); };
+  startTimer() {
+    this.stopTimer();
+    if (this.autoRefresh) this._timer = setInterval(() => this.refreshChat(), POLL_MS);
+  }
+  stopTimer() {
+    if (this._timer) {
+      clearInterval(this._timer);
+      this._timer = null;
+    }
+  }
+  toggleAutoRefresh = (e) => {
+    this.autoRefresh = !!e.target.checked;
+    this.startTimer();
+  };
   manualRefresh = () => this.refreshChat(true);
 
   async refreshChat(force = false) {
-    if (!this.recordId || this.refreshing) return;
+    // Re-evaluate visibility each time (Experience context may update)
+    this.computeVisibility();
+    if (!this.isVisible) return;
+
+    if (!this.recordId) {
+      this.ensureRecordIdFromUrl();
+      if (!this.recordId) return;
+    }
+
+    if (this.refreshing) return;
+
     const listEl = this.template.querySelector('[data-chat]');
     const wasNearBottom = listEl ? (listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight < 40) : true;
 
     this.refreshing = true;
     try {
-      // Choose API by hosting object
       let raw = [];
-      const obj = (this.objectApiName || '').toLowerCase();
+      const obj = this.resolveObjectName();
+
       if (obj === 'opportunity') {
         raw = await getUnifiedChatForOpportunity({ opportunityId: this.recordId, limitCount: 300 });
-      } else if (obj === 'project__c') {                          // <-- NEW
+      } else if (obj === 'project__c') {
         raw = await getUnifiedChatForProject({ projectId: this.recordId, limitCount: 300 });
       } else {
         raw = await getUnifiedChat({ leadId: this.recordId, limitCount: 300 });
@@ -206,6 +284,7 @@ export default class WaMessagePanel extends LightningElement {
           if (el && wasNearBottom) el.scrollTop = el.scrollHeight;
         });
       }
+
       this.lastUpdated = new Date().toLocaleTimeString();
     } catch (e) {
       const msg = (e?.body?.message) || e?.message || String(e);
@@ -215,14 +294,11 @@ export default class WaMessagePanel extends LightningElement {
     }
   }
 
-  // choose last OUT toNumber, else last IN fromNumber
   inferPhoneFromChat(list) {
-    // try last OUT bound
     for (let i = list.length - 1; i >= 0; i--) {
       const m = list[i];
       if ((m.dir || '').toUpperCase() === 'OUT' && m.toNumber) return m.toNumber;
     }
-    // else last IN sender
     for (let i = list.length - 1; i >= 0; i--) {
       const m = list[i];
       if ((m.dir || '').toUpperCase() === 'IN' && m.fromNumber) return m.fromNumber;
@@ -231,7 +307,12 @@ export default class WaMessagePanel extends LightningElement {
   }
 
   // ===== inputs =====
-  onComposerKeyDown = (evt) => { if (evt.key === 'Enter' && !evt.shiftKey) { evt.preventDefault(); this.sendText(); } };
+  onComposerKeyDown = (evt) => {
+    if (evt.key === 'Enter' && !evt.shiftKey) {
+      evt.preventDefault();
+      this.sendText();
+    }
+  };
   onNumberChange(e) { this.toNumber = this.normalizePhone(e.target.value); this.ensureChat(); }
   onBodyChange(e) { this.textBody = e.target.value; }
   onTemplateName(e) { this.templateName = e.target.value; }
@@ -270,7 +351,6 @@ export default class WaMessagePanel extends LightningElement {
     } finally { this.sending = false; }
   }
 
-  // upload → single card
   handleUploadFinished = async (evt) => {
     const files = evt.detail.files || [];
     if (files.length) {
@@ -291,7 +371,6 @@ export default class WaMessagePanel extends LightningElement {
     }
   };
 
-  // legacy (kept)
   async sendLastUploaded() {
     if (!this.lastUploadedDocId) return;
     this.sending = true;
@@ -310,7 +389,6 @@ export default class WaMessagePanel extends LightningElement {
     } finally { this.sending = false; }
   }
 
-  // step 1: make public
   async handleMakePublic() {
     if (!this.selectedFile.id) return;
     try {
@@ -323,7 +401,6 @@ export default class WaMessagePanel extends LightningElement {
     }
   }
 
-  // step 2: send via public link
   async handleSendPublic() {
     if (!this.selectedFile.id || !this.selectedFile.isPublic) return;
     this.sending = true;
@@ -340,5 +417,55 @@ export default class WaMessagePanel extends LightningElement {
       const msg = (err?.body?.message) || err?.message || String(err);
       this.lastResult = msg;
     } finally { this.sending = false; }
+  }
+
+  // ===== visibility logic =====
+  resolveObjectName() {
+    let obj = (this.objectApiName || '').toLowerCase();
+
+    // normalize common API names
+    if (obj === 'project__c' || obj === 'project__c'.toLowerCase()) return 'project__c';
+
+    // 1) from recordId prefix
+    if (!obj && this.recordId) {
+      const pfx = (this.recordId || '').substring(0, 3);
+      if (pfx === '00q' || pfx === '00Q') obj = 'lead';
+      else if (pfx === '006') obj = 'opportunity';
+    }
+
+    // 2) from URL path (Experience)
+    if (!obj && typeof window !== 'undefined') {
+      const path = (window.location?.pathname || '').toLowerCase();
+      if (path.includes('/lead/')) obj = 'lead';
+      else if (path.includes('/leads/')) obj = 'lead';
+      else if (path.includes('/opportunity/')) obj = 'opportunity';
+      else if (path.includes('/opportunities/')) obj = 'opportunity';
+      else if (path.includes('/project__c/')) obj = 'project__c';
+      else if (path.includes('/project/')) obj = 'project__c';
+      else if (path.includes('/projects/')) obj = 'project__c';
+    }
+
+    // 3) heuristic: custom object keyprefix often a0*, but not guaranteed
+    if (!obj && this.recordId) {
+      const pfx2 = (this.recordId || '').substring(0, 2).toLowerCase();
+      if (pfx2 === 'a0') obj = 'project__c';
+    }
+
+    return obj;
+  }
+
+  computeVisibility() {
+    const obj = this.resolveObjectName();
+    const allowed = obj === 'lead' || obj === 'opportunity' || obj === 'project__c';
+    this.isVisible = allowed;
+
+    // If visibility changed in Experience, re-activate when it becomes true
+    if (this._lastVisibility !== this.isVisible) {
+      this._lastVisibility = this.isVisible;
+      if (this.isVisible) {
+        // context became valid after initial load
+        this.activateIfReady();
+      }
+    }
   }
 }
