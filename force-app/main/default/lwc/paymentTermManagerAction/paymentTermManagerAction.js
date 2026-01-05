@@ -1,5 +1,4 @@
 import { LightningElement, api, track, wire } from "lwc";
-import { refreshApex } from "@salesforce/apex"; 
 import getPaymentTerms from "@salesforce/apex/PaymentTermController.getPaymentTerms";
 import savePaymentTerms from "@salesforce/apex/PaymentTermController.savePaymentTerms";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
@@ -7,61 +6,75 @@ import { CloseActionScreenEvent } from "lightning/actions";
 
 export default class PaymentTermManagerAction extends LightningElement {
   @api recordId;
-  
+
+  /* ================= STATE ================= */
+
   @track terms = [];
   @track deletedTermIds = [];
   @track currentTotal = 0;
-  
+
   @track isLoading = true;
-  @track isEditMode = false;      
-  @track showResumeBtn = false;   
+  @track isEditMode = false;
+  @track showResumeBtn = false;
 
   wiredTermsResult;
 
-  @wire(getPaymentTerms, { recordId: '$recordId' })
+  /* ================= LOAD DATA ================= */
+
+  @wire(getPaymentTerms, { recordId: "$recordId" })
   wiredTerms(result) {
     this.wiredTermsResult = result;
     const { data, error } = result;
 
     if (data) {
       this.isLoading = false;
-      
-      if (data.length === 0) {
-        this.terms = []; 
-        this.handleAddRow(); 
-        this.isEditMode = true; 
-        this.showResumeBtn = false;
-      } else {
-        this.showResumeBtn = true;
-        this.isEditMode = false;
 
-        this.terms = data.map((item, index) => {
-          let displayLabel = item.Term_Label__c;
-          if (!displayLabel && item.Name && item.Name !== item.Id) {
-            displayLabel = item.Name;
+      // 🔹 CASE 1: No existing terms → start with ONE editable row
+      if (data.length === 0) {
+        this.isEditMode = true;
+        this.showResumeBtn = false;
+
+        this.terms = [
+          {
+            TempId: Date.now(),
+            serialNumber: 1,
+            Term_Label__c: "",
+            Percentage__c: 0,
+            Due_Date__c: null,
+            Payment_Received__c: false
           }
-          return {
-            ...item,
-            TempId: item.Id,
-            Term_Label__c: displayLabel || "",
-            serialNumber: index + 1 // Initial Serial Number
-          };
-        });
+        ];
+
         this.calculateTotal();
+        return;
       }
+
+      // 🔹 CASE 2: Terms exist → show resume screen
+      this.showResumeBtn = true;
+      this.isEditMode = false;
+
+      this.terms = data.map((item, index) => ({
+        ...item,
+        TempId: item.Id,
+        serialNumber: index + 1,
+        Term_Label__c: item.Term_Label__c || item.Name || ""
+      }));
+
+      this.calculateTotal();
     } else if (error) {
       this.isLoading = false;
-      console.error("Error fetching terms:", error);
-      this.showToast("Error Loading Data", error.body ? error.body.message : error.message, "error");
+      this.showToast(
+        "Error",
+        error.body?.message || error.message,
+        "error"
+      );
     }
   }
 
+  /* ================= GETTERS ================= */
+
   get minDueDate() {
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, "0");
-    const d = String(today.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
+    return new Date().toISOString().split("T")[0];
   }
 
   get isInvalid() {
@@ -69,13 +82,15 @@ export default class PaymentTermManagerAction extends LightningElement {
   }
 
   get totalStatusClass() {
-    return this.isInvalid ? "slds-text-color_error" : "slds-text-color_success";
+    return this.isInvalid
+      ? "slds-text-color_error"
+      : "slds-text-color_success";
   }
 
-  // --- Logic Handlers ---
+  /* ================= VIEW FLOW ================= */
 
   handleResume() {
-    this.showResumeBtn = false; 
+    this.showResumeBtn = false; // show view mode
   }
 
   handleEditMode() {
@@ -83,115 +98,117 @@ export default class PaymentTermManagerAction extends LightningElement {
   }
 
   handleCancel() {
-    this.isLoading = true; 
-    this.deletedTermIds = [];
-    this.showResumeBtn = true; 
-    
-    refreshApex(this.wiredTermsResult)
-      .finally(() => {
-          this.isLoading = false; 
-      });
+    this.dispatchEvent(new CloseActionScreenEvent());
   }
 
-  // --- NEW FUNCTION to recalculate 1, 2, 3... ---
-  reindexTerms() {
-    this.terms = this.terms.map((term, index) => {
-        return { ...term, serialNumber: index + 1 };
-    });
-  }
+  /* ================= ROW HANDLERS ================= */
 
   handleAddRow() {
-    this.terms.push({
-      TempId: Date.now(),
-      Term_Label__c: "",
-      Percentage__c: 0,
-      Due_Date__c: null,
-      Payment_Received__c: false
-    });
-    // Calculate serial numbers after adding
-    this.reindexTerms();
+    this.terms = [
+      ...this.terms,
+      {
+        TempId: Date.now(),
+        serialNumber: this.terms.length + 1,
+        Term_Label__c: "",
+        Percentage__c: 0,
+        Due_Date__c: null,
+        Payment_Received__c: false
+      }
+    ];
     this.calculateTotal();
   }
 
   handleDeleteRow(event) {
     const index = event.currentTarget.dataset.index;
+
+    // Prevent deleting the last row
+    if (this.terms.length === 1) {
+      this.showToast(
+        "Warning",
+        "At least one payment term is required.",
+        "warning"
+      );
+      return;
+    }
+
     if (this.terms[index].Id) {
       this.deletedTermIds.push(this.terms[index].Id);
     }
+
     this.terms.splice(index, 1);
-    // Calculate serial numbers after deleting (e.g., 1, 3 becomes 1, 2)
-    this.reindexTerms(); 
+
+    // Reindex serial numbers
+    this.terms = this.terms.map((t, i) => ({
+      ...t,
+      serialNumber: i + 1
+    }));
+
     this.calculateTotal();
   }
 
   handleChange(event) {
     const index = event.currentTarget.dataset.index;
     const field = event.currentTarget.dataset.field;
-    if (event.target.type === "checkbox") {
-      this.terms[index][field] = event.target.checked;
-    } else {
-      this.terms[index][field] = event.target.value;
-    }
+
+    this.terms[index][field] =
+      event.target.type === "checkbox"
+        ? event.target.checked
+        : event.target.value;
+
     if (field === "Percentage__c") {
       this.calculateTotal();
     }
   }
 
   calculateTotal() {
-    this.currentTotal = this.terms.reduce((sum, item) => {
-      return sum + (parseFloat(item.Percentage__c) || 0);
-    }, 0);
+    this.currentTotal = this.terms.reduce(
+      (sum, t) => sum + (parseFloat(t.Percentage__c) || 0),
+      0
+    );
   }
 
+  /* ================= SAVE ================= */
+
   handleSave() {
-    const invalidDueDates = this.terms.some(
-      (t) => t.Due_Date__c && new Date(t.Due_Date__c) < new Date(this.minDueDate)
-    );
-    if (invalidDueDates) {
-      this.showToast("Invalid Date", "Due dates cannot be in the past.", "error");
+    if (this.isInvalid) {
+      this.showToast(
+        "Error",
+        "Total percentage must equal 100%.",
+        "error"
+      );
       return;
     }
 
-    const allValid = this.terms.every(
-      (term) => term.Term_Label__c && term.Term_Label__c.trim() !== ""
-    );
-    if (!allValid) {
-      this.showToast("Error", "Please provide a Name for all terms.", "error");
-      return;
-    }
-
-    this.isLoading = true; 
-
-    // Remove UI-only properties before sending to Apex
-    const termsToSave = this.terms.map((row) => {
-      let cleanRow = { ...row };
-      delete cleanRow.TempId; 
-      delete cleanRow.serialNumber; // IMPORTANT: Remove S.No so Apex doesn't fail
-      return cleanRow;
+    const payload = this.terms.map(t => {
+      const row = { ...t };
+      delete row.TempId;
+      delete row.serialNumber;
+      return row;
     });
 
     savePaymentTerms({
-      terms: termsToSave,
+      terms: payload,
       recordId: this.recordId,
       termsToDelete: this.deletedTermIds
     })
       .then(() => {
-        this.showToast("Success", "Payment terms saved.", "success");
-        this.deletedTermIds = [];
-        this.closeQuickAction();
-        return refreshApex(this.wiredTermsResult);
+        this.showToast("Success", "Payment terms saved", "success");
+        this.dispatchEvent(new CloseActionScreenEvent());
       })
-      .catch((error) => {
-        this.isLoading = false; 
-        this.showToast("Error", error.body?.message || "Unknown error", "error");
+      .catch(error => {
+        this.showToast(
+          "Error",
+          error.body?.message || "Error saving payment terms",
+          "error"
+        );
       });
   }
 
+  /* ================= UTIL ================= */
+
   showToast(title, message, variant) {
-    this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
-  }
-  
-  closeQuickAction() {
-      this.dispatchEvent(new CloseActionScreenEvent());
+    this.dispatchEvent(
+      new ShowToastEvent({ title, message, variant })
+    );
   }
 }
