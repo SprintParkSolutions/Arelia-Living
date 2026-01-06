@@ -133,11 +133,12 @@ public without sharing class RegistrationFormController {
         String lastName  = (String)payload.get('lastName');
         String email     = (String)payload.get('email');
         String phone     = (String)payload.get('phone');
+        String companyName = (String)payload.get('companyName');
 
         validateNameFields(firstName, lastName);
         validateEmail(email);
 
-        Lead leadToInsert = buildLead(firstName, lastName, email, phone);
+        Lead leadToInsert = buildLead(firstName, lastName, email, phone, companyName);
 
         assertCanCreateLead();
         // Insert in system mode so guest can create Lead (with explicit CRUD check above)
@@ -177,13 +178,15 @@ public without sharing class RegistrationFormController {
      * @return Lead record (not yet inserted).
      */
     @SuppressWarnings('PMD.ExcessiveParameterList')
-    private static Lead buildLead(String firstName,String lastName,String email,String phone)
+    private static Lead buildLead(String firstName,String lastName,String email,String phone, String companyName)
     {
+        String finalCompany = String.isBlank(companyName) ? 'Self-'+firstName+' '+lastName : companyName.trim();
         return new Lead(
             FirstName = firstName != null ? firstName.trim() : null,
             LastName  = lastName != null ? lastName.trim() : null,
             Email     = email != null ? email.trim() : null,
-            Phone     = phone
+            Phone     = phone,
+            Company   = finalCompany
         );
     }
 

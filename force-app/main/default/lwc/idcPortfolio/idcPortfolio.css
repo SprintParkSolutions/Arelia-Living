@@ -1,0 +1,126 @@
+.portfolio-wrapper {
+  background-color: #ffffff;
+  padding: 2rem 1rem;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.portfolio-heading {
+  text-align: center;
+  font-size: 2rem;
+  color: #3b3b3b;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.category-filter {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.filter-btn {
+  background-color: #b7ae90;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.filter-btn:hover {
+  background-color: #b7ae90;
+}
+
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  padding: 0 1rem;
+}
+
+.portfolio-card {
+  background: #b7ae90;
+  border-radius: 16px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.portfolio-card:hover {
+  transform: scale(1.02);
+}
+
+.portfolio-card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.card-info {
+  padding: 1rem;
+  text-align: center;
+}
+
+.card-info h3 {
+  font-size: 1.1rem;
+  color: #3b3b3b;
+  margin-bottom: 0.4rem;
+}
+
+.card-info p {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+.modal-box {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  padding: 2rem;
+  border-radius: 20px;
+  max-width: 80%;
+  max-height: 80%;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.close-btn {
+  float: right;
+  background: #4A4A3F;
+  border: none;
+  color: white;
+  padding: 0.4rem 0.8rem;
+  font-size: 1.3rem;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.image-slider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.image-slider img {
+  width: 100%;
+  max-width: 600px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}

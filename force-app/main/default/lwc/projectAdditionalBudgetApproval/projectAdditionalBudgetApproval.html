@@ -1,0 +1,58 @@
+<template>
+    <template if:true={error}>
+        <div class="alert">{error}</div>
+    </template>
+
+    <div class="shell">
+        <div class="card">
+            <div class="header">
+                <div class="title">Additional Budget Approval</div>
+            </div>
+
+            <template if:true={isBusy}>
+                <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+            </template>
+
+            <template if:true={project}>
+                <div class="grid">
+                    <div class="row"><span class="k">Project</span><span class="v">{project.name}</span></div>
+                    <div class="row"><span class="k">Status</span><span class="v">{project.requestStatus}</span></div>
+                    <div class="row"><span class="k">Pending Amount</span><span class="v">{project.pendingAmount}</span></div>
+                    <div class="row"><span class="k">Pending Reason</span><span class="v">{project.pendingReason}</span></div>
+                </div>
+
+                <template if:true={project.hasPending}>
+                    <div class="btnRow">
+                        <lightning-button variant="destructive" label="Reject" onclick={reject} disabled={isBusy}></lightning-button>
+                        <lightning-button variant="brand" label="Approve" onclick={approve} disabled={isBusy}></lightning-button>
+                    </div>
+                </template>
+
+                <template if:false={project.hasPending}>
+                    <div class="empty">No pending request found.</div>
+                </template>
+
+                <div class="historyWrap">
+                    <div class="historyHeader">
+                        <div class="historyTitle">History</div>
+                        <lightning-button variant="neutral" label={historyBtnLabel} onclick={toggleHistory}></lightning-button>
+                    </div>
+
+                    <template if:true={showHistory}>
+                        <template if:true={project.historyPretty}>
+                            <ul class="historyList">
+                                <template for:each={project.historyPretty} for:item="h">
+                                    <li key={h} class="historyItem">{h}</li>
+                                </template>
+                            </ul>
+                        </template>
+
+                        <template if:false={project.historyPretty}>
+                            <div class="muted">No history available.</div>
+                        </template>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>

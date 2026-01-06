@@ -73,11 +73,19 @@
                                         </lightning-input>
                                     </div>
 
-                                    <div class="slds-col slds-size_1-of-1">
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                                         <lightning-input label="Email" name="email" data-id="emailInput" type="email"
                                             value={email} onchange={handleInputChange} required>
                                         </lightning-input>
                                     </div>
+
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                        <lightning-input label="Company Name (Optional)" name="companyName" value={companyName}
+                                            onchange={handleInputChange}>
+                                        </lightning-input>
+                                        <div class="field-help">If not provided, we'll use <b>Self</b>.</div>
+                                    </div>
+
 
                                     <div class="slds-col slds-size_1-of-1">
                                         <div class="phone-row">
