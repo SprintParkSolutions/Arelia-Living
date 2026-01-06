@@ -74,7 +74,8 @@ public class TestDataUtility {
         ContentDocumentLink cdl = new ContentDocumentLink(
             LinkedEntityId = linkedEntityId,
             ContentDocumentId = conDocId,
-            ShareType = 'V'
+            ShareType = 'V',
+            Visibility = 'AllUsers'
         );
         insert cdl;
         return cdl;
@@ -117,8 +118,6 @@ public class TestDataUtility {
         public Id projId;
         public String voStatus;
         public Decimal completion;
-        
-        // Removed the constructor. We will use property assignment directly.
     }
 
     // 8. Complex Data: Abscond Data
@@ -164,6 +163,7 @@ public class TestDataUtility {
         );
         insert spec;
     }
+
     // 10. Create Payment Term (Dynamic Parent Linking)
     public static Payment_Term__c createPaymentTerm(Id parentId, String label, Decimal percentage) {
         Payment_Term__c term = new Payment_Term__c(
@@ -184,12 +184,13 @@ public class TestDataUtility {
         insert term;
         return term;
     }
+
     // 11. Create Lead
     public static Lead createLead(String lastName) {
         Lead l = new Lead(
             LastName = lastName, 
             Company = 'Test Company', 
-            Status = 'Open - Not Contacted' // Adjust based on your Org's picklist
+            Status = 'Open - Not Contacted'
         );
         insert l;
         return l;
@@ -197,7 +198,6 @@ public class TestDataUtility {
 
     // 12. Create Site Visit Report (Handles RecordType Lookup)
     public static Site_Visit_Report__c createSiteVisitReport(Id parentId, String rtName) {
-        // Fetch RecordTypeId by Name to match Controller logic
         Id rtId = Schema.SObjectType.Site_Visit_Report__c
             .getRecordTypeInfosByName()
             .get(rtName)
@@ -206,10 +206,9 @@ public class TestDataUtility {
         Site_Visit_Report__c svr = new Site_Visit_Report__c(
             RecordTypeId = rtId,
             Wizard_Step__c = 1,
-            Total_Estimated_Cost__c = 1000 // FIXED: Populating required field
+            Total_Estimated_Cost__c = 1000
         );
 
-        // Dynamic Parent Linking
         String sObj = parentId.getSObjectType().getDescribe().getName();
         if (sObj == 'Lead') {
             svr.Lead__c = parentId;
@@ -235,9 +234,8 @@ public class TestDataUtility {
     // 14. Create Custom Quotation
     public static Quotation__c createQuotation(Id oppId, String name) {
         Quotation__c q = new Quotation__c(
-            Name = name, // Standard Name field
+            Name = name,
             Opportunity__c = oppId 
-            // Add other required fields here if you have them (e.g. Status__c)
         );
         insert q;
         return q;
@@ -253,6 +251,124 @@ public class TestDataUtility {
         insert va;
         return va;
     }
-
     
+    // 16. Create Account (New Addition)
+    public static Account createAccount(String name) {
+        Account acc = new Account(Name = name);
+        insert acc;
+        return acc;
+    }
+    
+    // 17. Create Contact (New Addition)
+    public static Contact createContact(String lastName, String email) {
+        Contact c = new Contact(
+            LastName = lastName,
+            Email = email
+        );
+        insert c;
+        return c;
+    }
+
+    // ==========================================================================
+    // Wrapper class for Appointment Lead
+    // ==========================================================================
+    public class AppointmentLeadParams {
+        public Id supervisorId;
+        public String status;
+        public Date apptDate;
+        public String slot;
+    }
+
+    // 18. Create Appointment Lead (Refactored with Duplicate Rule Bypass)
+    public static Lead createAppointmentLead(AppointmentLeadParams params) {
+        String uniqueEmail = 'testlead' + DateTime.now().getTime() + '@example.com';
+        
+        Lead l = new Lead(
+            LastName = 'Appt Lead ' + DateTime.now().getTime(),
+            Company = 'Test Company',
+            Status = 'Open - Not Contacted',
+            Supervisor_User__c = params.supervisorId,
+            Appointment_Status__c = params.status,
+            Appointment_Date__c = params.apptDate,
+            Appointment_Time_Slots__c = params.slot,
+            Email = uniqueEmail
+        );
+
+        // FIX: Bypass Duplicate Rules
+        Database.DMLOptions dml = new Database.DMLOptions();
+        dml.DuplicateRuleHeader.allowSave = true; 
+        dml.DuplicateRuleHeader.runAsCurrentUser = true;
+        l.setOptions(dml);
+
+        insert l;
+        return l;
+    }
+
+    // ==========================================================================
+    // Wrapper class for Appointment Opportunity
+    // ==========================================================================
+    public class AppointmentOppParams {
+        public Id supervisorId;
+        public String status; 
+        public Date apptDate; 
+        public String slot;   
+        public Id contactId;  
+    }
+
+    // 19. Create Appointment Opportunity
+    public static Opportunity createAppointmentOpportunity(AppointmentOppParams params) {
+        Opportunity opp = new Opportunity(
+            Name = 'Appt Opp ' + DateTime.now().getTime(),
+            StageName = 'Prospecting',
+            CloseDate = Date.today().addDays(30),
+            Supervisor_User__c = params.supervisorId,
+            Re_Visit_Site_Appointment_Status__c = params.status,
+            Re_Visit_Appointment_Date__c = params.apptDate,
+            Re_Visit_Appointment_Time_Slots__c = params.slot,
+            Primary_Contact__c = params.contactId
+        );
+        insert opp;
+        return opp;
+    }
+
+    // 20. Create Specific Email Template (Dynamic)
+    public static EmailTemplate createSpecificEmailTemplate(String devName, String name, String subject) {
+        EmailTemplate et = new EmailTemplate(
+            DeveloperName = devName,
+            Name = name,
+            Subject = subject,
+            HtmlValue = '<html><body>Test Content for ' + name + '</body></html>',
+            TemplateType = 'custom',
+            FolderId = UserInfo.getUserId(),
+            IsActive = true
+        );
+        insert et;
+        return et;
+    }
+
+    // 21. Create User Role (Helper)
+    public static UserRole createUserRole(String name) {
+        UserRole r = new UserRole(DeveloperName = name.replaceAll('\\s+','_'), Name = name);
+        insert r;
+        return r;
+    }
+
+    // 22. Create User with specific Role
+    public static User createUserWithRole(String alias, Id roleId) {
+        Profile p = [SELECT Id FROM Profile WHERE Name='Standard User' LIMIT 1];
+        User u = new User(
+            Alias = alias, 
+            Email = alias + '@testorg.com', 
+            EmailEncodingKey = 'UTF-8', 
+            LastName = 'Testing', 
+            LanguageLocaleKey = 'en_US', 
+            LocaleSidKey = 'en_US', 
+            ProfileId = p.Id, 
+            UserRoleId = roleId,
+            TimeZoneSidKey = 'America/Los_Angeles', 
+            UserName = alias + DateTime.now().getTime() + '@testorg.com'
+        );
+        insert u;
+        return u;
+    }
 }
