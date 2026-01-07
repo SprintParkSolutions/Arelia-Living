@@ -132,7 +132,7 @@ public with sharing class SiteVisitReportHandler {
             .replace('{{{Site_Visit_Report__c.Site_Visit_Time_Slot__c}}}', safeString(report.Site_Visit_Time_Slot__c))
             .replace('{{{Site_Visit_Report__c.Site_Visit_Report_Status__c}}}', safeString(report.Site_Visit_Report_Status__c))
             .replace('{{{Site_Visit_Report__c.Estimated_Completion_Date__c}}}', formatDate(report.Estimated_Completion_Date__c))
-            .replace('{{{Site_Visit_Report__c.Total_Estimated_Cost__c}}}', formatCurrency(report.Total_Estimated_Cost__c))
+            .replace('{{{Site_Visit_Report__c.Total_Estimated_Cost__c}}}', safeString(report.Total_Estimated_Cost__c))
             .replace('{{{siteVisitRecordPageLink}}}', siteVisitRecordPageLink);
     }
 
@@ -166,11 +166,8 @@ public with sharing class SiteVisitReportHandler {
 
     // Get org-wide email address Id for sending
     private static Id getOrgWideEmailAddressId() {
-        List<OrgWideEmailAddress> addresses = [
-            SELECT Id FROM OrgWideEmailAddress
-            WHERE Address = :Label.Arelia_OWD
-            LIMIT 1
-        ];
+        List<OrgWideEmailAddress> addresses = [SELECT Id FROM OrgWideEmailAddress
+                                                WHERE Address = :Label.Arelia_OWD LIMIT 1];
         return addresses.isEmpty() ? null : addresses[0].Id;
     }
 
@@ -348,5 +345,4 @@ public with sharing class SiteVisitReportHandler {
             }
         }
     }
-
 }

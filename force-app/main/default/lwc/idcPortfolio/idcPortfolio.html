@@ -1,0 +1,32 @@
+<template>
+  <div class="portfolio-wrapper">
+    <h2 class="portfolio-heading">Signature Spaces</h2>
+
+    
+
+    <div class="portfolio-grid">
+      <template for:each={filteredProjects} for:item="project">
+        <div key={project.id} class="portfolio-card" data-id={project.id} onclick={openGallery}>
+          <img src={project.coverImage} alt={project.title} />
+          <div class="card-info">
+            <h3>{project.title}</h3>
+            <p>{project.category}</p>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Modal for Image Gallery -->
+    <template if:true={isModalOpen}>
+      <div class="modal-backdrop" onclick={closeModal}></div>
+      <div class="modal-box">
+        <button class="close-btn" onclick={closeModal}>×</button>
+        <div class="image-slider">
+          <template for:each={selectedProjectImages} for:item="img">
+            <img key={img} src={img} alt="Gallery Image" />
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>
