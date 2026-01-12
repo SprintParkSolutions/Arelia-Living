@@ -255,11 +255,7 @@ lightning-combobox {
     color: #9ca3af;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-    .catalog-header { flex-direction: column; }
-    .cards-grid { grid-template-columns: 1fr; }
-}
+
 
 /* QUALITY LABEL */
 .price-block,
@@ -733,16 +729,7 @@ input[id^="luxury-"]:checked ~ .glass-glider {
     cursor: not-allowed;
 }
 
-@media (max-width: 480px) {
-    .product-card {
-        width: 100%;
-        min-height: auto;
-    }
-    .cards-grid {
-        grid-template-columns: 1fr;
-        max-width: 100% !important;
-    }
-}
+
 
 /* === FINAL FIX FOR IMAGE DISPLAY & SPACING === */
 
@@ -871,4 +858,250 @@ input[id^="luxury-"]:checked ~ .glass-glider {
         max-width: 80vw;   /* 🔥 still reduced for mobile */
         max-height: 65vh;
     }
+}
+.remove-btn {
+    background: transparent;
+    border: none;
+    color: red;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+}
+.remove-btn:hover {
+    color: darkred;
+    text-decoration: underline;
+}
+.highlight-product {
+    outline: 3px solid #5B9BFF;
+    border-radius: 12px;
+    transition: outline 0.3s ease-in-out;
+    animation: glow 1.5s ease-in-out;
+}
+
+@keyframes glow {
+    0% { box-shadow: 0 0 0px #5B9BFF; }
+    50% { box-shadow: 0 0 20px #5B9BFF; }
+    100% { box-shadow: 0 0 0px #5B9BFF; }
+}
+
+
+/* =========================================================
+   STEP PROGRESS BAR (1 → 2 → 3)
+   ========================================================= */
+.stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0.5rem auto 1.5rem;
+    max-width: 680px;
+    gap: 0.6rem;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 70px;
+    color: #6b7280;
+    transition: color 0.25s ease;
+}
+
+.step.active,
+.step.completed {
+    color: #6366f1;
+}
+
+.step-index {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: currentColor;
+    color: #020617;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.step-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.step-line {
+    flex: 1;
+    height: 2px;
+    background: rgba(129,140,248,0.35);
+    margin-top: -14px;
+}
+
+/* =========================================================
+   STEP SCREEN TRANSITIONS
+   ========================================================= */
+.step-screen {
+    width: 100%;
+}
+
+.fade-slide {
+    animation: fadeSlideIn 0.35s ease-out both;
+}
+
+@keyframes fadeSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =========================================================
+   BACK BUTTON (STEP 2 & 3)
+   ========================================================= */
+.back-btn {
+    background: transparent;
+    border: none;
+    color: #a5b4fc;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.back-btn:hover {
+    color: #ffffff;
+    transform: translateX(-2px);
+}
+/* =========================================================
+   MOBILE RESPONSIVE (CLEAN + CONSOLIDATED)
+   ========================================================= */
+@media (max-width: 768px) {
+
+    /* ---------- ROOT SPACING ---------- */
+    .catalog-root {
+        padding: 1rem;
+    }
+
+    /* ---------- STEPPER (COMPACT HORIZONTAL) ---------- */
+    .stepper {
+        margin: 12px auto 16px;
+        gap: 6px;
+        padding: 0 10px;
+        max-width: 100%;
+    }
+
+    .step {
+        min-width: 56px;
+        gap: 2px;
+    }
+
+    .step-index {
+        width: 22px;
+        height: 22px;
+        font-size: 12px;
+        margin-bottom: 2px;
+    }
+
+    .step-label {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+    }
+
+    .step-line {
+        height: 1px;
+        opacity: 0.35;
+        margin-top: -10px;
+    }
+
+    /* ---------- INTRO (STEP 1) ---------- */
+    .intro-center {
+        min-height: auto;
+        padding-top: 80px;   /* 🔥 key fix */
+        padding-bottom: 36px;
+        align-items: flex-start;
+    }
+
+    .intro-content {
+        text-align: center;
+        padding: 0 12px;
+    }
+
+    .intro-content .heading {
+        font-size: 1.6rem;
+        line-height: 1.25;
+    }
+
+    .intro-content .subheading {
+        font-size: 0.95rem;
+        margin-top: 6px;
+        margin-bottom: 1.2rem;
+    }
+
+    /* ---------- ROOM CHIPS ---------- */
+    .chip-row {
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .chip {
+        font-size: 0.85rem;
+        padding: 6px 14px;
+    }
+
+    /* ---------- HEADER (STEP 2 & 3) ---------- */
+    .catalog-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.6rem;
+    }
+
+    .uiverse-cart-btn {
+        align-self: flex-end;
+    }
+
+    /* ---------- PRODUCT GRID ---------- */
+    .cards-grid {
+        grid-template-columns: 1fr;
+        max-width: 100%;
+    }
+
+    .product-card {
+        width: 100%;
+        min-height: auto;
+    }
+
+    /* ---------- IMAGE MODAL ---------- */
+    .image-modal-container {
+        max-width: 80vw;
+        max-height: 65vh;
+    }
+}
+/* ================= CART PRODUCT CLICK LINK ================= */
+
+.cart-product-link {
+    cursor: pointer;
+    color: #93c5fd;                 /* light blue */
+    font-weight: 700;
+    text-decoration: underline;     /* 🔥 restore underline */
+    text-underline-offset: 3px;
+    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+.cart-product-link:hover {
+    color: #bfdbfe;                 /* brighter on hover */
+    text-decoration-color: #bfdbfe;
+}
+
+.cart-product-link:active {
+    color: #60a5fa;
+}
+
+.cart-product-link:focus-visible {
+    outline: 2px solid #818cf8;
+    outline-offset: 2px;
 }

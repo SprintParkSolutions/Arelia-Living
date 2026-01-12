@@ -51,14 +51,14 @@ public class PdfGeneratorAsync implements Queueable {
            🔹 Kept commented as per your logic
         =============================== */
         
-        if (!String.isBlank(opp.Supervisor_User_Email__c)) {
+        /*if (!String.isBlank(opp.Supervisor_User_Email__c)) {
             sendEmailUsingTemplate(
                 'Opportunity_Catalogue_Quotation_Supervisor',
                 opp.Supervisor_User_Email__c,
                 opp,
                 att
             );
-        }
+        }*/
         
     }
 

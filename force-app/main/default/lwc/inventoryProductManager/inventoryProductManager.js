@@ -1,132 +1,250 @@
 import { LightningElement, api, track, wire } from 'lwc';
 import { CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
+
+import PROJECT_SPEC_OBJECT from '@salesforce/schema/Project_Specification__c';
+import ROOM_TYPE_FIELD from '@salesforce/schema/Project_Specification__c.Room_Type__c';
+import PRODUCT_CATEGORY_FIELD from '@salesforce/schema/Project_Specification__c.Product_Category__c';
 
 import getProducts from '@salesforce/apex/InventoryApiService.getProducts';
 import saveCart from '@salesforce/apex/OpportunityQuotePDFController.saveCart';
 import generateQuoteAndSave from '@salesforce/apex/OpportunityQuotePDFController.generateQuoteAndSave';
 import getQualityOptions from '@salesforce/apex/QualityConfigController.getQualityOptions';
+import deactivateCartItem from '@salesforce/apex/OpportunityQuotePDFController.deactivateCartItem';
+import getSavedCart from '@salesforce/apex/OpportunityQuotePDFController.getSavedCart';
 
 export default class InventoryProductManager extends LightningElement {
     @api recordId;
 
-    /* ---------- MAIN STATE ---------- */
-    @track _products = [];     
+    /* ================= OBJECT INFO ================= */
+    @wire(getObjectInfo, { objectApiName: PROJECT_SPEC_OBJECT })
+    objectInfo;
+
+    roomTypesBase = [];
+    categoriesBase = [];
+
+    /* ================= MAIN STATE ================= */
+    @track _products = [];
+    @track visibleProducts = [];
     @track cartItems = [];
+
     @track selectedRoomType = null;
     @track selectedCategory = null;
-    @track visibleProducts = [];
 
     qualityConfig = [];
+
     @track isLoading = false;
     @track isCartOpen = false;
 
-    @track showPopup = false;
-    popupTitle = '';
-    popupMessage = '';
+    /* ================= STEP UX ================= */
+    @track currentStep = 1;
 
-    /* ---------- IMAGE MODAL ---------- */
+    get isStep1() { return this.currentStep === 1; }
+    get isStep2() { return this.currentStep === 2; }
+    get isStep3() { return this.currentStep === 3; }
+
+    get stepClass1() {
+        return `step ${this.currentStep >= 1 ? 'active completed' : ''}`;
+    }
+    get stepClass2() {
+        return `step ${this.currentStep >= 2 ? 'active completed' : ''}`;
+    }
+    get stepClass3() {
+        return `step ${this.currentStep === 3 ? 'active' : ''}`;
+    }
+
+    /* ================= IMAGE MODAL ================= */
     @track isImageModalOpen = false;
     @track modalImageUrl = null;
 
-    /* ---------- PAGINATION ---------- */
+    /* ================= PAGINATION ================= */
     pageSize = 8;
     currentPage = 1;
     totalPages = 1;
 
-    /* ---------- CONNECTED ---------- */
+    /* ================= POPUP ================= */
+    @track showPopup = false;
+    popupTitle = '';
+    popupMessage = '';
+
+    /* ================= LIFECYCLE ================= */
     connectedCallback() {
         this.loadQualityOptions();
+        this.fetchSavedCart();
+
+        // restore step from URL
+        const params = new URLSearchParams(window.location.search);
+        const step = Number(params.get('step'));
+        if (step >= 1 && step <= 3) {
+            this.currentStep = step;
+        }
 
         // ESC key closes image modal
-        window.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && this.isImageModalOpen) {
+        this._escHandler = (e) => {
+            if (e.key === 'Escape' && this.isImageModalOpen) {
                 this.closeImageModal();
             }
-        });
+        };
+        window.addEventListener('keydown', this._escHandler);
     }
 
-    /* ---------- IMAGE MODAL METHODS ---------- */
-    openImageModal(event) {
-        this.modalImageUrl = event.currentTarget.dataset.url;
-        this.isImageModalOpen = true;
+    disconnectedCallback() {
+        window.removeEventListener('keydown', this._escHandler);
     }
 
-    closeImageModal() {
-        this.isImageModalOpen = false;
-        this.modalImageUrl = null;
+    /* ================= URL STEP ================= */
+    updateUrlStep() {
+        const url = new URL(window.location.href);
+        url.searchParams.set('step', this.currentStep);
+        window.history.replaceState({}, '', url.toString());
     }
 
-    stopEvent(event) {
-        event.stopPropagation();
+    goBack() {
+        if (this.currentStep > 1) {
+            this.currentStep--;
+            this.updateUrlStep();
+        }
     }
 
-    /* ---------- POPUP ---------- */
-    showCustomPopup(title, message) {
-        this.popupTitle = title;
-        this.popupMessage = message;
-        this.showPopup = true;
-    }
-
-    closePopup() {
-        this.showPopup = false;
-    }
-
-    /* ---------- COMMUNITY PARAM ---------- */
+    /* ================= COMMUNITY PARAM ================= */
     @wire(CurrentPageReference)
     getPageRef(pageRef) {
-        if (pageRef && pageRef.state && pageRef.state.id) {
+        if (pageRef?.state?.id) {
             this.recordId = pageRef.state.id;
         }
     }
 
-    /* ---------- STATIC DATA ---------- */
-    roomTypesBase = [
-        'Bedroom', 'Living Room', 'Kitchen', 'Bathroom',
-        'Dining Hall', 'Work Space', 'Cabin Room', 'Conference Hall'
-    ];
+    /* ================= PICKLISTS ================= */
+    @wire(getPicklistValues, {
+        recordTypeId: '$objectInfo.data.defaultRecordTypeId',
+        fieldApiName: ROOM_TYPE_FIELD
+    })
+    roomTypePicklist({ data }) {
+        if (data) {
+            this.roomTypesBase = data.values.map(v => v.label);
+        }
+    }
 
-    categoriesBase = [
-        'Flooring', 'Ceiling', 'Electrical and Lighting',
-        'Woodwork and Furniture', 'Walls and Paintings', 'Plumbing'
-    ];
+    @wire(getPicklistValues, {
+        recordTypeId: '$objectInfo.data.defaultRecordTypeId',
+        fieldApiName: PRODUCT_CATEGORY_FIELD
+    })
+    categoryPicklist({ data }) {
+        if (data) {
+            this.categoriesBase = data.values.map(v => v.label);
+        }
+    }
 
-    /* ---------- PRODUCT GETTERS ---------- */
+    /* ================= UI GETTERS ================= */
     get roomTypes() {
         return this.roomTypesBase.map(v => ({
             value: v,
-            className: 'chip ' + (this.selectedRoomType === v ? 'chip-selected' : '')
+            className: `chip ${this.selectedRoomType === v ? 'chip-selected' : ''}`
         }));
     }
 
     get categories() {
         return this.categoriesBase.map(v => ({
             value: v,
-            className: 'chip ' + (this.selectedCategory === v ? 'chip-selected' : '')
+            className: `chip ${this.selectedCategory === v ? 'chip-selected' : ''}`
         }));
     }
 
     get selectedProductsList() {
         return this.cartItems.map(i => ({
+            id: i.Interior_Product__c,
             name: i.Name,
             qty: i.Quantity__c,
-            quality: i.Quality__c || 'Standard'
+            quality: i.Quality__c,
+            Room_Type__c: i.Room_Type__c,
+            Product_Category__c: i.Product_Category__c
         }));
     }
 
-    /* ---------- FILTER HANDLERS ---------- */
+    /* ================= STEP HANDLERS ================= */
     handleRoomSelect(event) {
         this.selectedRoomType = event.currentTarget.dataset.value;
         this.selectedCategory = null;
-        this.products = []; 
+        this.products = [];
+        this.currentStep = 2;
+        this.updateUrlStep();
     }
 
     handleCategorySelect(event) {
         this.selectedCategory = event.currentTarget.dataset.value;
+        this.currentStep = 3;
+        this.updateUrlStep();
         this.loadProducts();
     }
 
-    /* ---------- LOAD PRODUCTS ---------- */
+    /* ================= PRODUCT CLICK (FROM CART) ================= */
+    handleSelectedProductClick(event) {
+        this.isCartOpen = false;
+        
+        const productId = event.currentTarget.dataset.id;
+        const selectedItem = this.cartItems.find(i => i.Interior_Product__c === productId);
+        if (!selectedItem) return;
+
+        this.selectedRoomType = selectedItem.Room_Type__c;
+        this.selectedCategory = selectedItem.Product_Category__c;
+        this.currentStep = 3;
+        this.updateUrlStep();
+
+        this.loadProducts();
+
+        setTimeout(() => {
+            const idx = this._products.findIndex(p => p.Id === productId);
+            if (idx < 0) return;
+
+            this.currentPage = Math.floor(idx / this.pageSize) + 1;
+            this.calculatePagination();
+
+            setTimeout(() => {
+                const card = this.template.querySelector(`[data-product="${productId}"]`);
+                if (card) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    card.classList.add('highlight-product');
+                    setTimeout(() => card.classList.remove('highlight-product'), 2000);
+                }
+            }, 100);
+        }, 300);
+    }
+
+    syncProductsWithCart() {
+    if (!this.products?.length || !this.cartItems?.length) return;
+
+    this.products = this.products.map(p => {
+        const item = this.cartItems.find(
+            c => c.Interior_Product__c === p.Id
+        );
+
+        return item
+            ? {
+                ...p,
+                qty: item.Quantity__c,
+                inCart: true,
+                selectedQuality: item.Quality__c,
+                displayPrice: item.Unit_Price__c,
+                isStandard: item.Quality__c === 'Standard',
+                isPremium: item.Quality__c === 'Premium',
+                isLuxury: item.Quality__c === 'Luxury'
+              }
+            : {
+                ...p,
+                qty: 0,
+                inCart: false,
+                selectedQuality: 'Standard',
+                displayPrice: p.Unit_Price__c,
+                isStandard: true,
+                isPremium: false,
+                isLuxury: false
+              };
+    });
+}
+
+
+    /* ================= LOAD PRODUCTS ================= */
     loadProducts() {
         if (!this.selectedRoomType || !this.selectedCategory) return;
 
@@ -136,44 +254,39 @@ export default class InventoryProductManager extends LightningElement {
             roomType: this.selectedRoomType,
             category: this.selectedCategory
         })
-        .then(result => {
-            const mapped = (result || []).map(p => {
-                const cartItem = this.cartItems.find(c => c.Interior_Product__c === p.Id);
+            .then(res => {
+                this.products = (res || []).map(p => {
+                    const cartItem = this.cartItems.find(c => c.Interior_Product__c === p.Id);
+                    const quality = cartItem?.Quality__c || 'Standard';
+                    const price = cartItem?.Unit_Price__c || p.Unit_Price__c;
 
-                const quality = cartItem?.Quality__c || 'Standard';
-                const price = cartItem?.Unit_Price__c || p.Unit_Price__c;
-
-                return {
-                    ...p,
-                    qualityGroupName: `quality-${p.Id}`,
-                    standardId: `standard-${p.Id}`,
-                    premiumId: `premium-${p.Id}`,
-                    luxuryId: `luxury-${p.Id}`,
-                    qty: cartItem ? cartItem.Quantity__c : 0,
-                    inCart: !!cartItem,
-                    selectedQuality: quality,
-                    displayPrice: price,
-                    isStandard: quality === 'Standard',
-                    isPremium: quality === 'Premium',
-                    isLuxury: quality === 'Luxury',
-                    imageUrl: this.buildImageUrl(p)
-                };
-            });
-
-            this.products = mapped;
-        })
-        .catch(() => this.showToast('Error', 'Failed to load products', 'error'))
-        .finally(() => this.isLoading = false);
+                    return {
+                        ...p,
+                        qty: cartItem?.Quantity__c || 0,
+                        inCart: !!cartItem,
+                        selectedQuality: quality,
+                        displayPrice: price,
+                        isStandard: quality === 'Standard',
+                        isPremium: quality === 'Premium',
+                        isLuxury: quality === 'Luxury',
+                        imageUrl: this.buildImageUrl(p),
+                        qualityGroupName: `quality-${p.Id}`,
+                        standardId: `standard-${p.Id}`,
+                        premiumId: `premium-${p.Id}`,
+                        luxuryId: `luxury-${p.Id}`
+                    };
+                });
+                this.syncProductsWithCart();
+            })
+            .catch(() => this.showToast('Error', 'Failed to load products', 'error'))
+            .finally(() => (this.isLoading = false));
     }
 
-    /* ---------- QUALITY CONFIG ---------- */
+    /* ================= QUALITY ================= */
     loadQualityOptions() {
-        getQualityOptions()
-            .then(res => this.qualityConfig = res || [])
-            .catch(() => this.showToast('Error', 'Failed to load quality options', 'error'));
+        getQualityOptions().then(res => (this.qualityConfig = res || []));
     }
 
-    /* ---------- QUALITY RADIO ---------- */
     handleQualityRadio(event) {
         const productId = event.currentTarget.dataset.id;
         const selectedQuality = event.target.value;
@@ -187,15 +300,19 @@ export default class InventoryProductManager extends LightningElement {
 
         this.products = this.products.map(p =>
             p.Id === productId
-                ? { ...p, selectedQuality, displayPrice: newPrice,
-                    isStandard: selectedQuality === 'Standard',
-                    isPremium: selectedQuality === 'Premium',
-                    isLuxury: selectedQuality === 'Luxury' }
+                ? {
+                      ...p,
+                      selectedQuality,
+                      displayPrice: newPrice,
+                      isStandard: selectedQuality === 'Standard',
+                      isPremium: selectedQuality === 'Premium',
+                      isLuxury: selectedQuality === 'Luxury'
+                  }
                 : p
         );
     }
 
-    /* ---------- PAGINATION ---------- */
+    /* ================= PAGINATION ================= */
     set products(value) {
         this._products = value || [];
         this.currentPage = 1;
@@ -207,16 +324,9 @@ export default class InventoryProductManager extends LightningElement {
     }
 
     calculatePagination() {
-        if (!this._products.length) {
-            this.visibleProducts = [];
-            this.totalPages = 1;
-            return;
-        }
-
-        this.totalPages = Math.ceil(this._products.length / this.pageSize);
+        this.totalPages = Math.max(1, Math.ceil(this._products.length / this.pageSize));
         const start = (this.currentPage - 1) * this.pageSize;
-        const end = start + this.pageSize;
-        this.visibleProducts = this._products.slice(start, end);
+        this.visibleProducts = this._products.slice(start, start + this.pageSize);
     }
 
     get isFirstPage() { return this.currentPage === 1; }
@@ -236,7 +346,7 @@ export default class InventoryProductManager extends LightningElement {
         }
     }
 
-    /* ---------- CART ---------- */
+    /* ================= CART ================= */
     get cartTotal() {
         return this.cartItems.reduce((s, i) => s + (i.Total_Amount__c || 0), 0);
     }
@@ -249,7 +359,6 @@ export default class InventoryProductManager extends LightningElement {
         const productId = event.currentTarget.dataset.id;
         const prod = this.products.find(p => p.Id === productId);
         if (!prod) return;
-
         this.updateQty(productId, 1, prod.displayPrice, prod.selectedQuality);
     }
 
@@ -266,6 +375,7 @@ export default class InventoryProductManager extends LightningElement {
     }
 
     updateQty(productId, qty, price, quality) {
+        const prod = this.products.find(p => p.Id === productId);
         let cart = [...this.cartItems];
         const idx = cart.findIndex(c => c.Interior_Product__c === productId);
 
@@ -273,6 +383,7 @@ export default class InventoryProductManager extends LightningElement {
             if (idx >= 0) {
                 cart[idx] = {
                     ...cart[idx],
+                    Name: prod ? prod.Name : cart[idx].Name,
                     Quantity__c: qty,
                     Unit_Price__c: price,
                     Quality__c: quality,
@@ -283,7 +394,7 @@ export default class InventoryProductManager extends LightningElement {
                     sobjectType: 'Project_Specification__c',
                     Opportunity__c: this.recordId,
                     Interior_Product__c: productId,
-                    Name: this.products.find(p => p.Id === productId)?.Name,
+                    Name: prod?.Name,
                     Quantity__c: qty,
                     Unit_Price__c: price,
                     Quality__c: quality,
@@ -298,22 +409,42 @@ export default class InventoryProductManager extends LightningElement {
 
         this.products = this.products.map(p => {
             const item = cart.find(c => c.Interior_Product__c === p.Id);
-            if (!item) return { ...p, qty: 0, inCart: false };
-
-            return {
-                ...p,
-                qty: item.Quantity__c,
-                inCart: true,
-                selectedQuality: item.Quality__c,
-                displayPrice: item.Unit_Price__c,
-                isStandard: item.Quality__c === 'Standard',
-                isPremium: item.Quality__c === 'Premium',
-                isLuxury: item.Quality__c === 'Luxury'
-            };
+            return item
+                ? {
+                      ...p,
+                      qty: item.Quantity__c,
+                      inCart: true,
+                      selectedQuality: item.Quality__c,
+                      displayPrice: item.Unit_Price__c,
+                      isStandard: item.Quality__c === 'Standard',
+                      isPremium: item.Quality__c === 'Premium',
+                      isLuxury: item.Quality__c === 'Luxury'
+                  }
+                : {
+                      ...p,
+                      qty: 0,
+                      inCart: false,
+                      selectedQuality: 'Standard',
+                      displayPrice: p.Unit_Price__c,
+                      isStandard: true,
+                      isPremium: false,
+                      isLuxury: false
+                  };
         });
     }
+    handleQtyInput(event) {
+    const productId = event.currentTarget.dataset.id;
+    let qty = parseInt(event.target.value, 10);
 
-    /* ---------- CART MODAL ---------- */
+    if (isNaN(qty) || qty < 0) qty = 0;
+
+    const prod = this.products.find(p => p.Id === productId);
+    if (!prod) return;
+
+    this.updateQty(productId, qty, prod.displayPrice, prod.selectedQuality);
+}
+
+    /* ================= CART MODAL ================= */
     openCart() {
         this.isCartOpen = true;
     }
@@ -338,7 +469,24 @@ export default class InventoryProductManager extends LightningElement {
         this.showToast('Cleared', 'Cart cleared successfully', 'success');
     }
 
-    /* ---------- GENERATE QUOTE ---------- */
+    handleRemoveItem(event) {
+        const specId = event.currentTarget.dataset.id;
+
+        deactivateCartItem({ specItemId: specId })
+            .then(() => getSavedCart({ opportunityId: this.recordId }))
+            .then(items => {
+                this.cartItems = items || [];
+                if (this.selectedRoomType && this.selectedCategory) {
+                    this.loadProducts();
+                }
+                this.showToast('Removed', 'Product removed from cart', 'success');
+            })
+            .catch(err => {
+                this.showToast('Error', err.body?.message || 'Could not remove item', 'error');
+            });
+    }
+
+    /* ================= GENERATE QUOTE ================= */
     handleGenerateClick() {
         if (!this.cartItems.length) {
             this.showCustomPopup('⚠️ Cart Empty', 'Add items before generating quotation.');
@@ -347,7 +495,13 @@ export default class InventoryProductManager extends LightningElement {
 
         this.isLoading = true;
 
-        saveCart({ opportunityId: this.recordId, cartItems: this.cartItems })
+        const cleanedCart = this.cartItems.map(item => {
+            const clone = { ...item };
+            delete clone.Id;
+            return clone;
+        });
+
+        saveCart({ opportunityId: this.recordId, cartItems: cleanedCart })
             .then(() => generateQuoteAndSave({ opportunityId: this.recordId }))
             .then(() => {
                 this.isLoading = false;
@@ -359,20 +513,56 @@ export default class InventoryProductManager extends LightningElement {
             });
     }
 
-    /* ---------- IMAGE URL ---------- */
+    /* ================= IMAGE MODAL ================= */
+    openImageModal(event) {
+        this.modalImageUrl = event.currentTarget.dataset.url;
+        this.isImageModalOpen = true;
+    }
+
+    closeImageModal() {
+        this.isImageModalOpen = false;
+        this.modalImageUrl = null;
+    }
+
+    stopEvent(event) {
+        event.stopPropagation();
+    }
+
+    /* ================= POPUP ================= */
+    showCustomPopup(title, message) {
+        this.popupTitle = title;
+        this.popupMessage = message;
+        this.showPopup = true;
+    }
+
+    closePopup() {
+        this.showPopup = false;
+    }
+
+    /* ================= HELPERS ================= */
+    fetchSavedCart() {
+    if (!this.recordId) return;
+
+    getSavedCart({ opportunityId: this.recordId })
+        .then(items => {
+            this.cartItems = items || [];
+
+            // 🔥 ADD THIS
+            if (this.currentStep === 3) {
+                this.syncProductsWithCart();
+            }
+        });
+}
+
     buildImageUrl(product) {
         return product?.Image_File_Name__c
             ? `/resource/${product.Image_File_Name__c}`
             : '/resource/Default_Product_Image';
     }
 
-    /* ---------- TOAST ---------- */
     showToast(title, message, variant) {
-        this.dispatchEvent(new ShowToastEvent({
-            title,
-            message,
-            variant,
-            mode: 'sticky'
-        }));
+        this.dispatchEvent(
+            new ShowToastEvent({ title, message, variant, mode: 'sticky' })
+        );
     }
 }

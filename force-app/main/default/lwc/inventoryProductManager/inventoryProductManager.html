@@ -1,158 +1,191 @@
 <template>
     <div class="catalog-root">
 
-        <!-- Header -->
-        <div class="catalog-header">
-            <div class="title-block">
-                <div class="subtitle">ARELIA LIVING INTERIOR</div>
-                <h1 class="heading">Interior Product Catalogue</h1>
-                <p class="subheading">Pick a room and category, compare options and add them to your project quotation.</p>
+        <!-- ================= STEP PROGRESS BAR ================= -->
+        <div class="stepper">
+            <div class={stepClass1}>
+                <span class="step-index">1</span>
+                <span class="step-label">Room</span>
             </div>
+            <div class="step-line"></div>
 
-            <div class="header-actions">
-                <button class="uiverse-cart-btn" onclick={openCart}>
-                    🛒 {cartLabel}
-                </button>
+            <div class={stepClass2}>
+                <span class="step-index">2</span>
+                <span class="step-label">Category</span>
+            </div>
+            <div class="step-line"></div>
+
+            <div class={stepClass3}>
+                <span class="step-index">3</span>
+                <span class="step-label">Products</span>
             </div>
         </div>
 
-        <!-- Filters -->
-        <section class="filter-section">
-            <div class="filter-block">
-                <div class="filter-label">Choose Room Type</div>
-                <div class="chip-row">
-                    <template for:each={roomTypes} for:item="room">
-                        <div key={room.value} class={room.className} data-value={room.value} onclick={handleRoomSelect}>
-                            {room.value}
-                        </div>
-                    </template>
-                </div>
-            </div>
+        <!-- ================= STEP 1 ================= -->
+        <template if:true={isStep1}>
+    <section class="step-screen intro-center">
+        <div class="intro-content">
+            <h1 class="heading">Interior Product Catalogue</h1>
+            <p class="subheading">
+                Browse curated interior solutions and build your quotation effortlessly.
+            </p>
 
-            <div class="filter-block">
+            <div class="filter-label">Choose Room Type</div>
+            <div class="chip-row">
+                <template for:each={roomTypes} for:item="room">
+                    <div key={room.value}
+                         class={room.className}
+                         data-value={room.value}
+                         onclick={handleRoomSelect}>
+                        {room.value}
+                    </div>
+                </template>
+            </div>
+        </div>
+    </section>
+</template>
+
+        <!-- ================= STEP 2 ================= -->
+        <template if:true={isStep2}>
+            <section class="step-screen fade-slide">
+
+                <div class="catalog-header">
+                    <button class="back-btn" onclick={goBack}>← Back</button>
+
+                    <div class="title-block">
+                        <h2>Selected Room → <strong>{selectedRoomType}</strong></h2>
+                    </div>
+
+                    <button class="uiverse-cart-btn" onclick={openCart}>
+                        🛒 {cartLabel}
+                    </button>
+                </div>
+
                 <div class="filter-label">Choose Product Category</div>
                 <div class="chip-row">
                     <template for:each={categories} for:item="cat">
-                        <div key={cat.value} class={cat.className} data-value={cat.value} onclick={handleCategorySelect}>
+                        <div key={cat.value}
+                             class={cat.className}
+                             data-value={cat.value}
+                             onclick={handleCategorySelect}>
                             {cat.value}
                         </div>
                     </template>
                 </div>
-            </div>
-        </section>
-
-        <!-- Selection preview -->
-        <template if:true={selectedRoomType}>
-            <div class="selection-preview-full">
-                <span class="preview-title">Selected:</span>
-                <span class="preview-value">{selectedRoomType}</span>
-
-                <template if:true={selectedCategory}>
-                    <span class="arrow">→</span>
-                    <span class="preview-value">{selectedCategory}</span>
-                </template>
-
-                <template if:true={selectedProductsList.length}>
-                    <span class="arrow">→</span>
-                    <span class="products-list">
-                        <template for:each={selectedProductsList} for:item="prod">
-                            <span key={prod.name} class="product-chip">
-                                {prod.name} ({prod.qty}×, {prod.quality})
-                            </span>
-                        </template>
-                    </span>
-                </template>
-            </div>
+            </section>
         </template>
 
-        <!-- Spinner -->
-        <template if:true={isLoading}>
-            <lightning-spinner size="medium"></lightning-spinner>
-        </template>
+        <!-- ================= STEP 3 ================= -->
+        <template if:true={isStep3}>
+            <section class="step-screen fade-slide">
 
-        <!-- Products -->
-        <template if:true={visibleProducts.length}>
-    <section class="cards-grid">
-        <template for:each={visibleProducts} for:item="prod">
-            <article key={prod.Id} class="product-card">                   
+                <div class="catalog-header">
+                    <button class="back-btn" onclick={goBack}>← Back</button>
 
-                        <div class="card-media">
-    <img src={prod.imageUrl}
-         alt={prod.Name}
-         data-url={prod.imageUrl}
-         onclick={openImageModal}
-         class="product-image-click"/>
-</div>
-                        <div class="card-body">
-                            <h2 class="product-name">{prod.Name}</h2>
+                    <div class="title-block">
+                        <h2>
+                            {selectedRoomType} → {selectedCategory}
+                        </h2>
+                    </div>
 
-                            <div class="meta-row">
-                                <span>{prod.Room_Type__c}</span>
-                                <span class="dot">•</span>
-                                <span>{prod.Product_Category__c}</span>
-                            </div>
+                    <button class="uiverse-cart-btn" onclick={openCart}>
+                        🛒 {cartLabel}
+                    </button>
+                </div>
 
-                            <!-- Quality radio group -->
-                            <div class="glass-radio-group" data-id={prod.Id} onchange={handleQualityRadio}>
-                                <input type="radio" name={prod.qualityGroupName} id={prod.standardId} value="Standard"
-                                    checked={prod.isStandard} />
-                                <label for={prod.standardId}>Standard</label>
+                <template if:true={isLoading}>
+                    <lightning-spinner size="medium"></lightning-spinner>
+                </template>
 
-                                <input type="radio" name={prod.qualityGroupName} id={prod.premiumId} value="Premium"
-                                    checked={prod.isPremium} />
-                                <label for={prod.premiumId}>Premium</label>
+                <template if:true={visibleProducts.length}>
+                    <section class="cards-grid">
+                        <template for:each={visibleProducts} for:item="prod">
+                            <article key={prod.Id}
+                                     class="product-card"
+                                     data-product={prod.Id}>
 
-                                <input type="radio" name={prod.qualityGroupName} id={prod.luxuryId} value="Luxury"
-                                    checked={prod.isLuxury} />
-                                <label for={prod.luxuryId}>Luxury</label>
+                                <div class="card-media">
+                                    <img src={prod.imageUrl}
+                                         data-url={prod.imageUrl}
+                                         onclick={openImageModal}
+                                         class="product-image-click"/>
+                                </div>
 
-                                <div class="glass-glider"></div>
-                            </div>
+                                <div class="card-body">
+                                    <h3>{prod.Name}</h3>
 
-                            <div class="price-block">
-                                <div class="price-label">Estimated Price</div>
-                                <div class="price-value">₹ {prod.displayPrice}</div>
-                            </div>
+                                    <!-- Quality -->
+                                    <div class="glass-radio-group"
+                                         data-id={prod.Id}
+                                         onchange={handleQualityRadio}>
+                                        <input type="radio" name={prod.qualityGroupName}
+                                               id={prod.standardId} value="Standard"
+                                               checked={prod.isStandard}/>
+                                        <label for={prod.standardId}>Standard</label>
 
-                            <div class="cart-actions">
-                                <template if:false={prod.inCart}>
-                                    <lightning-button variant="brand-outline" label="Add to Cart"
-                                        icon-name="utility:add" data-id={prod.Id} onclick={handleAddToCart}>
-                                    </lightning-button>
-                                </template>
+                                        <input type="radio" name={prod.qualityGroupName}
+                                               id={prod.premiumId} value="Premium"
+                                               checked={prod.isPremium}/>
+                                        <label for={prod.premiumId}>Premium</label>
 
-                                <template if:true={prod.inCart}>
-                                    <div class="qty-wrapper">
-                                        <button class="qty-circle minus" data-id={prod.Id} onclick={handleQtyMinus}>-</button>
-
-                                        <input class="qty-center-input" type="number" value={prod.qty} min="1" max="999"
-                                            data-id={prod.Id} onchange={handleQtyInput} />
-
-                                        <button class="qty-circle plus" data-id={prod.Id} onclick={handleQtyPlus}>+</button>
+                                        <input type="radio" name={prod.qualityGroupName}
+                                               id={prod.luxuryId} value="Luxury"
+                                               checked={prod.isLuxury}/>
+                                        <label for={prod.luxuryId}>Luxury</label>
+                                        <div class="glass-glider"></div>
                                     </div>
-                                </template>
-                            </div>
-                        </div>
-                    </article>
-                    
+
+                                    <div class="price-value">₹ {prod.displayPrice}</div>
+
+                                    <template if:false={prod.inCart}>
+                                        <lightning-button
+                                            label="Add to Cart"
+                                            data-id={prod.Id}
+                                            onclick={handleAddToCart}>
+                                        </lightning-button>
+                                    </template>
+
+                                    <template if:true={prod.inCart}>
+    <div class="qty-wrapper">
+        <button class="qty-circle minus"
+                data-id={prod.Id}
+                onclick={handleQtyMinus}>-</button>
+
+        <input class="qty-center-input"
+               type="number"
+               value={prod.qty}
+               min="1"
+               data-id={prod.Id}
+               onchange={handleQtyInput}/>
+
+        <button class="qty-circle plus"
+                data-id={prod.Id}
+                onclick={handleQtyPlus}>+</button>
+    </div>
+</template>
+                                </div>
+                            </article>
+                        </template>
+                    </section>
+
+                    <div class="pagination-controls">
+                        <button onclick={prevPage} disabled={isFirstPage}>Previous</button>
+                        <span>{currentPage} / {totalPages}</span>
+                        <button onclick={nextPage} disabled={isLastPage}>Next</button>
+                    </div>
                 </template>
             </section>
-            <!-- PAGINATION CONTROLS (FIXED POSITION) -->
-            <div class="pagination-controls">
-                <button class="nav-btn" onclick={prevPage} disabled={isFirstPage}>⟵ Previous</button>
-                <span>Page {currentPage} of {totalPages}</span>
-                <button class="nav-btn" onclick={nextPage} disabled={isLastPage}>Next ⟶</button>
-            </div>
         </template>
-        <!-- IMAGE FULL VIEW MODAL — outside loop -->
-<template if:true={isImageModalOpen}>
-    <section class="image-modal-bg" onclick={closeImageModal}>
-        <div class="image-modal-container" onclick={stopEvent}>
-            <img src={modalImageUrl} class="image-modal-img" />
-            <button class="image-modal-close" onclick={closeImageModal}>×</button>
-        </div>
-    </section>
-</template>
+
+        <!-- IMAGE MODAL -->
+        <template if:true={isImageModalOpen}>
+            <section class="image-modal-bg" onclick={closeImageModal}>
+                <div class="image-modal-container" onclick={stopEvent}>
+                    <img src={modalImageUrl}/>
+                    <button class="image-modal-close" onclick={closeImageModal}>×</button>
+                </div>
+            </section>
+        </template>
 
         <!-- Cart Modal -->
         <template if:true={isCartOpen}>
@@ -164,27 +197,47 @@
                     </div>
 
                     <template if:true={cartItems.length}>
-                        <template for:each={cartItems} for:item="item">
-                            <div key={item.Interior_Product__c} class="cart-line-row">
-                                <div>{item.Quantity__c}× {item.Name} ({item.Quality__c})</div>
-                                <div>₹ {item.Total_Amount__c}</div>
-                            </div>
-                        </template>
+    <template for:each={cartItems} for:item="item">
+        <div key={item.Id} class="cart-line-row">
 
-                        <div class="cart-total-row">
-                            <strong>Total</strong>
-                            <span class="cart-total">₹ {cartTotal}</span>
-                        </div>
+            <div class="cart-line-left">
+                <span class="cart-product-link"
+      data-id={item.Interior_Product__c}
+      onclick={handleSelectedProductClick}>
+    {item.Quantity__c}× {item.Name}
+</span>
+                <span class="quality-chip">{item.Quality__c}</span>
+            </div>
 
-                        <div class="modal-actions">
-                            <lightning-button label="Close" onclick={closeCart}></lightning-button>
-                            <lightning-button variant="brand" label="Generate PDF" onclick={handleGenerateClick}></lightning-button>
-                        </div>
+            <div class="cart-line-right">
+                <span class="price-text">₹ {item.Total_Amount__c}</span>
 
-                        <div class="clear-btn-wrap">
-                            <lightning-button variant="destructive" label="Clear Cart" onclick={handleClearCart}></lightning-button>
-                        </div>
-                    </template>
+                <!-- 🗑 Delete button per item -->
+                <button class="remove-btn"
+                        title="Remove item"
+                        data-id={item.Id}
+                        onclick={handleRemoveItem}>
+                    🗑
+                </button>
+            </div>
+
+        </div>
+    </template>
+
+    <div class="cart-total-row">
+        <strong>Total</strong>
+        <span class="cart-total">₹ {cartTotal}</span>
+    </div>
+
+    <div class="modal-actions">
+        <lightning-button label="Close" onclick={closeCart}></lightning-button>
+        <lightning-button variant="brand" label="Generate PDF" onclick={handleGenerateClick}></lightning-button>
+    </div>
+
+    <div class="clear-btn-wrap">
+        <lightning-button variant="destructive" label="Clear Cart" onclick={handleClearCart}></lightning-button>
+    </div>
+</template>
 
                     <template if:false={cartItems.length}>
                         <div class="empty-state">Your cart is empty.</div>
@@ -192,6 +245,7 @@
                 </div>
             </section>
         </template>
+        
 
         <!-- Toast / Popup -->
         <template if:true={showPopup}>
