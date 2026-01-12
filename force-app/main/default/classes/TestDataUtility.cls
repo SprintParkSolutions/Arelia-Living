@@ -20,10 +20,13 @@ public class TestDataUtility {
     }
 
     // 2. Create Project
-    public static Project__c createProject(String name) {
+    public static Project__c createProject(String name, Decimal projectBudget, Id contactId) {
         Project__c proj = new Project__c(
             Name = name, 
-            Status__c = 'In Progress'
+            Status__c = 'In Progress',
+            Project_Status__c='Active',
+            Supervisor_Estimated_Budget__c = projectBudget,
+            Client__c = contactId
         );
         insert proj;
         return proj;
@@ -40,6 +43,21 @@ public class TestDataUtility {
         );
         insert opp;
         return opp;
+    }
+
+    // Create Task
+    public static Task createTask(String status, Id whatId, Decimal assignedPercentage) {
+        Task taskDetails = new Task(
+            Subject = 'New task Created',
+            Start_Date__c = System.today(),
+            ActivityDate = Date.today().addDays(30),
+            Status = status,
+            WhatId = whatId,
+            Assigned_Percentage__c = assignedPercentage,
+            OwnerId = UserInfo.getUserId()
+        );
+        insert taskDetails;
+        return taskDetails;
     }
 
     // 4. Create Vendor
@@ -242,11 +260,13 @@ public class TestDataUtility {
     }
 
     // 15. Create Vendor Assignment (Simple)
-    public static Vendor_Assignment__c createVendorAssignment(Id projectId) {
+    public static Vendor_Assignment__c createVendorAssignment(Id projectId, Decimal assignedPercentage) {
         Vendor_Assignment__c va = new Vendor_Assignment__c(
             Project__c = projectId,
+            Status__c='In-Progress',
             Vendor_Work_Start_Date__c = Date.today(),
-            Vendor_Work_End_Date__c = Date.today().addDays(10)
+            Vendor_Work_End_Date__c = Date.today().addDays(10),
+            Budget_Percentage__c = assignedPercentage
         );
         insert va;
         return va;
@@ -260,10 +280,11 @@ public class TestDataUtility {
     }
     
     // 17. Create Contact (New Addition)
-    public static Contact createContact(String lastName, String email) {
+    public static Contact createContact(String lastName, String email, String password) {
         Contact c = new Contact(
             LastName = lastName,
-            Email = email
+            Email = email,
+            Password__c =password
         );
         insert c;
         return c;

@@ -5,6 +5,7 @@ import FORM_FACTOR from '@salesforce/client/formFactor';
 
 const FIELDS = [
     'Lead.Appointment_Completed__c',
+    'Lead.Appointment_Status__c',        // ✅ NEW
     'Lead.IsConverted',
     'Lead.Approval_Status__c',
     'Lead.Supervisor_User__c',
@@ -23,7 +24,7 @@ export default class LeadProgressPath extends LightningElement {
     isVisible = true;
 
     get isMobile() {
-        return FORM_FACTOR === 'Small'; // ✅ Salesforce Mobile
+        return FORM_FACTOR === 'Small';
     }
 
     @wire(CurrentPageReference)
@@ -78,7 +79,7 @@ export default class LeadProgressPath extends LightningElement {
 
             this.buildStepsFromLead(data);
 
-            // ✅ Build mobile steps from the same steps
+            // Build mobile steps from the same steps (kept as-is)
             this.mobileSteps = this.steps.map(s => {
                 let mClass = 'mItem';
                 if (s.class.includes('slds-is-complete')) mClass += ' isDone';
@@ -99,8 +100,13 @@ export default class LeadProgressPath extends LightningElement {
 
     buildStepsFromLead(data) {
         const approval = data.fields.Approval_Status__c?.value || 'Pending';
-        const appointmentCompleted = data.fields.Appointment_Completed__c?.value || false;
-        const converted = data.fields.IsConverted?.value || false;
+        const appointmentCompleted = !!data.fields.Appointment_Completed__c?.value;
+
+        // ✅ NEW: Appointment Status
+        const appointmentStatus = data.fields.Appointment_Status__c?.value || 'Pending';
+        const appointmentApproved = appointmentStatus === 'Approved';
+
+        const converted = !!data.fields.IsConverted?.value;
         const hasSupervisor = !!data.fields.Supervisor_User__c?.value;
 
         const siteVisitStatus = data.fields.Site_Visit_Status__c?.value || 'Pending';
@@ -112,22 +118,38 @@ export default class LeadProgressPath extends LightningElement {
         stepsList.push(`Approval - ${approval}`);
 
         if (approval === 'Approved') {
-            stepsList.push(hasSupervisor ? 'Supervisor Assigned' : 'Assign Supervisor');
-            stepsList.push('Appointment Scheduled');
-            stepsList.push('Create Site Visit Report & Get Approval');
-            stepsList.push('Manager Approval of Site Visit Report');
+            stepsList.push(hasSupervisor ? 'Supervisor Assign' : 'Assign Supervisor');
+            stepsList.push('Appointment Schedule');
+
+            // ✅ NEW STEP (shows Approved/Rescheduled/Pending/etc)
+            stepsList.push(`Appointment Status - ${appointmentStatus}`);
+
+            stepsList.push('Create Site Visit Report');
+            stepsList.push('Get Manager Approval of SVR');
             stepsList.push('Lead Converted');
         }
 
         let currentStepIndex = 0;
 
-        if (approval !== 'Approved') currentStepIndex = 1;
-        else if (!hasSupervisor) currentStepIndex = 2;
-        else if (!appointmentCompleted) currentStepIndex = 3;
-        else if (!siteVisitApproved) currentStepIndex = 4;
-        else if (!siteVisitMgrApproved) currentStepIndex = 5;
-        else if (!converted) currentStepIndex = 6;
-        else currentStepIndex = stepsList.length - 1;
+        if (approval !== 'Approved') {
+            currentStepIndex = 1;
+        } else if (!hasSupervisor) {
+            currentStepIndex = 2;
+        } else if (!appointmentCompleted) {
+            // still need to schedule appointment
+            currentStepIndex = 3;
+        } else if (!appointmentApproved) {
+            // ✅ scheduled but status is not Approved (Rescheduled/Pending/etc)
+            currentStepIndex = 4;
+        } else if (!siteVisitApproved) {
+            currentStepIndex = 5;
+        } else if (!siteVisitMgrApproved) {
+            currentStepIndex = 6;
+        } else if (!converted) {
+            currentStepIndex = 7;
+        } else {
+            currentStepIndex = stepsList.length - 1;
+        }
 
         this.steps = stepsList.map((label, index) =>
             this.buildStep(label, index, currentStepIndex)

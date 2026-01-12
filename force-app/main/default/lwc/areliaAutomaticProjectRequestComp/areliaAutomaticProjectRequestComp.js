@@ -62,6 +62,96 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     };
 
     /* -----------------------------
+       URL HELPERS (FIX IMAGE PATH)
+       ----------------------------- */
+
+    /**
+     * Base URL of the site, including community path (e.g.
+     * https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving)
+     */
+    /**
+ * Base URL of the site including ONLY the community name,
+ * e.g. https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving
+ * (no extra /s/)
+ */
+    // get siteBaseUrl() {
+    //     try {
+    //         // Prefer the label if present, otherwise current URL
+    //         const raw = this.labels.siteUrl;
+    //         const sourceUrl = raw ? new URL(raw) : new URL(window.location.href);
+
+    //         const origin = sourceUrl.origin;
+    //         // e.g. "/AreliaLiving/s/project-page" -> ["AreliaLiving","s","project-page"]
+    //         const segments = (sourceUrl.pathname || '')
+    //             .split('/')
+    //             .filter((seg) => !!seg);
+
+    //         // First segment is the community name: "AreliaLiving"
+    //         const communitySegment = segments.length ? `/${segments[0]}` : '';
+
+    //         return `${origin}${communitySegment}`;
+    //     } catch (e) {
+    //         // Fallback: use window.location if anything goes wrong
+    //         const loc = window.location;
+    //         const segs = (loc.pathname || '')
+    //             .split('/')
+    //             .filter((seg) => !!seg);
+
+    //         const communitySegment = segs.length ? `/${segs[0]}` : '';
+    //         return `${loc.origin}${communitySegment}`;
+    //     }
+    // }
+
+    /**
+ * Base URL of the site including ONLY the community name,
+ * e.g. https://<domain>/AreliaLiving (no extra /s/)
+ */
+    get siteBaseUrl() {
+        try {
+            const raw = this.labels.siteUrl;
+            const sourceUrl = raw ? new URL(raw) : new URL(window.location.href);
+
+            const origin = sourceUrl.origin;
+            const segments = (sourceUrl.pathname || '')
+                .split('/')
+                .filter((seg) => !!seg);
+
+            const communitySegment = segments.length ? `/${segments[0]}` : '';
+
+            return `${origin}${communitySegment}`;
+        } catch (e) {
+            const loc = window.location;
+            const segs = (loc.pathname || '')
+                .split('/')
+                .filter((seg) => !!seg);
+
+            const communitySegment = segs.length ? `/${segs[0]}` : '';
+            return `${loc.origin}${communitySegment}`;
+        }
+    }
+
+
+
+    /**
+     * Ensures that relative paths like "/sfc/servlet.shepherd/..."
+     * become full URLs with the community path:
+     *   {siteBaseUrl} + /sfc/...
+     */
+    resolveImageUrl(rel) {
+        if (!rel) {
+            return null;
+        }
+        // already absolute
+        if (rel.startsWith('http://') || rel.startsWith('https://')) {
+            return rel;
+        }
+
+        const base = this.siteBaseUrl;
+        const normalized = rel.startsWith('/') ? rel : `/${rel}`;
+        return `${base}${normalized}`;
+    }
+
+    /* -----------------------------
        HOW WE GET LEAD ID
        ----------------------------- */
 
@@ -210,7 +300,8 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
                 price,
                 quantity: qty,
                 lineAmount,
-                imageUrl: design ? design.imageUrl : null
+                // make sure we store full URL here as well
+                imageUrl: design ? this.resolveImageUrl(design.imageUrl) : null
             };
 
             total += lineAmount;
@@ -358,6 +449,9 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         if (!this.currentRoomIdForDesign) {
             return [];
         }
+
+        const placeholder = 'https://via.placeholder.com/220x140?text=Design';
+
         return (this.allDesigns || [])
             .filter(
                 (d) =>
@@ -367,21 +461,24 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             .map((d) => {
                 const selectedForRoom = this.roomDesignMap[this.currentRoomIdForDesign];
                 const isSelected = selectedForRoom && selectedForRoom.designId === d.id;
+
+                const fullUrl = this.resolveImageUrl(d.imageUrl);
+
                 return {
                     ...d,
                     itemClass: isSelected
                         ? 'design-item-tile selected'
                         : 'design-item-tile',
-                    thumbUrl:
-                        d.imageUrl || 'https://via.placeholder.com/220x140?text=Design',
-                    fullImageUrl:
-                        d.imageUrl || 'https://via.placeholder.com/1200x700?text=Design'
+                    thumbUrl: fullUrl || placeholder,
+                    fullImageUrl: fullUrl || placeholder
                 };
             });
     }
 
     get selectedDesignTiles() {
         const tiles = [];
+        const placeholder = 'https://via.placeholder.com/220x140?text=Design';
+
         for (const roomId in this.roomDesignMap) {
             if (!Object.prototype.hasOwnProperty.call(this.roomDesignMap, roomId)) {
                 continue;
@@ -390,12 +487,13 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             const room = this.allRooms.find((r) => r.id === roomId);
             const lineAmount = rd.lineAmount || 0;
 
+            const img = this.resolveImageUrl(rd.imageUrl) || placeholder;
+
             tiles.push({
                 roomId,
                 roomName: room ? room.name : roomId,
                 designName: rd.designName,
-                imageUrl:
-                    rd.imageUrl || 'https://via.placeholder.com/220x140?text=Design',
+                imageUrl: img,
                 quantity: rd.quantity,
                 lineAmount
             });
@@ -431,14 +529,9 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             const room = this.allRooms.find((x) => x.id === roomId);
             const rd = this.roomDesignMap[roomId];
             if (rd) {
-                const priceUsd = rd.price || 0;
-                // out.push(
-                //     `${room ? room.name : roomId} (x${qty}) – ${rd.designName} [ $ ${priceUsd} ]`
-                // );
                 out.push(
                     `${room ? room.name : roomId} (x${qty}) – ${rd.designName} [ ${rd.price} ]`
                 );
-
             } else {
                 out.push(`${room ? room.name : roomId} (x${qty}) – No design chosen`);
             }
@@ -539,6 +632,8 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         const priceUsd = design.basePrice || 0;
         const lineAmount = priceUsd * qty;
 
+        const fullImg = this.resolveImageUrl(design.imageUrl);
+
         this.roomDesignMap = {
             ...this.roomDesignMap,
             [this.currentRoomIdForDesign]: {
@@ -547,7 +642,7 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
                 price: priceUsd,
                 quantity: qty,
                 lineAmount,
-                imageUrl: design.imageUrl
+                imageUrl: fullImg
             }
         };
         this.recalcTotal();
