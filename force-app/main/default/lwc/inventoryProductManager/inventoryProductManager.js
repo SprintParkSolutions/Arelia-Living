@@ -1,3 +1,4 @@
+
 import { LightningElement, api, track, wire } from 'lwc';
 import { CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
@@ -180,36 +181,48 @@ export default class InventoryProductManager extends LightningElement {
 
     /* ================= PRODUCT CLICK (FROM CART) ================= */
     handleSelectedProductClick(event) {
-        this.isCartOpen = false;
-        
-        const productId = event.currentTarget.dataset.id;
-        const selectedItem = this.cartItems.find(i => i.Interior_Product__c === productId);
-        if (!selectedItem) return;
+    // 🔥 HARD BLOCK: ignore delete clicks
+    if (event.target.closest('.remove-btn')) {
+        return;
+    }
 
-        this.selectedRoomType = selectedItem.Room_Type__c;
-        this.selectedCategory = selectedItem.Product_Category__c;
-        this.currentStep = 3;
-        this.updateUrlStep();
+    this.isCartOpen = false;
 
-        this.loadProducts();
+    const productId = event.currentTarget.dataset.id;
+    const selectedItem = this.cartItems.find(
+        i => i.Interior_Product__c === productId
+    );
+    if (!selectedItem) return;
+
+    this.selectedRoomType = selectedItem.Room_Type__c;
+    this.selectedCategory = selectedItem.Product_Category__c;
+    this.currentStep = 3;
+    this.updateUrlStep();
+
+    this.loadProducts();
+
+    setTimeout(() => {
+        const idx = this._products.findIndex(p => p.Id === productId);
+        if (idx < 0) return;
+
+        this.currentPage = Math.floor(idx / this.pageSize) + 1;
+        this.calculatePagination();
 
         setTimeout(() => {
-            const idx = this._products.findIndex(p => p.Id === productId);
-            if (idx < 0) return;
-
-            this.currentPage = Math.floor(idx / this.pageSize) + 1;
-            this.calculatePagination();
-
-            setTimeout(() => {
-                const card = this.template.querySelector(`[data-product="${productId}"]`);
-                if (card) {
-                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    card.classList.add('highlight-product');
-                    setTimeout(() => card.classList.remove('highlight-product'), 2000);
-                }
-            }, 100);
-        }, 300);
-    }
+            const card = this.template.querySelector(
+                `[data-product="${productId}"]`
+            );
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.classList.add('highlight-product');
+                setTimeout(
+                    () => card.classList.remove('highlight-product'),
+                    2000
+                );
+            }
+        }, 100);
+    }, 300);
+}
 
     syncProductsWithCart() {
     if (!this.products?.length || !this.cartItems?.length) return;
@@ -470,21 +483,39 @@ export default class InventoryProductManager extends LightningElement {
     }
 
     handleRemoveItem(event) {
-        const specId = event.currentTarget.dataset.id;
+    const specId = event.currentTarget.dataset.id;
+    if (!specId) return;
 
-        deactivateCartItem({ specItemId: specId })
-            .then(() => getSavedCart({ opportunityId: this.recordId }))
-            .then(items => {
-                this.cartItems = items || [];
-                if (this.selectedRoomType && this.selectedCategory) {
-                    this.loadProducts();
-                }
-                this.showToast('Removed', 'Product removed from cart', 'success');
-            })
-            .catch(err => {
-                this.showToast('Error', err.body?.message || 'Could not remove item', 'error');
-            });
-    }
+    // 🔥 UI-FIRST: remove immediately from cartItems
+    const removedItem = this.cartItems.find(i => i.Id === specId);
+    this.cartItems = this.cartItems.filter(i => i.Id !== specId);
+
+    // 🔄 Sync product cards instantly
+    this.syncProductsWithCart();
+
+    this.isLoading = true;
+
+    deactivateCartItem({ specItemId: specId })
+        .then(() => {
+            this.showToast('Removed', 'Item removed from cart', 'success');
+        })
+        .catch(error => {
+            // ❌ rollback UI if server fails
+            if (removedItem) {
+                this.cartItems = [...this.cartItems, removedItem];
+                this.syncProductsWithCart();
+            }
+
+            this.showToast(
+                'Error',
+                error?.body?.message || 'Could not remove item',
+                'error'
+            );
+        })
+        .finally(() => {
+            this.isLoading = false;
+        });
+}
 
     /* ================= GENERATE QUOTE ================= */
     handleGenerateClick() {
