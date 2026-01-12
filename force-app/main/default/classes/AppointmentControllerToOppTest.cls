@@ -3,32 +3,29 @@ public class AppointmentControllerToOppTest {
 
     @testSetup
     static void setup() {
-        // 1. Create Supervisor
+        // 1. Create Supervisor using Utility
         User u = TestDataUtility.createSupervisorUser('oppSup');
 
-        // 2. Create Contact (Required for Primary_Contact__c in email logic)
-        TestDataUtility.createContact('Test Contact', 'testcontact@example.com');
+        // 2. Create Contact using Utility (Required for Primary_Contact__c in email logic)
+        // Utility method createContact requires name, email, and password.
+        TestDataUtility.createContact('Test Contact', 'testcontact@example.com', 'password123');
 
         // 3. Create Email Templates (Mocking labels via developer name match)
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            EmailTemplate t1 = new EmailTemplate(
-                DeveloperName = 'Opp_Appt_Approved',
-                Name = 'Opp Appt Approved',
-                Subject = 'Approved',
-                HtmlValue = '<html>Approved</html>',
-                TemplateType = 'custom',
-                FolderId = UserInfo.getUserId()
-            );
+            // Using utility to create templates if possible, or standard DML for specific ones not in utility
+            // Utility has createSpecificEmailTemplate, so we can use that for cleaner code.
             
-            EmailTemplate t2 = new EmailTemplate(
-                DeveloperName = 'Opp_Appt_Rescheduled',
-                Name = 'Opp Appt Rescheduled',
-                Subject = 'Rescheduled',
-                HtmlValue = '<html>Rescheduled</html>',
-                TemplateType = 'custom',
-                FolderId = UserInfo.getUserId()
+            TestDataUtility.createSpecificEmailTemplate(
+                'Opp_Appt_Approved', 
+                'Opp Appt Approved', 
+                'Approved'
             );
-            insert new List<EmailTemplate>{t1, t2};
+
+            TestDataUtility.createSpecificEmailTemplate(
+                'Opp_Appt_Rescheduled', 
+                'Opp Appt Rescheduled', 
+                'Rescheduled'
+            );
         }
     }
 
@@ -65,7 +62,7 @@ public class AppointmentControllerToOppTest {
         Date testDate = Date.today().addDays(5);
         String blockedSlot = '10AM-11AM';
 
-        // 1. Create BLOCKER Opp
+        // 1. Create BLOCKER Opp using Utility
         TestDataUtility.AppointmentOppParams blockerParams = new TestDataUtility.AppointmentOppParams();
         blockerParams.supervisorId = supervisor.Id;
         blockerParams.status = 'Approved';
@@ -74,7 +71,7 @@ public class AppointmentControllerToOppTest {
         blockerParams.contactId = [SELECT Id FROM Contact LIMIT 1].Id;
         TestDataUtility.createAppointmentOpportunity(blockerParams);
 
-        // 2. Create MY Opp
+        // 2. Create MY Opp using Utility
         TestDataUtility.AppointmentOppParams myParams = new TestDataUtility.AppointmentOppParams();
         myParams.supervisorId = supervisor.Id;
         myParams.status = 'Pending';
@@ -95,7 +92,7 @@ public class AppointmentControllerToOppTest {
         Date testDate = Date.today().addDays(5);
         String blockedSlot = '2PM-3PM';
 
-        // 1. Create BLOCKER Lead
+        // 1. Create BLOCKER Lead using Utility
         TestDataUtility.AppointmentLeadParams leadParams = new TestDataUtility.AppointmentLeadParams();
         leadParams.supervisorId = supervisor.Id;
         leadParams.status = 'Approved';
@@ -103,7 +100,7 @@ public class AppointmentControllerToOppTest {
         leadParams.slot = blockedSlot;
         TestDataUtility.createAppointmentLead(leadParams);
 
-        // 2. Create MY Opp
+        // 2. Create MY Opp using Utility
         TestDataUtility.AppointmentOppParams myParams = new TestDataUtility.AppointmentOppParams();
         myParams.supervisorId = supervisor.Id;
         myParams.status = 'Pending';
@@ -241,7 +238,6 @@ public class AppointmentControllerToOppTest {
 
     @isTest
     static void testUpdateStatusInvalidInputs() {
-        // Create a dummy opportunity to use a valid ID (AvoidHardcodingId rule)
         User supervisor = [SELECT Id FROM User WHERE Alias = 'oppSup' LIMIT 1];
         TestDataUtility.AppointmentOppParams params = new TestDataUtility.AppointmentOppParams();
         params.supervisorId = supervisor.Id;

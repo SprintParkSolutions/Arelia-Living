@@ -3,25 +3,37 @@ public class ProjectEmailHandlerTest {
 
     @testSetup
     static void setupData() {
-        // 1. Create User (Supervisor)
+        // 1. Create User (Supervisor) using Utility
         User supervisor = TestDataUtility.createSupervisorUser('supuser');
 
-        // 2. Create Contact (Client)
-        Contact client = TestDataUtility.createContact('Test Client', 'client@test.com');
-
-        // 3. Create Project
-        Project__c proj = TestDataUtility.createProject('Test Project Alpha');
+        // 2. Create Prerequisites (Account & Contact) using Utility
+        // Utility createProject requires a Contact ID.
+        Account acc = TestDataUtility.createAccount('Test Project Account');
         
-        // Update Project with Client info
-        proj.Client__c = client.Id;
+        Contact client = TestDataUtility.createContact('Test Client', 'client@test.com', 'password123');
+        client.AccountId = acc.Id;
+        update client;
+
+        // 3. Create Project using Utility (requires Name, Budget, ContactId)
+        Project__c proj = TestDataUtility.createProject('Test Project Alpha', 50000, client.Id);
+        
+        // Update Project with additional fields specific to this test logic
         proj.Client_Email__c = client.Email; 
         proj.Supervisor_User__c = supervisor.Id;
         update proj;
 
-        // 4. Create Required Email Templates using the Utility method
+        // 4. Create Required Email Templates using Utility
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            TestDataUtility.createSpecificEmailTemplate('Project_To_Lead', 'Project To Lead', 'Project Update for Client');
-            TestDataUtility.createSpecificEmailTemplate('Project_To_IDC', 'Project To IDC', 'Project Update for Mgmt');
+            TestDataUtility.createSpecificEmailTemplate(
+                'Project_To_Lead', 
+                'Project To Lead', 
+                'Project Update for Client'
+            );
+            TestDataUtility.createSpecificEmailTemplate(
+                'Project_To_IDC', 
+                'Project To IDC', 
+                'Project Update for Mgmt'
+            );
         }
     }
 

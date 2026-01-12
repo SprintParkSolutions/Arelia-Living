@@ -1,0 +1,12 @@
+.slds-path__link {
+    cursor: default; /* Disable clicking since this is automated */
+}
+
+/* Ensure the check icon is visible */
+.slds-path__stage lightning-icon {
+    display: none;
+}
+
+.slds-is-complete .slds-path__stage lightning-icon {
+    display: block;
+}

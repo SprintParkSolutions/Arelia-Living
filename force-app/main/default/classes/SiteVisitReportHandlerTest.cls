@@ -8,11 +8,19 @@ public class SiteVisitReportHandlerTest {
 
         // 2. Create Roles (for Manager email logic)
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            UserRole r = new UserRole(DeveloperName = 'Regional_Manager', Name = 'Regional Manager');
-            insert r;
+            // Check if role exists before creating to avoid dup errors in some orgs
+            UserRole r;
+            List<UserRole> roles = [SELECT Id FROM UserRole WHERE Name = 'Regional Manager' LIMIT 1];
+            if (!roles.isEmpty()) {
+                r = roles[0];
+            } else {
+                r = TestDataUtility.createUserRole('Regional Manager');
+            }
+            
+            // Create a user with this role
             TestDataUtility.createUserWithRole('MgrUser', r.Id);
 
-            // 3. Create Email Templates
+            // 3. Create Email Templates (Mocking the custom labels)
             String leadTplName = Label.Arelia_Living_Lead_Conversion_Approval_Email_Template;
             if (String.isNotBlank(leadTplName)) {
                 TestDataUtility.createSpecificEmailTemplate(
@@ -32,32 +40,37 @@ public class SiteVisitReportHandlerTest {
         Lead l = TestDataUtility.createLead('Test Lead SVR');
         Opportunity opp = TestDataUtility.createOpportunity('Test Opp SVR', supervisor.Id);
 
-        // 5. Create Site Visit Reports
-        Id leadRT = Schema.SObjectType.Site_Visit_Report__c.getRecordTypeInfosByDeveloperName().get('Lead_Site_Visit_Report').getRecordTypeId();
-        Id oppRT = Schema.SObjectType.Site_Visit_Report__c.getRecordTypeInfosByDeveloperName().get('Opportunity_Site_Visit_Report').getRecordTypeId();
+        // 5. Get Record Type LABELS dynamically (Utility expects Label, not DeveloperName)
+        // We use DeveloperName to find the Info, then get .getName() for the Label.
+        String leadRTLabel = Schema.SObjectType.Site_Visit_Report__c
+            .getRecordTypeInfosByDeveloperName()
+            .get('Lead_Site_Visit_Report')
+            .getName();
 
-        Site_Visit_Report__c svrLead = new Site_Visit_Report__c(
-            Lead__c = l.Id,
-            RecordTypeId = leadRT,
-            Total_Estimated_Cost__c = 100,
-            Site_Visit_Report_Status__c = 'Pending'
-        );
-        insert svrLead;
+        String oppRTLabel = Schema.SObjectType.Site_Visit_Report__c
+            .getRecordTypeInfosByDeveloperName()
+            .get('Opportunity_Site_Visit_Report')
+            .getName();
 
-        Site_Visit_Report__c svrOpp = new Site_Visit_Report__c(
-            Opportunity__c = opp.Id,
-            RecordTypeId = oppRT,
-            Total_Estimated_Cost__c = 200,
-            Site_Visit_Report_Status__c = 'Pending'
-        );
-        insert svrOpp;
+        // 6. Create Site Visit Reports using the Utility with Correct Labels
+        Site_Visit_Report__c svrLead = TestDataUtility.createSiteVisitReport(l.Id, leadRTLabel);
+        svrLead.Total_Estimated_Cost__c = 100;
+        svrLead.Site_Visit_Report_Status__c = 'Pending';
+        svrLead.Estimated_Completion_Months__c = '1 Month'; // Ensure field has value
+        update svrLead;
+
+        Site_Visit_Report__c svrOpp = TestDataUtility.createSiteVisitReport(opp.Id, oppRTLabel);
+        svrOpp.Total_Estimated_Cost__c = 200;
+        svrOpp.Site_Visit_Report_Status__c = 'Pending';
+        svrOpp.Estimated_Completion_Months__c = '2 Months'; // Ensure field has value
+        update svrOpp;
     }
 
     @isTest
     static void testLeadSync() {
-        // Query ALL fields the handler needs
+        // FIX: Query Includes Estimated_Completion_Months__c to avoid SObjectException
         Site_Visit_Report__c svr = [
-            SELECT Id, Lead__c, RecordTypeId, Site_Visit_Report_Status__c, Estimated_Completion_Date__c, Opportunity__c
+            SELECT Id, Lead__c, RecordTypeId, Site_Visit_Report_Status__c, Estimated_Completion_Date__c, Opportunity__c, Estimated_Completion_Months__c
             FROM Site_Visit_Report__c 
             WHERE Lead__c != null 
             LIMIT 1
@@ -67,6 +80,7 @@ public class SiteVisitReportHandlerTest {
         svr.Site_Visit_Report_Status__c = 'Negotiable';
         svr.Estimated_Completion_Date__c = Date.today().addDays(5);
         
+        // Pass complete object to handler
         SiteVisitReportHandler.afterUpdate(
             new List<Site_Visit_Report__c>{svr}, 
             new Map<Id, Site_Visit_Report__c>{svr.Id => new Site_Visit_Report__c(Id=svr.Id, Site_Visit_Report_Status__c='Pending')}
@@ -82,9 +96,9 @@ public class SiteVisitReportHandlerTest {
 
     @isTest
     static void testOpportunitySync() {
-        // Query ALL fields the handler needs
+        // FIX: Query Includes Estimated_Completion_Months__c
         Site_Visit_Report__c svr = [
-            SELECT Id, Opportunity__c, Lead__c, RecordTypeId, Site_Visit_Report_Status__c, Estimated_Completion_Date__c 
+            SELECT Id, Opportunity__c, Lead__c, RecordTypeId, Site_Visit_Report_Status__c, Estimated_Completion_Date__c, Estimated_Completion_Months__c 
             FROM Site_Visit_Report__c 
             WHERE Opportunity__c != null 
             LIMIT 1
@@ -108,9 +122,9 @@ public class SiteVisitReportHandlerTest {
 
     @isTest
     static void testApprovalEmailSending() {
-        // FIX: Added Lead__c and Opportunity__c to query so handler doesn't crash
+        // FIX: Query Includes Estimated_Completion_Months__c
         Site_Visit_Report__c svr = [
-            SELECT Id, RecordTypeId, Site_Visit_Report_Status__c, Estimated_Completion_Date__c, Lead__c, Opportunity__c
+            SELECT Id, RecordTypeId, Site_Visit_Report_Status__c, Estimated_Completion_Date__c, Lead__c, Opportunity__c, Estimated_Completion_Months__c
             FROM Site_Visit_Report__c 
             WHERE Lead__c != null 
             LIMIT 1
@@ -120,7 +134,7 @@ public class SiteVisitReportHandlerTest {
         svr.Site_Visit_Report_Status__c = 'Approved';
         update svr; 
         
-        // Manually invoke logic simulating status change to Approved
+        // Manually invoke logic with the FULLY populated svr object
         SiteVisitReportHandler.afterUpdate(
             new List<Site_Visit_Report__c>{svr}, 
             new Map<Id, Site_Visit_Report__c>{svr.Id => new Site_Visit_Report__c(
@@ -136,8 +150,8 @@ public class SiteVisitReportHandlerTest {
 
     @isTest
     static void testManualEmailInvocation() {
-        // FIX: Added Lead__c and Opportunity__c (and others) to allow subsequent logic to work if needed
-        List<Site_Visit_Report__c> reports = [SELECT Id, Lead__c, Opportunity__c FROM Site_Visit_Report__c];
+        // Query minimal required fields to pass IDs to email method
+        List<Site_Visit_Report__c> reports = [SELECT Id FROM Site_Visit_Report__c];
         List<Id> ids = new List<Id>();
         
         for(Site_Visit_Report__c r : reports) {

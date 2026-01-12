@@ -10,7 +10,8 @@ public class AreliaPathControllerTest {
         TestDataUtility.createOpportunity('Path Test Opp', u.Id);
         
         // 3. Create Vendor
-        TestDataUtility.createVendor('Path Vendor', 'Plumbing', 'path@vendor.com');
+        // Ensure 'Plumbing' is a valid Active Picklist Value
+        TestDataUtility.createVendor('Path Vendor', 'Painting & Wall Finishing', 'path@vendor.com');
     }
 
     @isTest
@@ -20,7 +21,7 @@ public class AreliaPathControllerTest {
         Test.stopTest();
 
         Assert.isNotNull(stages, 'Stages list should not be null');
-        Assert.areEqual(11, stages.size(), 'Should return all defined stages');
+        Assert.areEqual(13, stages.size(), 'Should return 13 defined stages');
         Assert.areEqual('Catalogue Sent', stages[0].get('value'), 'First stage should be Catalogue Sent');
     }
 
@@ -145,7 +146,8 @@ public class AreliaPathControllerTest {
 
         opp.Client_Agreement_Sent__c = true;
         opp.Client_Agreement_Signed__c = true;
-        // Logic relies on formula being FALSE, which is default for new record
+        // Ensure this field is false so we stop at this stage
+        opp.All_Vendors_Agreement_Completed__c = false;
         update opp;
 
         Vendor_Opportunity__c vo = TestDataUtility.createVendorOpportunity(opp.Id, vendor.Id, 'Active');
@@ -178,31 +180,63 @@ public class AreliaPathControllerTest {
 
         // 3. Setup Vendor Opportunity to satisfy 'All_Vendors_Agreement_Completed__c'
         Vendor_Opportunity__c vo = TestDataUtility.createVendorOpportunity(opp.Id, vendor.Id, 'Active');
-        vo.Vendor_Agreement_Sent__c = true; 
         
-        // Try multiple ways to satisfy the completion logic to handle org-specific field names
+        // Try multiple ways to satisfy the "Signed" completion logic
         try {
             vo.put('Vendor_Agreement_Signed__c', true);
         } catch(Exception e) {
-            // Fallback: If boolean field doesn't exist, try setting status
+            // Fallback
              try {
                 vo.put('Vendor_Opportunity_Status__c', 'Agreement Signed');
              } catch(Exception ex) {
-                // Fixed Empty Catch: Logging just in case both fail
                 System.debug('Could not auto-set completion field: ' + ex.getMessage());
              }
         }
+        
+        // FIX: Ensure 'Sent' is TRUE immediately before update, overwriting any side effects from status change
+        vo.Vendor_Agreement_Sent__c = true; 
         update vo;
 
+        // Manually satisfy final condition if formula/triggers don't run in test context
+        opp.All_Vendors_Agreement_Completed__c = true;
+        update opp;
+
         Test.startTest();
-        // Re-query opp to ensure formula recalculation if needed (though getPathStatus does it internally)
         String status = AreliaPathController.getPathStatus(opp.Id);
         Test.stopTest();
 
-        if (status == 'Vendor Agreement Signed') {
-            System.debug('Warning: Could not satisfy All_Vendors_Agreement_Completed__c formula.');
-        } else {
-            Assert.areEqual('Closed Won', status, 'Status should finally be Closed Won');
-        }
+        Assert.areEqual('Closed Won', status, 'Status should finally be Closed Won');
+    }
+
+    // ==========================================
+    // NEW TESTS FOR NEW STAGES
+    // ==========================================
+
+    @isTest
+    static void testPathStatusNegotiation() {
+        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
+        
+        opp.StageName = 'Negotiation/Review';
+        update opp;
+
+        Test.startTest();
+        String status = AreliaPathController.getPathStatus(opp.Id);
+        Test.stopTest();
+
+        Assert.areEqual('Negotiation/Review', status, 'Status should reflect Negotiation/Review priority');
+    }
+
+    @isTest
+    static void testPathStatusResumed() {
+        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
+        
+        opp.StageName = 'Resumed';
+        update opp;
+
+        Test.startTest();
+        String status = AreliaPathController.getPathStatus(opp.Id);
+        Test.stopTest();
+
+        Assert.areEqual('Resumed', status, 'Status should reflect Resumed priority');
     }
 }

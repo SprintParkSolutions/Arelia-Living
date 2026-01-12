@@ -125,18 +125,38 @@ export default class AreliaPath extends LightningElement {
     }
 
     // 6. Centralized Build Logic
-    // Only runs if BOTH pieces of data are present
     tryBuildSteps() {
-        // Guard clause: Do we have stages? Do we have a status?
+        // Guard clause: Wait for both Data (Stages) and State (Current Step)
         if (!this._allStages || this._allStages.length === 0 || !this._currentPathStatus) {
             return;
         }
 
         const currentActiveValue = this._currentPathStatus;
-        const activeIndex = this._allStages.findIndex(s => s.value === currentActiveValue);
+        
+        // --- VISIBILITY FILTER LOGIC START ---
+        
+        // Define the "Special" stages that only appear when active
+        const specialStages = ['Negotiation/Review', 'Resumed'];
+
+        let visibleStages;
+
+        // Check if our current status is one of the special ones
+        if (specialStages.includes(currentActiveValue)) {
+            // If yes, show ALL stages (Standard + Special)
+            visibleStages = this._allStages;
+        } else {
+            // If no (e.g., we are at 'Catalogue Sent' or 'Closed Won'), 
+            // FILTER OUT the special stages so the path ends at 'Closed Won'
+            visibleStages = this._allStages.filter(stage => !specialStages.includes(stage.value));
+        }
+
+        // --- VISIBILITY FILTER LOGIC END ---
+
+        const activeIndex = visibleStages.findIndex(s => s.value === currentActiveValue);
         const targetIndex = activeIndex === -1 ? 0 : activeIndex;
 
-        this.steps = this._allStages.map((stage, index) => {
+        // Map over 'visibleStages' instead of 'this._allStages'
+        this.steps = visibleStages.map((stage, index) => {
             return this.buildStepObject(stage.label, index, targetIndex);
         });
     }

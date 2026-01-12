@@ -186,30 +186,32 @@ public without sharing class CreateProjectFromOpportunityHandler {
             ? opp.Re_Visit_Site_Supervisor_Estimate_Budget__c
             : opp.Supervisor_Estimated_Budget__c;
 
+        final String estimatedMonths = isRevisitConfirmed
+            ? opp.ReVisit_Site_Estimated_Completion_Months__c
+            : opp.Project_Estimated_Completion_Months__c;
+
         Project__c p = new Project__c(
-            Id                          = existingId,         // null for insert; non-null for update
-            Description__c              = opp.Project_Description__c,
-            Budget__c                   = opp.Budget__c,
-            Status__c                   = 'Initiated',
-            IDC_Company__c              = opp.AccountId,
-            Client__c                   = opp.Primary_Contact__c,
-            Project_Name__c             = opp.Id,             // key back to Opportunity
-            Client_Email__c             = opp.Email__c,
-            Name                        = opp.Name,
-            Client_Phone__c             = opp.Lead_Phone__c,
-            Supervisor_User__c          = opp.Supervisor_User__c,
-            Type_Of_Project__c          = opp.Type_of_Project__c,
-            Project_Scope__c            = opp.Project_Scope__c,
-            End_Date__c                 = endDateVal,
+            Id                              = existingId,          // null for insert; non-null for update
+            Description__c                  = opp.Project_Description__c,
+            Budget__c                       = opp.Budget__c,
+            Status__c                       = 'Initiated',
+            IDC_Company__c                  = opp.AccountId,
+            Client__c                       = opp.Primary_Contact__c,
+            Project_Name__c                 = opp.Id,              // key back to Opportunity
+            Client_Email__c                 = opp.Email__c,
+            Name                            = opp.Name,
+            Client_Phone__c                 = opp.Lead_Phone__c,
+            Supervisor_User__c              = opp.Supervisor_User__c,
+            Type_Of_Project__c              = opp.Type_of_Project__c,
+            Project_Scope__c                = opp.Project_Scope__c,
+        //    End_Date__c                     = endDateVal,
             Supervisor_Estimated_Budget__c  = estBudgetVal,
             // 🔹 NEW FIELD MAPPINGS 🔹
             Project_Request_Quotation_Type__c = opp.Project_Request_Quotation_Type__c,
-            Site_Location__c            = opp.Site_Location__c,
-            Site_Space__c               = opp.Site_Space__c,
-            Plan_Level__c               = opp.Plan_Level__c,
-            
-            // 🔹 FIX: Set OwnerId to Supervisor to satisfy Flow "TRANSFER_REQUIRES_READ" error 🔹
-            OwnerId                     = opp.Supervisor_User__c
+            Site_Location__c                  = opp.Site_Location__c,
+            Site_Space__c                     = opp.Site_Space__c,
+            Plan_Level__c                     = opp.Plan_Level__c,
+            Estimated_Project_Duration__c= estimatedMonths
         );
         return p;
     }

@@ -3,12 +3,21 @@ public class TaskHelperTest {
 
     @testSetup
     static void setupData() {
-        // 1. Create Project using Utility
-        Project__c proj = TestDataUtility.createProject('Test Project TaskCalc');
+        // 1. Create Prerequisites (Account & Contact) using Utility
+        // Utility createProject requires a Contact ID.
+        Account acc = TestDataUtility.createAccount('Task Helper Account');
+        
+        Contact con = TestDataUtility.createContact('Task Contact', 'task@test.com', 'pass123');
+        con.AccountId = acc.Id;
+        update con;
 
-        // 2. Create Vendor Assignment using Utility
-        // The utility sets the Project linkage automatically
-        TestDataUtility.createVendorAssignment(proj.Id);
+        // 2. Create Project using Utility (requires Name, Budget, ContactId)
+        Project__c proj = TestDataUtility.createProject('Test Project TaskCalc', 5000, con.Id);
+
+        // 3. Create Vendor Assignment using Utility
+        // The utility sets the Project linkage automatically.
+        // Using 0 as percentage since we are testing Task completion rollup, not budget.
+        TestDataUtility.createVendorAssignment(proj.Id, 0);
     }
 
     @isTest
@@ -16,20 +25,9 @@ public class TaskHelperTest {
         Vendor_Assignment__c va = [SELECT Id FROM Vendor_Assignment__c LIMIT 1];
 
         // Create 2 Tasks: 1 Completed, 1 Not Started
-        List<Task> tasks = new List<Task>();
-        tasks.add(new Task(
-            Subject = 'Task 1',
-            Status = 'Completed',
-            WhatId = va.Id,
-            ActivityDate = Date.today()
-        ));
-        tasks.add(new Task(
-            Subject = 'Task 2',
-            Status = 'Not Started', 
-            WhatId = va.Id,
-            ActivityDate = Date.today()
-        ));
-        insert tasks;
+        // Using Utility for one, standard for the other to vary status easily
+        TestDataUtility.createTask('Completed', va.Id, 0);
+        TestDataUtility.createTask('Not Started', va.Id, 0);
 
         Test.startTest();
         // Manually call the helper
@@ -46,10 +44,8 @@ public class TaskHelperTest {
         Vendor_Assignment__c va = [SELECT Id FROM Vendor_Assignment__c LIMIT 1];
 
         // Create 2 Tasks: Both Completed
-        List<Task> tasks = new List<Task>();
-        tasks.add(new Task(Subject = 'T1', Status = 'Completed', WhatId = va.Id));
-        tasks.add(new Task(Subject = 'T2', Status = 'Completed', WhatId = va.Id));
-        insert tasks;
+        TestDataUtility.createTask('Completed', va.Id, 0);
+        TestDataUtility.createTask('Completed', va.Id, 0);
 
         Test.startTest();
         TaskHelper.updateCompletionForAssignments(new Set<Id>{va.Id});
@@ -65,10 +61,8 @@ public class TaskHelperTest {
         Vendor_Assignment__c va = [SELECT Id FROM Vendor_Assignment__c LIMIT 1];
 
         // Create 2 Tasks: None Completed
-        List<Task> tasks = new List<Task>();
-        tasks.add(new Task(Subject = 'T1', Status = 'In Progress', WhatId = va.Id));
-        tasks.add(new Task(Subject = 'T2', Status = 'Not Started', WhatId = va.Id));
-        insert tasks;
+        TestDataUtility.createTask('In Progress', va.Id, 0);
+        TestDataUtility.createTask('Not Started', va.Id, 0);
 
         Test.startTest();
         TaskHelper.updateCompletionForAssignments(new Set<Id>{va.Id});
