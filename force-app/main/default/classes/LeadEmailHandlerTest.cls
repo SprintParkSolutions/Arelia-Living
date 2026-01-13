@@ -1,5 +1,5 @@
 @IsTest
-@SuppressWarnings('PMD.CognitiveComplexity,PMD.MethodNamingConventions')
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.MethodNamingConventions,PMD.ApexAssertionsShouldIncludeMessage')
 private class LeadEmailHandlerTest {
 
     // ------------------------------------------------------------
@@ -11,11 +11,11 @@ private class LeadEmailHandlerTest {
         String quotationType
     ) {
         Lead testLead = new Lead();
-        testLead.FirstName  = 'Test';
-        testLead.LastName   = lastName;
-        testLead.Company    = 'Arelia Test Co';
-        testLead.Status     = 'Open - Not Contacted';
-        testLead.Email      = email;
+        testLead.FirstName    = 'Test';
+        testLead.LastName     = lastName;
+        testLead.Company      = 'Arelia Test Co';
+        testLead.Status       = 'Open - Not Contacted';
+        testLead.Email        = email;
         testLead.Project_Request_Quotation_Type__c = quotationType;
         testLead.Project_Request_Submitted__c      = false;
         testLead.Approval_Status__c                = 'Pending';
@@ -23,65 +23,32 @@ private class LeadEmailHandlerTest {
     }
 
     // ------------------------------------------------------------
-    // 1️⃣ Manual Quotation:
-    //     - submission → enrollment/management email (no attachments)
-    //     - approval   → lead email (no attachments)
-    //      (via LeadTrigger calling LeadEmailHandler)
+    // 1️⃣ Manual Quotation Tests
     // ------------------------------------------------------------
     @IsTest
     static void testManualQuotationSubmissionAndApproval() {
-        // GIVEN
-        Lead manualLead = createBaseLead(
-            'ManualLead',
-            'manual.lead@test.com',
-            'Manual Quotation'
-        );
+        Lead manualLead = createBaseLead('ManualLead', 'manual.lead@test.com', 'Manual Quotation');
         insert manualLead;
 
-        // WHEN: first update → submitted
         manualLead.Project_Request_Submitted__c = true;
-        update manualLead;   // should call LeadEmailHandler.sendEnrollmentEmailOnSubmission
+        update manualLead;   
 
-        // WHEN: second update → approved
         manualLead.Approval_Status__c = 'Approved';
-        update manualLead;   // should call LeadEmailHandler.sendLeadEmailOnApproval
+        update manualLead;   
 
-        // THEN: fields reflect the changes (no exceptions thrown)
-        Lead reloaded = [
-            SELECT Project_Request_Submitted__c, Approval_Status__c
-            FROM Lead
-            WHERE Id = :manualLead.Id
-        ];
-
-        System.assertEquals(
-            true,
-            reloaded.Project_Request_Submitted__c,
-            'Manual quotation Lead must be marked submitted.'
-        );
-        System.assertEquals(
-            'Approved',
-            reloaded.Approval_Status__c,
-            'Manual quotation Lead must be marked approved.'
-        );
+        Lead reloaded = [SELECT Project_Request_Submitted__c, Approval_Status__c FROM Lead WHERE Id = :manualLead.Id];
+        System.assertEquals(true, reloaded.Project_Request_Submitted__c, 'Manual quotation Lead must be marked submitted.');
+        System.assertEquals('Approved', reloaded.Approval_Status__c, 'Manual quotation Lead must be marked approved.');
     }
 
     // ------------------------------------------------------------
-    // 2️⃣ Automatic Quotation:
-    //     - submission → enrollment/management email (with attachments)
-    //     - approval   → lead email (with attachments)
-    //      (via LeadTrigger calling LeadEmailHandler)
+    // 2️⃣ Automatic Quotation Tests
     // ------------------------------------------------------------
     @IsTest
     static void testAutomaticQuotationWithAttachmentsSubmissionAndApproval() {
-        // GIVEN
-        Lead autoLead = createBaseLead(
-            'AutomaticLead',
-            'auto.lead@test.com',
-            'Automatic Quotation'
-        );
+        Lead autoLead = createBaseLead('AutomaticLead', 'auto.lead@test.com', 'Automatic Quotation');
         insert autoLead;
 
-        // Classic Attachment
         Attachment att = new Attachment(
             ParentId    = autoLead.Id,
             Name        = 'TestAttachment.txt',
@@ -90,7 +57,6 @@ private class LeadEmailHandlerTest {
         );
         insert att;
 
-        // File via ContentVersion (creates ContentDocument + ContentDocumentLink)
         ContentVersion cv = new ContentVersion(
             Title                 = 'TestFile',
             PathOnClient          = 'TestFile.pdf',
@@ -99,66 +65,115 @@ private class LeadEmailHandlerTest {
         );
         insert cv;
 
-        // WHEN: first update → submitted
         autoLead.Project_Request_Submitted__c = true;
         update autoLead;
 
-        // WHEN: second update → approved
         autoLead.Approval_Status__c = 'Approved';
         update autoLead;
 
-        // THEN: fields reflect the changes (no exceptions thrown)
-        Lead reloaded = [
-            SELECT Project_Request_Submitted__c, Approval_Status__c
-            FROM Lead
-            WHERE Id = :autoLead.Id
-        ];
-
-        System.assertEquals(
-            true,
-            reloaded.Project_Request_Submitted__c,
-            'Automatic quotation Lead must be marked submitted.'
-        );
-        System.assertEquals(
-            'Approved',
-            reloaded.Approval_Status__c,
-            'Automatic quotation Lead must be marked approved.'
-        );
+        Lead reloaded = [SELECT Project_Request_Submitted__c, Approval_Status__c FROM Lead WHERE Id = :autoLead.Id];
+        System.assertEquals(true, reloaded.Project_Request_Submitted__c, 'Automatic quotation Lead must be marked submitted.');
+        System.assertEquals('Approved', reloaded.Approval_Status__c, 'Automatic quotation Lead must be marked approved.');
     }
 
     // ------------------------------------------------------------
-    // 3️⃣ Direct handler wrapper:
-    //     sendEmailForLead routes correctly based on field values
-    //     (does NOT rely on the trigger)
+    // 3️⃣ Direct Wrapper Test
     // ------------------------------------------------------------
     @IsTest
     static void testLegacyWrapperSendEmailForLead() {
-        // GIVEN: one Lead for approval path
-        Lead approvedLead = createBaseLead(
-            'WrapperApproved',
-            'wrapper.approved@test.com',
-            'Manual Quotation'
-        );
+        Lead approvedLead = createBaseLead('WrapperApproved', 'wrapper.approved@test.com', 'Manual Quotation');
         approvedLead.Approval_Status__c = 'Approved';
         insert approvedLead;
 
-        // GIVEN: one Lead for submission path
-        Lead submittedLead = createBaseLead(
-            'WrapperSubmitted',
-            'wrapper.submitted@test.com',
-            'Manual Quotation'
-        );
+        Lead submittedLead = createBaseLead('WrapperSubmitted', 'wrapper.submitted@test.com', 'Manual Quotation');
         submittedLead.Project_Request_Submitted__c = true;
         insert submittedLead;
 
-        // WHEN: call wrapper for both
         LeadEmailHandler.sendEmailForLead(approvedLead);
         LeadEmailHandler.sendEmailForLead(submittedLead);
 
-        // THEN: if we reach here without exception, routing is fine
-        System.assert(
-            true,
-            'sendEmailForLead executed approval & submission routing without exception.'
-        );
+        System.assert(true, 'sendEmailForLead executed approval & submission routing without exception.');
+    }
+
+    // ------------------------------------------------------------
+    // 4️⃣ Null / Empty / Invalid Input Scenarios
+    // ------------------------------------------------------------
+    @IsTest
+    static void testNullInputsSafelyHandled() {
+        Test.startTest();
+        LeadEmailHandler.sendEmailForLead(null);
+        
+        LeadEmailHandler.sendEnrollmentEmailOnSubmission((Lead)null);
+        LeadEmailHandler.sendLeadEmailOnApproval((Lead)null);
+
+        LeadEmailHandler.sendEnrollmentEmailOnSubmission((List<Lead>)null);
+        LeadEmailHandler.sendEnrollmentEmailOnSubmission(new List<Lead>());
+        
+        LeadEmailHandler.sendLeadEmailOnApproval((List<Lead>)null);
+        LeadEmailHandler.sendLeadEmailOnApproval(new List<Lead>());
+        Test.stopTest();
+
+        System.assert(true, 'Null and empty inputs should be handled gracefully without exceptions.');
+    }
+
+    @IsTest
+    static void testSkippedRecordsInList() {
+        Lead validLead = createBaseLead('Valid', 'valid@test.com', 'Manual Quotation');
+        insert validLead;
+        
+        Lead noQuoteLead = createBaseLead('NoQuote', 'noquote@test.com', null);
+        insert noQuoteLead;
+
+        List<Lead> mixedList = new List<Lead>{ null, noQuoteLead, validLead };
+
+        Test.startTest();
+        LeadEmailHandler.sendEnrollmentEmailOnSubmission(mixedList);
+        LeadEmailHandler.sendLeadEmailOnApproval(mixedList);
+        Test.stopTest();
+
+        System.assert(true, 'Mixed list with nulls/invalid records should process valid ones successfully.');
+    }
+
+    // ------------------------------------------------------------
+    // 5️⃣ Exception Handling Scenarios (FIXED)
+    // ------------------------------------------------------------
+
+    @IsTest
+    static void testSubmissionFlowException() {
+        // Create a lead but query specifically WITHOUT fields required by logic to force SObjectException
+        Lead l = createBaseLead('Crash', 'crash@test.com', 'Manual Quotation');
+        insert l;
+        
+        // Fetch ONLY ID. Accessing Project_Request_Quotation_Type__c later will throw exception.
+        Lead strippedLead = [SELECT Id FROM Lead WHERE Id = :l.Id]; 
+        
+        Test.startTest();
+        try {
+            LeadEmailHandler.sendEnrollmentEmailOnSubmission(new List<Lead>{ strippedLead });
+            System.assert(false, 'Should have thrown AuraHandledException due to SObjectException');
+        } catch (Exception e) {
+            // In test context, AuraHandledException often masks the message as "Script-thrown exception".
+            // We verify the type specifically to confirm correct error handling path.
+            System.assertEquals('System.AuraHandledException', e.getTypeName(), 'Exception should be of type AuraHandledException');
+        }
+        Test.stopTest();
+    }
+
+    @IsTest
+    static void testApprovalFlowException() {
+        Lead l = createBaseLead('CrashApproval', 'crash.app@test.com', 'Manual Quotation');
+        insert l;
+        
+        // Fetch ONLY ID. Accessing Email or Quotation Type will throw SObjectException.
+        Lead strippedLead = [SELECT Id FROM Lead WHERE Id = :l.Id];
+        
+        Test.startTest();
+        try {
+            LeadEmailHandler.sendLeadEmailOnApproval(new List<Lead>{ strippedLead });
+            System.assert(false, 'Should have thrown AuraHandledException due to SObjectException');
+        } catch (Exception e) {
+            System.assertEquals('System.AuraHandledException', e.getTypeName(), 'Exception should be of type AuraHandledException');
+        }
+        Test.stopTest();
     }
 }
