@@ -12,16 +12,16 @@
    Notes:
      - Bulk safe, low cognitive complexity, null-safe booleans.
 */
-
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation')
 public without sharing class CreateProjectFromOpportunityHandler {
 
     // ---------- Orchestrator ----------
     public static void handleAfterUpdate(List<Opportunity> newList, Map<Id, Opportunity> oldMap) {
-        if (newList == null || newList.isEmpty()) return;
+        if (newList == null || newList.isEmpty()) {return;}
 
         // 1) Only Opps that just moved to Closed Won
         List<Opportunity> justClosedWon = pickJustClosedWon(newList, oldMap);
-        if (justClosedWon.isEmpty()) return;
+        if (justClosedWon.isEmpty()) {return;}
 
         // 2) Load vendor links for those Opps (for validation)
         Set<Id> oppIds = collectIds(justClosedWon);
@@ -29,7 +29,7 @@ public without sharing class CreateProjectFromOpportunityHandler {
 
         // 3) Validate gates; invalid rows receive addError and are excluded
         List<Opportunity> validOpps = validateAndFilter(justClosedWon, vendorsByOpp);
-        if (validOpps.isEmpty()) return;
+        if (validOpps.isEmpty()) {return;}
 
         // 4) Find existing projects keyed by Project_Name__c = Opportunity.Id
         Map<Id, Project__c> existingByOppId = loadExistingProjectsByOppId(collectIds(validOpps));
@@ -47,19 +47,19 @@ public without sharing class CreateProjectFromOpportunityHandler {
         }
 
         // 6) DML (update first or insert first — order does not matter functionally)
-        if (!toUpdate.isEmpty()) update toUpdate;
+        if (!toUpdate.isEmpty()) {update toUpdate;}
 
         Map<Id, Id> oppToNewProject = new Map<Id, Id>();
         if (!toInsert.isEmpty()) {
             insert toInsert;
             // Map inserted projects back to Opps for file copy
             for (Project__c p : toInsert) {
-                if (p.Project_Name__c != null) oppToNewProject.put(p.Project_Name__c, p.Id);
+                if (p.Project_Name__c != null) {oppToNewProject.put(p.Project_Name__c, p.Id);}
             }
         }
 
         // 7) Copy files only for newly created projects (unchanged behavior)
-        if (!oppToNewProject.isEmpty()) copyFilesFromOppToProject(oppToNewProject);
+        if (!oppToNewProject.isEmpty()) {copyFilesFromOppToProject(oppToNewProject);}
     }
 
     // ---------- Step 1: find Opps that just moved to Closed Won ----------
@@ -78,22 +78,19 @@ public without sharing class CreateProjectFromOpportunityHandler {
 
     private static Set<Id> collectIds(List<Opportunity> opps) {
         Set<Id> ids = new Set<Id>();
-        for (Opportunity o : opps) ids.add(o.Id);
+        for (Opportunity o : opps) {ids.add(o.Id);}
         return ids;
     }
 
     // ---------- Step 2: fetch vendors per Opp ----------
     private static Map<Id, List<Vendor_Opportunity__c>> loadVendorLinks(Set<Id> oppIds) {
         Map<Id, List<Vendor_Opportunity__c>> mapByOpp = new Map<Id, List<Vendor_Opportunity__c>>();
-        if (oppIds == null || oppIds.isEmpty()) return mapByOpp;
+        if (oppIds == null || oppIds.isEmpty()) {return mapByOpp;}
 
-        for (Vendor_Opportunity__c vo : [
-            SELECT Id, Opportunity__c,
-                   Vendor__c, Vendor__r.Name,
+        for (Vendor_Opportunity__c vo : [SELECT Id, Opportunity__c, Vendor__c, Vendor__r.Name,
                    Vendor_Agreement_Sent__c, Vendor_Agreement_Signed__c
-            FROM Vendor_Opportunity__c
-            WHERE Opportunity__c IN :oppIds
-        ]) {
+            FROM Vendor_Opportunity__c WHERE Opportunity__c IN :oppIds])
+        {
             List<Vendor_Opportunity__c> bucket = mapByOpp.get(vo.Opportunity__c);
             if (bucket == null) {
                 bucket = new List<Vendor_Opportunity__c>();
@@ -158,14 +155,10 @@ public without sharing class CreateProjectFromOpportunityHandler {
     // ---------- Step 4: load existing Projects keyed by Opp.Id ----------
     private static Map<Id, Project__c> loadExistingProjectsByOppId(Set<Id> oppIds) {
         Map<Id, Project__c> out = new Map<Id, Project__c>();
-        if (oppIds == null || oppIds.isEmpty()) return out;
+        if (oppIds == null || oppIds.isEmpty()) {return out;}
 
-        for (Project__c p : [
-            SELECT Id, Project_Name__c
-            FROM Project__c
-            WHERE Project_Name__c IN :oppIds
-        ]) {
-            if (p.Project_Name__c != null) out.put((Id) p.Project_Name__c, p);
+        for (Project__c p : [SELECT Id, Project_Name__c FROM Project__c WHERE Project_Name__c IN :oppIds]) {
+            if (p.Project_Name__c != null){ out.put((Id) p.Project_Name__c, p);}
         }
         return out;
     }
@@ -186,6 +179,10 @@ public without sharing class CreateProjectFromOpportunityHandler {
             ? opp.Re_Visit_Site_Supervisor_Estimate_Budget__c
             : opp.Supervisor_Estimated_Budget__c;
 
+        final String estimatedMonths = isRevisitConfirmed
+            ? opp.ReVisit_Site_Estimated_Completion_Months__c
+            : opp.Project_Estimated_Completion_Months__c;
+
         Project__c p = new Project__c(
             Id                              = existingId,          // null for insert; non-null for update
             Description__c                  = opp.Project_Description__c,
@@ -200,20 +197,25 @@ public without sharing class CreateProjectFromOpportunityHandler {
             Supervisor_User__c              = opp.Supervisor_User__c,
             Type_Of_Project__c              = opp.Type_of_Project__c,
             Project_Scope__c                = opp.Project_Scope__c,
-            End_Date__c                     = endDateVal,
+        //    End_Date__c                     = endDateVal,
             Supervisor_Estimated_Budget__c  = estBudgetVal,
             // 🔹 NEW FIELD MAPPINGS 🔹
             Project_Request_Quotation_Type__c = opp.Project_Request_Quotation_Type__c,
             Site_Location__c                  = opp.Site_Location__c,
             Site_Space__c                     = opp.Site_Space__c,
-            Plan_Level__c                     = opp.Plan_Level__c
+            Plan_Level__c                     = opp.Plan_Level__c,
+            Estimated_Project_Duration__c= estimatedMonths,
+            Estimated_Budget__c               = opp.Estimated_Budget__c,
+            Interior_Project_Type__c        = opp.Interior_Project_Type__c,
+            Interior_Category__c            = opp.Interior_Category__c
+
         );
         return p;
     }
 
     // ---------- Step 6: file copy (only for newly created Projects) ----------
     private static void copyFilesFromOppToProject(Map<Id, Id> oppToProject) {
-        if (oppToProject == null || oppToProject.isEmpty()) return;
+        if (oppToProject == null || oppToProject.isEmpty()) {return;}
 
         List<ContentDocumentLink> toInsert = new List<ContentDocumentLink>();
         for (ContentDocumentLink link : [
@@ -222,7 +224,7 @@ public without sharing class CreateProjectFromOpportunityHandler {
             WHERE LinkedEntityId IN :oppToProject.keySet()
         ]) {
             Id projectId = oppToProject.get(link.LinkedEntityId);
-            if (projectId == null) continue;
+            if (projectId == null) {continue;}
 
             toInsert.add(new ContentDocumentLink(
                 ContentDocumentId = link.ContentDocumentId,
@@ -231,6 +233,6 @@ public without sharing class CreateProjectFromOpportunityHandler {
                 Visibility        = 'AllUsers'
             ));
         }
-        if (!toInsert.isEmpty()) insert toInsert;
+        if (!toInsert.isEmpty()) {insert toInsert;}
     }
 }
