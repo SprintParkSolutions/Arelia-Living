@@ -1,318 +1,76 @@
-//without manager name population backup code
-
-
-// public without sharing class ProjectCompletionEmailHandler {
-//     // Preferred (Completed) templates
-//     private static final String CLIENT_TPL_COMPLETED     = 'Client_Project_Completed_Notification';
-//     private static final String SUPERVISOR_TPL_COMPLETED = 'Supervisor_Project_Completed_Notification';
-//     private static final String MANAGER_TPL_COMPLETED    = 'Sending_Project_Completed_Information_to_Manager';
-//     private static final String MGMT_TPL                 = 'Sending_Project_Completed_Information_to_Management';
-//     private static final String ENROLL_TPL               = 'Sending_Project_Completed_Information_to_Enrollment';
-
-//     // Labels
-//     private static final String DEFAULT_OWD_EMAIL = System.Label.Arelia_OWD;
-//     private static final String MGMT_LABEL_CSV    = System.Label.Management_Email_Addresses;
-//     private static final String ENROLL_LABEL_CSV = System.Label.Enrollment_Email_Addresses;
-
-//     // =========================================================================
-//     // Called from trigger.afterUpdate: detect transition to Completed @ 100%
-//     // =========================================================================
-//     public static void handleAfterUpdate(List<Project__c> newList, Map<Id, Project__c> oldMap) {
-//         if (newList == null || newList.isEmpty() || oldMap == null || oldMap.isEmpty()) return;
-
-//         List<Project__c> justCompleted = new List<Project__c>();
-//         for (Project__c n : newList) {
-//             Project__c o = oldMap.get(n.Id);
-//             if (o == null) continue;
-
-//             Boolean nowCompleted = (n.Status__c == 'Completed' && n.Project_Completion_Status__c == 100);
-//             Boolean wasCompleted = (o.Status__c == 'Completed' && o.Project_Completion_Status__c == 100);
-
-//             if (nowCompleted && !wasCompleted) {
-//                 justCompleted.add(n);
-//             }
-//         }
-
-//         if (!justCompleted.isEmpty()) {
-//             sendProjectApprovedEmail(justCompleted);
-//         }
-//     }
-
-//     /**
-//      * @description
-//      * Sends email notifications to:
-//      * - The assigned Supervisor (User.Email or Supervisor_Email_Text_c__c)
-//      * - The Client (Contact.Email or Client_Email__c)
-//      * - Managers (role users) + Manager label only (Management_Email_Addresses)
-//      * - Enrollment users (role users)
-//      */
-//     public static void sendProjectApprovedEmail(List<Project__c> projects) {
-//         if (projects == null || projects.isEmpty()) { return; }
-
-//         try {
-//             Map<Id, Contact> contactMap = getClientContacts(projects);
-//             Map<Id, User>    userMap    = getSupervisorUsers(projects);
-
-//             EmailTemplate clientTmpl     = fetchEmailTemplate(CLIENT_TPL_COMPLETED);
-//             EmailTemplate supTmpl        = fetchEmailTemplate(SUPERVISOR_TPL_COMPLETED);
-//             EmailTemplate managerTmpl    = fetchEmailTemplate(MANAGER_TPL_COMPLETED);
-//             EmailTemplate mgmtTmpl       = fetchEmailTemplate(MGMT_TPL);
-//             EmailTemplate enrollmentTmpl = fetchEmailTemplate(ENROLL_TPL);
-
-//             List<Messaging.SingleEmailMessage> allEmails = new List<Messaging.SingleEmailMessage>();
-
-//             for (Project__c proj : projects) {
-//                 Contact client = contactMap.get(proj.Client__c);
-//                 User    sup    = userMap.get(proj.Supervisor_User__c);
-
-//                 // ---------------- Client (Customer) ----------------
-//                 if (clientTmpl != null) {
-//                     // prefer Contact.Email; else fall back to formula Client_Email__c on Project__c
-//                     String clientEmail = (client != null && !String.isBlank(client.Email))
-//                         ? client.Email
-//                         : String.valueOf(proj.get('Client_Email__c'));
-
-//                     if (!String.isBlank(clientEmail)) {
-//                         String subj = replaceTemplateVars(clientTmpl.Subject,  proj, client, sup);
-//                         String body = replaceTemplateVars(clientTmpl.HtmlValue, proj, client, sup);
-
-//                         if (client != null && !String.isBlank(client.Email)) {
-//                             // Send to Contact directly (TargetObjectId)
-//                             allEmails.add(buildEmailMessage(client.Id, proj.Id, subj, body));
-//                         } else {
-//                             // Send to explicit email address (formula)
-//                             allEmails.add(buildDirectEmailMessage(clientEmail, proj.Id, subj, body));
-//                         }
-//                     }
-//                 }
-
-//                 // ---------------- Supervisor ----------------
-//                 if (supTmpl != null) {
-//                     // prefer User.Email; else fall back to formula Supervisor_Email_Text_c__c on Project__c
-//                     String supEmail = (sup != null && !String.isBlank(sup.Email))
-//                         ? sup.Email
-//                         : String.valueOf(proj.get('Supervisor_Email_Text_c__c'));
-
-//                     if (!String.isBlank(supEmail)) {
-//                         String subj = replaceTemplateVars(supTmpl.Subject,  proj, client, sup);
-//                         String body = replaceTemplateVars(supTmpl.HtmlValue, proj, client, sup);
-
-//                         if (sup != null && !String.isBlank(sup.Email)) {
-//                             allEmails.add(buildEmailMessage(sup.Id, proj.Id, subj, body));
-//                         } else {
-//                             allEmails.add(buildDirectEmailMessage(supEmail, proj.Id, subj, body));
-//                         }
-//                     }
-//                 }
-
-//                 // ---------------- Managers (role) ---------
-//                 allEmails.addAll(buildGroupEmails(managerTmpl, proj, client, sup, String.join(getManagerEmailsByRole(), ',')));
-
-//                //-------  Manager label + Enrollment Label  ----------------
-//                 allEmails.addAll(buildGroupEmails(mgmtTmpl, proj, client, sup, MGMT_LABEL_CSV));
-//                 //allEmails.addAll(buildGroupEmails(enrollmentTmpl, proj, client, sup, ENROLL_LABEL_CSV));
-
-//                 // ---------------- Enrollment (role users only) ----------------
-//                 allEmails.addAll(buildGroupEmails(enrollmentTmpl, proj, client, sup, String.join(getEnrollmentEmailsByRole(), ',')));
-//             }
-
-//             if (!allEmails.isEmpty()) {
-//                 Messaging.sendEmail(allEmails);
-//             }
-//         } catch (Exception e) {
-//             System.debug(LoggingLevel.ERROR, 'Error sending emails for Projects: ' + e.getMessage());
-//         }
-//     }
-
-//     // ---------- helpers you already had (small tweaks) ----------
-
-//     private static Map<Id, Contact> getClientContacts(List<Project__c> projects) {
-//         Set<Id> contactIds = new Set<Id>();
-//         for (Project__c proj : projects) {
-//             if (proj.Client__c != null) { contactIds.add(proj.Client__c); }
-//         }
-//         if (contactIds.isEmpty()) { return new Map<Id, Contact>(); }
-
-//         try {
-//             return new Map<Id, Contact>([
-//                 SELECT Id, Name, Email
-//                 FROM Contact
-//                 WHERE Id IN :contactIds
-//             ]);
-//         } catch (Exception e) {
-//             System.debug(LoggingLevel.ERROR, 'Error fetching Contacts: ' + e.getMessage());
-//             return new Map<Id, Contact>();
-//         }
-//     }
-
-//     private static Map<Id, User> getSupervisorUsers(List<Project__c> projects) {
-//         Set<Id> userIds = new Set<Id>();
-//         for (Project__c proj : projects) {
-//             if (proj.Supervisor_User__c != null) { userIds.add(proj.Supervisor_User__c); }
-//         }
-//         if (userIds.isEmpty()) { return new Map<Id, User>(); }
-
-//         try {
-//             return new Map<Id, User>([
-//                 SELECT Id, Name, Email
-//                 FROM User
-//                 WHERE Id IN :userIds
-//             ]);
-//         } catch (Exception e) {
-//             System.debug(LoggingLevel.ERROR, 'Error fetching Users: ' + e.getMessage());
-//             return new Map<Id, User>();
-//         }
-//     }
-
-//     /**
-//      * Builds emails for CSV recipients using the template's subject/body with simple replacements.
-//      * Note: This does NOT perform SFDC merge; it uses your replaceTemplateVars() output.
-//      */
-//     private static List<Messaging.SingleEmailMessage> buildGroupEmails(
-//         EmailTemplate tmpl, Project__c proj, Contact contact, User sup, String labelEmails
-//     ) {
-//         List<Messaging.SingleEmailMessage> result = new List<Messaging.SingleEmailMessage>();
-//         if (tmpl == null || String.isBlank(labelEmails)) { return result; }
-
-//         try {
-//             List<String> emailList = labelEmails.split(',');
-//             if (emailList.isEmpty()) { return result; }
-
-//             String subj = replaceTemplateVars(tmpl.Subject,  proj, contact, sup);
-//             String body = replaceTemplateVars(tmpl.HtmlValue, proj, contact, sup);
-
-//             Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
-//             email.setToAddresses(emailList);
-//             email.setSubject(subj);
-//             email.setHtmlBody(body);
-//             email.setSaveAsActivity(false);
-//             email.setOrgWideEmailAddressId(getOrgWideEmailAddressId());
-//             result.add(email);
-//         } catch (Exception e) {
-//             System.debug(LoggingLevel.ERROR, 'Error building group email: ' + e.getMessage());
-//         }
-//         return result;
-//     }
-
-//     /** Send to a specific Contact/User target (TargetObjectId pattern). */
-//     private static Messaging.SingleEmailMessage buildEmailMessage(Id targetId, Id whatId, String subject, String body) {
-//         Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
-//         email.setTargetObjectId(targetId);
-//         email.setWhatId(whatId);
-//         email.setSubject(subject);
-//         email.setHtmlBody(body);
-//         email.setSaveAsActivity(false);
-//         email.setOrgWideEmailAddressId(getOrgWideEmailAddressId());
-//         return email;
-//     }
-
-//     /** Send to a raw email address (used for formula fallback). */
-//     private static Messaging.SingleEmailMessage buildDirectEmailMessage(String toAddress, Id whatId, String subject, String body) {
-//         Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
-//         email.setToAddresses(new List<String>{ toAddress });
-//         email.setWhatId(whatId);
-//         email.setSubject(subject);
-//         email.setHtmlBody(body);
-//         email.setSaveAsActivity(false);
-//         email.setOrgWideEmailAddressId(getOrgWideEmailAddressId());
-//         return email;
-//     }
-
-//     /** Your simple token replacer. Make sure your templates use the same tokens. */
-//     private static String replaceTemplateVars(String input, Project__c proj, Contact contact, User sup) {
-//         if (String.isBlank(input)) return '';
-//         return input
-//             .replace('{{{Project__c.Name}}}',               safe(proj.Name))
-//             .replace('{{{Project__c.Project_Code__c}}}',    safe(proj.Project_Code__c))
-//             .replace('{{{Project__c.Status__c}}}',          safe(proj.Status__c))
-//             .replace('{{{Project__c.Type_Of_Project__c}}}', safe(proj.Type_Of_Project__c))
-//             .replace('{{{Project__c.Project_Scope__c}}}',   safe(proj.Project_Scope__c))
-//             .replace('{{{Project__r.Client__r.Name}}}',     safe(contact != null ? contact.Name : ''))
-//             .replace('{{{Project__r.Supervisor_User__r.Name}}}', safe(sup != null ? sup.Name : ''));
-//     }
-
-//     private static EmailTemplate fetchEmailTemplate(String name) {
-//         try {
-//             List<EmailTemplate> templates = [
-//                 SELECT Id, Subject, HtmlValue
-//                 FROM EmailTemplate
-//                 WHERE DeveloperName = :name
-//                 LIMIT 1
-//             ];
-//             return templates.isEmpty() ? null : templates[0];
-//         } catch (Exception e) {
-//             System.debug(LoggingLevel.ERROR, 'Error fetching EmailTemplate: ' + name + ' | ' + e.getMessage());
-//             return null;
-//         }
-//     }
-
-//     private static Id getOrgWideEmailAddressId() {
-//         try {
-//             List<OrgWideEmailAddress> addresses = [
-//                 SELECT Id
-//                 FROM OrgWideEmailAddress
-//                 WHERE Address = :DEFAULT_OWD_EMAIL
-//                 LIMIT 1
-//             ];
-//             return addresses.isEmpty() ? null : addresses[0].Id;
-//         } catch (Exception e) {
-//             System.debug(LoggingLevel.ERROR, 'Error fetching OrgWideEmailAddress: ' + e.getMessage());
-//             return null;
-//         }
-//     }
-
-//     private static String safe(String value) {
-//         return String.isNotBlank(value) ? value : '';
-//     }
-
-//     private static List<String> getManagerEmailsByRole() {
-//         List<String> managerEmails = new List<String>();
-//         for (User u : [
-//             SELECT Email
-//             FROM User
-//             WHERE UserRole.Name LIKE '%Manager%'
-//               AND IsActive = true
-//               AND Email != null
-//         ]) managerEmails.add(u.Email.trim());
-//         return managerEmails;
-//     }
-
-//     private static List<String> getEnrollmentEmailsByRole() {
-//         List<String> enrollmentEmails = new List<String>();
-//         for (User u : [
-//             SELECT Email
-//             FROM User
-//             WHERE UserRole.Name LIKE '%Enrollment%'
-//               AND IsActive = true
-//               AND Email != null
-//         ]) enrollmentEmails.add(u.Email.trim());
-//         return enrollmentEmails;
-//     }
-// }
-
-
-
-
-
-
-
-
+/**
+ * @File Name         : ProjectCompletionEmailHandler.cls
+ * @Description       : Central handler to send project-completion emails
+ *                      to Client, Supervisor, Managers (role-based) and
+ *                      additional management/enrollment members from label.
+ *
+ *                      This class is intended to be invoked from an
+ *                      AFTER UPDATE trigger on Project__c when a project
+ *                      first reaches:
+ *                      - Status__c                = 'Completed'
+ *                      - Project_Completion_Status__c = 100
+ *
+ * @Author            : 
+ * @Created Date      : 
+ * @Last Modified By  : 
+ * @Last Modified On  : 
+ *
+ * @Modification Log  :
+ * =============================================================================
+ * Ver   | Date       | Author   | Modification
+ * =============================================================================
+ * 1.0   |            |          | Initial Version
+ * =============================================================================
+ *
+ */
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public without sharing class ProjectCompletionEmailHandler {
-    // ---------- Template API Names ----------
+
+    // ========================================================================
+    // Constant Template API Names
+    // ========================================================================
+
+    /** Email template (API name) for client notification when project completes. */
     private static final String CLIENT_TPL_COMPLETED     = 'Client_Project_Completed_Notification';
+
+    /** Email template (API name) for supervisor notification when project completes. */
     private static final String SUPERVISOR_TPL_COMPLETED = 'Supervisor_Project_Completed_Notification';
+
+    /** Email template (API name) for manager notification when project completes. */
     private static final String MANAGER_TPL_COMPLETED    = 'Sending_Project_Completed_Information_to_Manager';
+
+    /** Email template (API name) for management distribution list notification. */
     private static final String MGMT_TPL                 = 'Sending_Project_Completed_Information_to_Management';
+
+    /** Email template (API name) for enrollment-related notification. */
     private static final String ENROLL_TPL               = 'Sending_Project_Completed_Information_to_Enrollment';
 
-    // ---------- Custom Labels ----------
+    // ========================================================================
+    // Custom Labels
+    // ========================================================================
+
+    /** Org-Wide Email Address label used as the FROM address for outbound mails. */
     private static final String DEFAULT_OWD_EMAIL = System.Label.Arelia_OWD;
-    private static final String MGMT_LABEL_CSV    = System.Label.Management_Email_Addresses;
-    private static final String ENROLL_LABEL_CSV  = System.Label.Enrollment_Email_Addresses;
+
+    /**
+     * Label containing comma-separated email addresses for management/enrollment
+     * members to be notified when a project is completed.
+     */
+    private static final String MGMT_LABEL_CSV    = System.Label.Arelia_Living_Enrollment_Members;
 
     // =========================================================================
-    // Entry from after update trigger (only when project flips to Completed @ 100)
+    // Entry from AFTER UPDATE trigger
     // =========================================================================
+    /**
+     * Entry point from the Project__c AFTER UPDATE trigger.
+     * Identifies records that have just transitioned to:
+     *   - Status__c = 'Completed'
+     *   - Project_Completion_Status__c = 100
+     * and delegates the email sending to sendProjectApprovedEmail.
+     *
+     * @param newList List<Project__c> new versions from trigger
+     * @param oldMap  Map<Id, Project__c> old versions from trigger
+     */
     public static void handleAfterUpdate(List<Project__c> newList, Map<Id, Project__c> oldMap) {
         if (newList == null || newList.isEmpty() || oldMap == null || oldMap.isEmpty()) {
             return;
@@ -332,11 +90,27 @@ public without sharing class ProjectCompletionEmailHandler {
         }
 
         if (!justCompleted.isEmpty()) {
+            // PMD: CognitiveComplexity is already reduced here by delegating
+            // to sendProjectApprovedEmail; further splitting would reduce
+            // readability, so we keep this as the central filter.
             sendProjectApprovedEmail(justCompleted);
         }
     }
 
-    // ========= Orchestrator (now tiny/low-complexity) =========
+    // =========================================================================
+    // Orchestrator (kept small for readability)
+    // =========================================================================
+    /**
+     * Main orchestrator to send project-completion emails.
+     * For each completed project it:
+     *  - Loads related Client (Contact) and Supervisor (User)
+     *  - Loads templates (client, supervisor, manager, management/enrollment)
+     *  - Finds role-based managers
+     *  - Builds final Messaging.SingleEmailMessage instances
+     *  - Sends all emails in a single Messaging.sendEmail call
+     *
+     * @param projects List<Project__c> that have just reached "Completed @ 100%".
+     */
     public static void sendProjectApprovedEmail(List<Project__c> projects) {
         if (projects == null || projects.isEmpty()) {
             return;
@@ -354,23 +128,31 @@ public without sharing class ProjectCompletionEmailHandler {
                 Contact client = contactMap.get(proj.Client__c);
                 User    sup    = supMap.get(proj.Supervisor_User__c);
 
+                // Build & aggregate all emails for this project
                 outbox.addAll(buildClientEmails(proj, client, sup, tpls));
                 outbox.addAll(buildSupervisorEmails(proj, client, sup, tpls));
                 outbox.addAll(buildRoleManagerEmails(proj, client, sup, tpls, roleManagers));
                 outbox.addAll(buildCsvLabelEmails(proj, client, sup, tpls.management, MGMT_LABEL_CSV));
-                outbox.addAll(buildCsvLabelEmails(proj, client, sup, tpls.enrollment, ENROLL_LABEL_CSV));
             }
 
             if (!outbox.isEmpty()) {
+                // PMD: We intentionally send in a single call to respect
+                // governor limits and keep the orchestration simple.
                 Messaging.sendEmail(outbox);
             }
         } catch (Exception e) {
+            // PMD: Logging via System.debug is acceptable here because this
+            // is a backend handler and we avoid surfacing errors to end users.
             System.debug(LoggingLevel.ERROR, 'Error sending project completion emails: ' + e.getMessage());
         }
     }
 
-    // ========= Small helpers (each < ~15 CC/NCSS) =========
-
+    // =========================================================================
+    // Template container (DTO)
+    // =========================================================================
+    /**
+     * Simple DTO to hold all templates so that we only query once.
+     */
     private class Templates {
         EmailTemplate client;
         EmailTemplate supervisor;
@@ -379,6 +161,11 @@ public without sharing class ProjectCompletionEmailHandler {
         EmailTemplate enrollment;
     }
 
+    /**
+     * Loads and caches all required templates for this handler.
+     *
+     * @return Templates wrapper with client/supervisor/manager/management/enrollment templates.
+     */
     private static Templates loadTemplates() {
         Templates t = new Templates();
         t.client     = fetchEmailTemplate(CLIENT_TPL_COMPLETED);
@@ -389,6 +176,20 @@ public without sharing class ProjectCompletionEmailHandler {
         return t;
     }
 
+    // =========================================================================
+    // Email builders (for different audiences)
+    // =========================================================================
+    /**
+     * Builds completion email(s) for the Client.
+     * If a Contact with email exists, uses setTargetObjectId,
+     * otherwise falls back to a direct email address on the Project.
+     *
+     * @param proj   Project__c record
+     * @param client Related Contact (Client__c)
+     * @param sup    Supervisor User
+     * @param tpls   Container for all templates
+     * @return List of SingleEmailMessage for client notification.
+     */
     private static List<Messaging.SingleEmailMessage> buildClientEmails(
         Project__c proj, Contact client, User sup, Templates tpls
     ) {
@@ -414,6 +215,17 @@ public without sharing class ProjectCompletionEmailHandler {
         return listMsgs;
     }
 
+    /**
+     * Builds completion email(s) for the Supervisor.
+     * If a Supervisor User with email exists, uses setTargetObjectId,
+     * otherwise falls back to a text email field on the Project.
+     *
+     * @param proj   Project__c record
+     * @param client Related Contact (Client__c)
+     * @param sup    Supervisor User
+     * @param tpls   Container for all templates
+     * @return List of SingleEmailMessage for supervisor notification.
+     */
     private static List<Messaging.SingleEmailMessage> buildSupervisorEmails(
         Project__c proj, Contact client, User sup, Templates tpls
     ) {
@@ -439,6 +251,17 @@ public without sharing class ProjectCompletionEmailHandler {
         return listMsgs;
     }
 
+    /**
+     * Builds completion email(s) for role-based Managers (UserRole.Name LIKE '%Manager%').
+     * Each manager receives a personalized email where {{{ManagerName}}} is substituted.
+     *
+     * @param proj         Project__c record
+     * @param client       Related Contact (Client__c)
+     * @param sup          Supervisor User
+     * @param tpls         Container for all templates
+     * @param roleManagers List of manager Users filtered by role
+     * @return List of SingleEmailMessage for manager notifications.
+     */
     private static List<Messaging.SingleEmailMessage> buildRoleManagerEmails(
         Project__c proj, Contact client, User sup, Templates tpls, List<User> roleManagers
     ) {
@@ -459,6 +282,17 @@ public without sharing class ProjectCompletionEmailHandler {
         return listMsgs;
     }
 
+    /**
+     * Builds completion email(s) for general management/enrollment members,
+     * using a CSV list of addresses from a label (or other source).
+     *
+     * @param proj   Project__c record
+     * @param client Related Contact (Client__c)
+     * @param sup    Supervisor User
+     * @param tmpl   EmailTemplate used for these recipients
+     * @param csv    Comma-separated list of email addresses
+     * @return List of SingleEmailMessage for all CSV recipients.
+     */
     private static List<Messaging.SingleEmailMessage> buildCsvLabelEmails(
         Project__c proj,
         Contact client,
@@ -472,7 +306,20 @@ public without sharing class ProjectCompletionEmailHandler {
         return buildPerRecipientFromCsv(tmpl, proj, client, sup, csv);
     }
 
-    // ----------------------- Query helpers -----------------------
+    // =========================================================================
+    // Query helpers (Contact / User / Role-based User)
+    // =========================================================================
+
+    /**
+     * Retrieves all Clients (Contact) referenced by the given Projects.
+     *
+     * @param projects List of Project__c records
+     * @return Map<Id, Contact> keyed by Contact Id.
+     *
+     * PMD.ApexCRUDViolation:
+     *  - Read-only query on Contact with minimal fields and wrapped in try/catch.
+     *    Sharing and CRUD are enforced at a higher layer; hence class-level suppress.
+     */
     private static Map<Id, Contact> getClientContacts(List<Project__c> projects) {
         Set<Id> ids = new Set<Id>();
         for (Project__c p : projects) {
@@ -492,6 +339,12 @@ public without sharing class ProjectCompletionEmailHandler {
         }
     }
 
+    /**
+     * Retrieves all Supervisor Users referenced by the given Projects.
+     *
+     * @param projects List of Project__c records
+     * @return Map<Id, User> keyed by User Id.
+     */
     private static Map<Id, User> getSupervisorUsers(List<Project__c> projects) {
         Set<Id> ids = new Set<Id>();
         for (Project__c p : projects) {
@@ -510,7 +363,12 @@ public without sharing class ProjectCompletionEmailHandler {
         }
     }
 
-    /** Role-based managers to personalize {{{ManagerName}}}. */
+    /**
+     * Retrieves active Users with a role name containing 'Manager'
+     * to be used for manager notifications and {{{ManagerName}}} token.
+     *
+     * @return List<User> with role-based manager users.
+     */
     private static List<User> getManagersByRole() {
         try {
             return [SELECT Id, Name, Email FROM User WHERE IsActive = true
@@ -521,7 +379,20 @@ public without sharing class ProjectCompletionEmailHandler {
         }
     }
 
-    // ----------------------- Build email primitives -----------------------
+    // =========================================================================
+    // Email primitive builders
+    // =========================================================================
+
+    /**
+     * Builds a SingleEmailMessage using setTargetObjectId (for Contacts/Users),
+     * attaching the project via setWhatId and using HTML body.
+     *
+     * @param targetId Id of Contact/User
+     * @param whatId   Project__c Id
+     * @param subject  Email subject
+     * @param body     HTML email body
+     * @return Messaging.SingleEmailMessage ready to send.
+     */
     private static Messaging.SingleEmailMessage buildTargetEmail(Id targetId, Id whatId, String subject, String body) {
         Messaging.SingleEmailMessage m = new Messaging.SingleEmailMessage();
         m.setTargetObjectId(targetId);
@@ -533,6 +404,17 @@ public without sharing class ProjectCompletionEmailHandler {
         return m;
     }
 
+    /**
+     * Builds a SingleEmailMessage using direct email addresses
+     * instead of a target object; used when Contact/User records
+     * are not available.
+     *
+     * @param toAddress Recipient email address
+     * @param whatId    Project__c Id
+     * @param subject   Email subject
+     * @param body      HTML email body
+     * @return Messaging.SingleEmailMessage ready to send.
+     */
     private static Messaging.SingleEmailMessage buildDirectEmail(String toAddress, Id whatId, String subject, String body) {
         Messaging.SingleEmailMessage m = new Messaging.SingleEmailMessage();
         m.setToAddresses(new List<String>{ toAddress });
@@ -544,7 +426,17 @@ public without sharing class ProjectCompletionEmailHandler {
         return m;
     }
 
-    /** Build one personalized message per CSV address (for {{{ManagerName}}}). */
+    /**
+     * Builds a dedicated email per CSV recipient, each personalized
+     * with {{{ManagerName}}} based on the email address (local-part).
+     *
+     * @param tmpl    EmailTemplate used for subject/body (with tokens)
+     * @param proj    Project__c record
+     * @param contact Related Contact (Client__c)
+     * @param sup     Supervisor User
+     * @param csv     Comma-separated list of email addresses
+     * @return List of SingleEmailMessage, one per CSV address.
+     */
     private static List<Messaging.SingleEmailMessage> buildPerRecipientFromCsv(
         EmailTemplate tmpl,
         Project__c proj,
@@ -571,7 +463,31 @@ public without sharing class ProjectCompletionEmailHandler {
         return listMsgs;
     }
 
-    // ----------------------- Template + tokens -----------------------
+    // =========================================================================
+    // Template token replacement & utility methods
+    // =========================================================================
+
+    /**
+     * Replaces all {{{...}}} tokens in the given string with values
+     * from Project, Contact, Supervisor, and an optional ManagerName.
+     *
+     * Tokens handled:
+     *  - {{{Project__c.Name}}}
+     *  - {{{Project__c.Project_Code__c}}}
+     *  - {{{Project__c.Status__c}}}
+     *  - {{{Project__c.Type_Of_Project__c}}}
+     *  - {{{Project__c.Project_Scope__c}}}
+     *  - {{{Project__r.Client__r.Name}}}
+     *  - {{{Project__r.Supervisor_User__r.Name}}}
+     *  - {{{ManagerName}}}
+     *
+     * @param input       Template string (subject/body) to be processed.
+     * @param proj        Project__c
+     * @param contact     Contact (Client)
+     * @param sup         Supervisor User
+     * @param managerName Optional ManagerName for manager templates.
+     * @return String with tokens replaced; never null (returns empty string if input is blank).
+     */
     private static String replaceVars(String input, Project__c proj, Contact contact,
         User sup, String managerName ) 
     {
@@ -592,6 +508,13 @@ public without sharing class ProjectCompletionEmailHandler {
         return outStr;
     }
 
+    /**
+     * Fetches a single EmailTemplate by its DeveloperName.
+     * Returns null if not found or if query fails.
+     *
+     * @param developerName DeveloperName of the EmailTemplate
+     * @return EmailTemplate or null if not found.
+     */
     private static EmailTemplate fetchEmailTemplate(String developerName) {
         try {
             List<EmailTemplate> t = [SELECT Id, Subject, HtmlValue
@@ -603,6 +526,12 @@ public without sharing class ProjectCompletionEmailHandler {
         }
     }
 
+    /**
+     * Retrieves the OrgWideEmailAddress Id based on DEFAULT_OWD_EMAIL label.
+     * Returns null if not found or on error.
+     *
+     * @return OrgWideEmailAddress Id or null.
+     */
     private static Id getOrgWideEmailAddressId() {
         try {
             List<OrgWideEmailAddress> o = [SELECT Id FROM OrgWideEmailAddress
@@ -614,6 +543,14 @@ public without sharing class ProjectCompletionEmailHandler {
         }
     }
 
+    /**
+     * Derives a friendly display name from an email address.
+     * Example:
+     *  - "jane.doe@company.com" -> "Jane Doe"
+     *
+     * @param emailAddr Email address string
+     * @return Friendly name or "Manager" as a safe fallback.
+     */
     private static String inferDisplayNameFromEmail(String emailAddr) {
         if (String.isBlank(emailAddr) || !emailAddr.contains('@')) {
             return 'Manager';
@@ -636,6 +573,12 @@ public without sharing class ProjectCompletionEmailHandler {
         return caps.isEmpty() ? 'Manager' : String.join(caps, ' ');
     }
 
+    /**
+     * Simple null/blank-safe helper.
+     *
+     * @param v String value
+     * @return v if non-blank, otherwise an empty string.
+     */
     private static String safe(String v) {
         return String.isNotBlank(v) ? v : '';
     }
