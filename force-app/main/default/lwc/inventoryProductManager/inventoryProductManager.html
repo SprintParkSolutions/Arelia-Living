@@ -21,9 +21,21 @@
             </div>
         </div>
 
+
+
         <!-- ================= STEP 1 ================= -->
-        <template if:true={isStep1}>
+<template if:true={isStep1}>
     <section class="step-screen intro-center">
+
+        <!-- 🔥 ADD THIS HEADER -->
+        <div class="catalog-header">
+            <div class="title-block"></div>
+
+            <button class="uiverse-cart-btn" onclick={openCart}>
+                🛒 {cartLabel}
+            </button>
+        </div>
+
         <div class="intro-content">
             <h1 class="heading">Interior Product Catalogue</h1>
             <p class="subheading">
@@ -31,6 +43,7 @@
             </p>
 
             <div class="filter-label">Choose Room Type</div>
+
             <div class="chip-row">
                 <template for:each={roomTypes} for:item="room">
                     <div key={room.value}
@@ -44,6 +57,7 @@
         </div>
     </section>
 </template>
+
 
         <!-- ================= STEP 2 ================= -->
         <template if:true={isStep2}>
@@ -216,6 +230,7 @@
                 <button class="remove-btn"
                         title="Remove item"
                         data-id={item.Id}
+                        data-productid={item.Interior_Product__c}
                         onclick={handleRemoveItem}>
                     🗑
                 </button>
