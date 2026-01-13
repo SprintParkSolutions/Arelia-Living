@@ -122,11 +122,22 @@ private class WhatsApp_AllInOne_Test {
     ========================================================= */
     @testSetup
     static void setupData() {
+        // 1. Create Supervisor
         TestDataUtility.createSupervisorUser('waSup');
+        
+        // 2. Create generic Account/Contact for Project creation needs (via Utility signatures)
+        Account acc = TestDataUtility.createAccount('WA Test Account');
+        Contact con = TestDataUtility.createContact('WA Test Contact', 'watest@example.com', 'wa123');
+        con.AccountId = acc.Id;
+        update con;
     }
 
     private static User getSupervisorFromSetup() {
         return [SELECT Id, Alias FROM User WHERE Alias = 'waSup' LIMIT 1];
+    }
+    
+    private static Contact getContactFromSetup() {
+        return [SELECT Id FROM Contact LIMIT 1];
     }
 
     private static Lead makeEligibleLead(CreateLeadParams p) {
@@ -180,7 +191,9 @@ private class WhatsApp_AllInOne_Test {
     }
 
     private static Project__c createProjectForOpp(Id oppId) {
-        Project__c proj = TestDataUtility.createProject('WA Project ' + String.valueOf(DateTime.now().getTime()));
+        Contact con = getContactFromSetup();
+        // Utility requires Name, Budget, ContactId
+        Project__c proj = TestDataUtility.createProject('WA Project ' + String.valueOf(DateTime.now().getTime()), 5000, con.Id);
         try {
             proj.Project_Name__c = oppId;
             update proj;
@@ -487,12 +500,9 @@ private class WhatsApp_AllInOne_Test {
 
         WhatsApp_Chat__c chat = createChatForLead(l.Id, '');
 
-        Opportunity opp = new Opportunity(
-            Name = 'WA Opp',
-            StageName = 'Prospecting',
-            CloseDate = Date.today().addDays(15)
-        );
-        insert opp;
+        User sup = getSupervisorFromSetup();
+        // Use utility to create Opp
+        Opportunity opp = TestDataUtility.createOpportunity('WA Opp', sup.Id);
 
         Lead oldL = new Lead(Id = l.Id, IsConverted = false);
         Lead newL = new Lead(Id = l.Id, IsConverted = true, ConvertedOpportunityId = opp.Id);
@@ -545,7 +555,8 @@ private class WhatsApp_AllInOne_Test {
         );
         insert chat;
 
-        Project__c p = TestDataUtility.createProject('Proj Relink Update');
+        Contact con = getContactFromSetup();
+        Project__c p = TestDataUtility.createProject('Proj Relink Update', 5000, con.Id);
 
         Project__c oldP = new Project__c(Id = p.Id, Project_Name__c = null);
         Project__c newP = new Project__c(Id = p.Id, Project_Name__c = opp.Id);
@@ -720,14 +731,13 @@ private class WhatsApp_AllInOne_Test {
         }
     }
     /* =========================================================
-        PMD ANCHOR ASSERT
-        - Required for PMD rule:
-            ApexUnitTestClassShouldHaveAsserts
-        - DO NOT REMOVE
+       PMD ANCHOR ASSERT
+       - Required for PMD rule:
+           ApexUnitTestClassShouldHaveAsserts
+       - DO NOT REMOVE
     ========================================================= */
     @IsTest
     static void testpmdanchorassert() {
         System.assert(true, 'PMD anchor assertion to satisfy ApexUnitTestClassShouldHaveAsserts rule.');
     }
-
 }
