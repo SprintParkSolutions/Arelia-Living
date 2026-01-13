@@ -18,7 +18,7 @@ public with sharing class SiteVisitReportHandler {
         // Fetch reports with needed fields and related records
         List<Site_Visit_Report__c> reports = [
             SELECT Id, Name, Site_Visit_Date__c, Site_Visit_Time_Slot__c, Site_Visit_Report_Status__c,
-                   Estimated_Completion_Date__c, Total_Estimated_Cost__c, Opportunity__c,Opportunity__r.Name,
+                   Estimated_Completion_Date__c,Estimated_Completion_Months__c, Total_Estimated_Cost__c, Opportunity__c,Opportunity__r.Name,
                    Supervisor_User__r.Name, Supervisor_User__r.Phone,
                    Lead__r.FirstName, Lead__r.LastName, Lead__r.Email, Lead__r.Phone, Lead__r.Company,
                    Lead__r.Estimated_Start_Date__c, Lead__r.Status, Lead__r.Approval_Status__c,
@@ -66,6 +66,12 @@ public with sharing class SiteVisitReportHandler {
             email.setSubject(subject);
             email.setHtmlBody(htmlBody);
             email.setSaveAsActivity(true);
+
+            // NEW: add Site Visit Report attachments
+            List<Messaging.EmailFileAttachment> reportFiles = getReportEmailAttachments(report.Id);
+            if (!reportFiles.isEmpty()) {
+                email.setFileAttachments(reportFiles);
+            }
             emails.add(email);
         }
 
@@ -132,6 +138,7 @@ public with sharing class SiteVisitReportHandler {
             .replace('{{{Site_Visit_Report__c.Site_Visit_Time_Slot__c}}}', safeString(report.Site_Visit_Time_Slot__c))
             .replace('{{{Site_Visit_Report__c.Site_Visit_Report_Status__c}}}', safeString(report.Site_Visit_Report_Status__c))
             .replace('{{{Site_Visit_Report__c.Estimated_Completion_Date__c}}}', formatDate(report.Estimated_Completion_Date__c))
+            .replace('{{{Site_Visit_Report__c.Estimated_Completion_Months__c}}}', safeString(report.Estimated_Completion_Months__c))
             .replace('{{{Site_Visit_Report__c.Total_Estimated_Cost__c}}}', safeString(report.Total_Estimated_Cost__c))
             .replace('{{{siteVisitRecordPageLink}}}', siteVisitRecordPageLink);
     }
@@ -190,6 +197,56 @@ public with sharing class SiteVisitReportHandler {
         return managerEmails;
     }
 
+    /**
+     * Returns email-ready attachments for a Site Visit Report
+     */
+    private static List<Messaging.EmailFileAttachment> getReportEmailAttachments(Id reportId) {
+
+        List<Messaging.EmailFileAttachment> emailAttachments = new List<Messaging.EmailFileAttachment>();
+
+        // ---- Step 1: get ContentDocument Ids linked to the record ----
+        Set<Id> docIds = new Set<Id>();
+
+        for (ContentDocumentLink cdl : [
+            SELECT ContentDocumentId
+            FROM ContentDocumentLink
+            WHERE LinkedEntityId = :reportId
+        ]) {
+            docIds.add(cdl.ContentDocumentId);
+        }
+
+        // ---- Step 2: get latest ContentVersion for each document ----
+        if (!docIds.isEmpty()) {
+
+            for (ContentVersion cv : [
+                SELECT Id, Title, FileExtension, VersionData
+                FROM ContentVersion
+                WHERE ContentDocumentId IN :docIds
+                AND IsLatest = true
+            ]) {
+                Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+                efa.setFileName(cv.Title + '.' + cv.FileExtension);
+                efa.setBody(cv.VersionData);
+                emailAttachments.add(efa);
+            }
+        }
+
+        // ---- Legacy Attachments also included ----
+        for (Attachment att : [
+            SELECT Id, Name, Body
+            FROM Attachment
+            WHERE ParentId = :reportId
+        ]) {
+            Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+            efa.setFileName(att.Name);
+            efa.setBody(att.Body);
+            emailAttachments.add(efa);
+        }
+
+        return emailAttachments;
+    }
+
+
     // ======================================================================
     // Orchestration called by the trigger (keeps trigger free of logic)
     // ======================================================================
@@ -240,11 +297,15 @@ public with sharing class SiteVisitReportHandler {
                 ? String.isNotBlank(newRec.Site_Visit_Report_Status__c)
                 : newRec.Site_Visit_Report_Status__c != oldRec.Site_Visit_Report_Status__c;
 
+            Boolean estimateMonthsChanged = (oldRec == null)
+                ? String.isNotBlank(newRec.Estimated_Completion_Months__c)
+                : newRec.Estimated_Completion_Months__c != oldRec.Estimated_Completion_Months__c;
+
             Boolean endDateChanged = (oldRec == null)
                 ? (newRec.Estimated_Completion_Date__c != null)
                 : (newRec.Estimated_Completion_Date__c != oldRec.Estimated_Completion_Date__c);
 
-            if (statusChanged || endDateChanged) {
+            if (statusChanged || endDateChanged || estimateMonthsChanged) {
                 reportsNeedingSync.add(newRec);
             }
         }
@@ -315,6 +376,7 @@ public with sharing class SiteVisitReportHandler {
                     Opportunity up = new Opportunity(
                         Id = r.Opportunity__c,
                         Re_Visit_Site_Status__c = r.Site_Visit_Report_Status__c,
+                        ReVisit_Site_Estimated_Completion_Months__c = r.Estimated_Completion_Months__c,
                         Re_Visit_Site_Supervisor_Completion_Date__c = r.Estimated_Completion_Date__c
                     );
                     oppUpdates.put(up.Id, up);
@@ -324,6 +386,7 @@ public with sharing class SiteVisitReportHandler {
                     Lead up = new Lead(
                         Id = r.Lead__c,
                         Site_Visit_Status__c = r.Site_Visit_Report_Status__c,
+                        Project_Estimated_Completion_Months__c = r.Estimated_Completion_Months__c,
                         Project_End_Date_by_Supervisor__c = r.Estimated_Completion_Date__c
                     );
                     leadUpdates.put(up.Id, up);

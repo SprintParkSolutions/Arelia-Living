@@ -1,8 +1,9 @@
 // File: TaskVendorBudgetHandler.cls
 // Enforces that the sum of Task.Assigned_Percentage__c for all Tasks whose
-// WhatId = a Vendor_Assignment__c never exceeds Vendor_Assignment__c.Vendor_Percentage__c.
+// WhatId = a Vendor_Assignment__c never exceeds Vendor_Assignment__c.Budget_Percentage__c.
 // Also maintains Vendor_Assignment__c.Vendor_Tasks_Remaining_Percentage__c.
 public without sharing class TaskVendorBudgetHandler {
+
 
     // =========================
     // 1) VALIDATION (BEFORE DML)
@@ -50,7 +51,7 @@ public without sharing class TaskVendorBudgetHandler {
 
         // vendor caps
         Map<Id, Vendor_Assignment__c> vaMap = new Map<Id, Vendor_Assignment__c>([
-            SELECT Id, Name, Vendor_Percentage__c
+            SELECT Id, Name, Budget_Percentage__c
             FROM Vendor_Assignment__c
             WHERE Id IN :vaIds
         ]);
@@ -62,8 +63,8 @@ public without sharing class TaskVendorBudgetHandler {
             Id vaId = t.WhatId;
             Decimal base   = nz(currentTotalsByVA.get(vaId));
             Decimal addAll = nz(proposedAddsByVA.get(vaId)); // batch contrib
-            Decimal cap    = (vaMap.containsKey(vaId) && vaMap.get(vaId).Vendor_Percentage__c != null)
-                            ? vaMap.get(vaId).Vendor_Percentage__c : 0;
+            Decimal cap    = (vaMap.containsKey(vaId) && vaMap.get(vaId).Budget_Percentage__c != null)
+                            ? vaMap.get(vaId).Budget_Percentage__c : 0;
             Decimal finalTotal = base + addAll;
 
             if (finalTotal > cap) {
@@ -113,7 +114,7 @@ public without sharing class TaskVendorBudgetHandler {
 
         // Caps
         Map<Id, Vendor_Assignment__c> vaMap = new Map<Id, Vendor_Assignment__c>([
-            SELECT Id, Vendor_Percentage__c, Vendor_Tasks_Remaining_Percentage__c
+            SELECT Id, Budget_Percentage__c, Vendor_Tasks_Remaining_Percentage__c
             FROM Vendor_Assignment__c
             WHERE Id IN :vaIds
         ]);
@@ -135,7 +136,7 @@ public without sharing class TaskVendorBudgetHandler {
             Vendor_Assignment__c va = vaMap.get(vaId);
             if (va == null) continue;
 
-            Decimal cap      = nz(va.Vendor_Percentage__c);
+            Decimal cap      = nz(va.Budget_Percentage__c);
             Decimal assigned = nz(totalAssignedByVA.get(vaId));
             Decimal remaining = cap - assigned;
             if (remaining < 0) remaining = 0;

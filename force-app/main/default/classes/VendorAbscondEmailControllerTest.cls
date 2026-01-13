@@ -16,10 +16,17 @@ public class VendorAbscondEmailControllerTest {
         // 2. Create Supervisor
         User supervisor = TestDataUtility.createSupervisorUser('SupAbs');
 
-        // 3. Create Project
-        Project__c proj = TestDataUtility.createProject('Abscond Project');
+        // 3. Create Prerequisites for Project (Account & Contact)
+        // Utility createProject requires a Contact ID
+        Account acc = TestDataUtility.createAccount('Test Client Co');
+        Contact client = TestDataUtility.createContact('Test Client', 'client@test.com', 'password123');
+        client.AccountId = acc.Id;
+        update client;
 
-        // 4. Create Opportunity
+        // 4. Create Project
+        Project__c proj = TestDataUtility.createProject('Abscond Project', 50000, client.Id);
+
+        // 5. Create Opportunity
         Opportunity opp = TestDataUtility.createOpportunity('Abscond Opportunity', supervisor.Id);
         
         // Update fields required by the controller (Utility doesn't set these by default)
@@ -27,20 +34,18 @@ public class VendorAbscondEmailControllerTest {
         opp.Email__c = 'client@test.com';
         update opp;
 
-        // 5. Create Vendor
-        Vendor__c vendor = TestDataUtility.createVendor('Bad Vendor', 'Plumbing', 'vendor@bad.com');
+        // 6. Create Vendor
+        Vendor__c vendor = TestDataUtility.createVendor('Bad Vendor', 'Plumbing & Sanitary', 'vendor@bad.com');
 
-        // 6. Create Vendor Assignment (Status = Abscond)
-        Vendor_Assignment__c va = new Vendor_Assignment__c(
-            Project__c = proj.Id,
-            Opportunity__c = opp.Id,
-            Vendor__c = vendor.Id,
-            Supervisor_User__c = supervisor.Id,
-            Status__c = 'Abscond', // Key filter for the controller
-            Vendor_Work_Start_Date__c = Date.today(),
-            Vendor_Work_End_Date__c = Date.today().addDays(5)
-        );
-        insert va;
+        // 7. Create Vendor Assignment using Utility
+        // Utility sets Status to 'In-Progress' by default. We update it to 'Abscond'.
+        Vendor_Assignment__c va = TestDataUtility.createVendorAssignment(proj.Id, 0);
+        
+        va.Opportunity__c = opp.Id;
+        va.Vendor__c = vendor.Id;
+        va.Supervisor_User__c = supervisor.Id;
+        va.Status__c = 'Abscond'; // Key filter for the controller
+        update va;
     }
 
     @isTest
@@ -92,7 +97,7 @@ public class VendorAbscondEmailControllerTest {
     }
 
     @isTest
-    static void testGetClientByOpportunityMissingEmail() { // Renamed: Removed underscore
+    static void testGetClientByOpportunityMissingEmail() {
         Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
         opp.Email__c = null; // Clear email to test error handling
         update opp;
@@ -115,7 +120,7 @@ public class VendorAbscondEmailControllerTest {
     }
 
     @isTest
-    static void testSendEmailMissingRecipient() { // Renamed: Removed underscore
+    static void testSendEmailMissingRecipient() {
         Test.startTest();
         try {
             VendorAbscondEmailController.sendEmail(null, 'Subject', 'Body');

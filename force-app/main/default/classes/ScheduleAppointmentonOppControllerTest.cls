@@ -4,45 +4,49 @@ public class ScheduleAppointmentonOppControllerTest {
     @testSetup
     static void setupData() {
         // 1. Create Supervisor using Utility
-        // Note: Utility sets default fields; we update Phone as required by Controller
         User supervisor = TestDataUtility.createSupervisorUser('SupOpp');
-        supervisor.Phone = '555-999-8888'; 
+        // Controller validation requires Supervisor Phone
+        supervisor.Phone = '555-010-9999';
         update supervisor;
 
         // 2. Create Templates using Utility
-        // Wrapped in runAs to avoid Mixed DML (Setup vs Non-Setup objects)
         System.runAs(new User(Id = UserInfo.getUserId())) {
             String clientLabel = Label.Arelia_Living_Lead_Site_Re_Visiting_Email_Template;
             if (String.isNotBlank(clientLabel)) {
-                TestDataUtility.createSpecificEmailTemplate(clientLabel, 'Client Tpl', 'Test Subject');
+                TestDataUtility.createSpecificEmailTemplate(
+                    clientLabel, 
+                    'Client Revisit Template', 
+                    'Appointment Confirmed: {{{appointmentDate}}}'
+                );
             }
-            
-            String supLabel = Label.Arelia_Living_Supervisor_Site_Re_Visiting_Email_Template;
-            if (String.isNotBlank(supLabel)) {
-                TestDataUtility.createSpecificEmailTemplate(supLabel, 'Sup Tpl', 'Test Subject');
+
+            String supTplDevName = Label.Arelia_Living_Supervisor_Site_Re_Visiting_Email_Template;
+            if (String.isNotBlank(supTplDevName)) {
+                TestDataUtility.createSpecificEmailTemplate(
+                    supTplDevName, 
+                    'Supervisor Revisit Template', 
+                    'New Appointment: {{{appointmentDate}}}'
+                );
             }
         }
 
-        // 3. Create Contact using Utility (Required for Opportunity Primary Contact)
-        Contact c = TestDataUtility.createContact('TestClient', 'client@test.com');
+        // 3. Create Contact
+        Contact c = TestDataUtility.createContact('TestClient', 'client@test.com', 'password123');
 
-        // 4. Create Opportunity using Utility and Wrapper
+        // 4. Create Opportunity using Utility
         TestDataUtility.AppointmentOppParams params = new TestDataUtility.AppointmentOppParams();
         params.supervisorId = supervisor.Id;
         params.status = 'Pending';
-        params.apptDate = null; // Not scheduled yet
+        params.apptDate = null; 
         params.slot = null;
-        params.contactId = c.Id; // Sets Primary_Contact__c which helps satisfy external triggers
+        params.contactId = c.Id; 
         
         Opportunity opp = TestDataUtility.createAppointmentOpportunity(params);
 
-        // 5. Update Opportunity with specific fields required by the Controller logic
-        // (These fields are not set by the Utility method)
+        // 5. Update Opportunity with fields required by Controller logic
         opp.Email__c = 'client@test.com'; 
-        opp.Lead_Name__c = 'Test Client Name'; // Prevents NPE in Email Template rendering
+        opp.Lead_Name__c = 'Test Client Name'; 
         opp.Re_Visit_Appointmnet_Confirmation__c = false;
-        
-        // Optional: Change Stage if 'Prospecting' (default in Utility) causes trigger issues
         opp.StageName = 'Qualification'; 
         update opp;
     }
@@ -51,12 +55,12 @@ public class ScheduleAppointmentonOppControllerTest {
     static void testScheduleSuccess() {
         Opportunity opp = [SELECT Id, Supervisor_User__c FROM Opportunity LIMIT 1];
         
-        // Fetch valid slots dynamically to avoid Restricted Picklist errors
         String futureDate = String.valueOf(Date.today().addDays(5));
-        List<String> validSlots = ScheduleAppointmentonOppController.getTimeSlotsPicklistValues();
-        List<String> validTypes = ScheduleAppointmentonOppController.getAppointmentTypesPicklistValues();
         
-        String slot = validSlots.isEmpty() ? '9AM-10AM' : validSlots[0];
+        List<String> validSlots = ScheduleAppointmentonOppController.getTimeSlotsPicklistValues();
+        String slot = validSlots.isEmpty() ? '9 AM - 10 AM' : validSlots[0];
+        
+        List<String> validTypes = ScheduleAppointmentonOppController.getAppointmentTypesPicklistValues();
         String type = validTypes.isEmpty() ? 'Virtual' : validTypes[0];
 
         Test.startTest();
@@ -66,40 +70,40 @@ public class ScheduleAppointmentonOppControllerTest {
         Test.stopTest();
 
         // Verification
-        Opportunity updatedOpp = [SELECT Re_Visit_Appointment_Date__c, Re_Visit_Appointment_Time_Slots__c, Re_Visit_Site_Appointment_Status__c FROM Opportunity WHERE Id = :opp.Id];
+        Opportunity updatedOpp = [SELECT Re_Visit_Appointment_Date__c, Re_Visit_Appointment_Time_Slots__c, Re_Visit_Site_Appointment_Status__c, Re_Visit_Appointmnet_Confirmation__c FROM Opportunity WHERE Id = :opp.Id];
+        
         System.assertEquals(Date.today().addDays(5), updatedOpp.Re_Visit_Appointment_Date__c, 'Date should be updated');
         System.assertEquals(slot, updatedOpp.Re_Visit_Appointment_Time_Slots__c, 'Slot should be updated');
         System.assertEquals('Pending', updatedOpp.Re_Visit_Site_Appointment_Status__c, 'Status should be Pending');
+        System.assertEquals(true, updatedOpp.Re_Visit_Appointmnet_Confirmation__c, 'Confirmation should be true');
     }
 
     @isTest
     static void testSlotConflict() {
         Opportunity targetOpp = [SELECT Id, Supervisor_User__c FROM Opportunity LIMIT 1];
-        Contact c = [SELECT Id FROM Contact LIMIT 1]; // Reuse existing contact for blocker
+        Contact c = [SELECT Id FROM Contact LIMIT 1]; 
         
         List<String> validSlots = ScheduleAppointmentonOppController.getTimeSlotsPicklistValues();
-        String conflictSlot = validSlots.isEmpty() ? '2PM-3PM' : validSlots[0];
+        String conflictSlot = validSlots.isEmpty() ? '2 PM - 3 PM' : validSlots[0];
+        Date conflictDate = Date.today().addDays(3);
 
-        // 1. Create a "Blocker" Opportunity using Utility
+        // Create a "Blocker" Opportunity for the SAME Supervisor
         TestDataUtility.AppointmentOppParams params = new TestDataUtility.AppointmentOppParams();
-        params.supervisorId = targetOpp.Supervisor_User__c; // Same Supervisor
-        params.status = 'Approved'; // This triggers the conflict check
-        params.apptDate = Date.today().addDays(3);
+        params.supervisorId = targetOpp.Supervisor_User__c; 
+        params.status = 'Approved'; 
+        params.apptDate = conflictDate;
         params.slot = conflictSlot;
         params.contactId = c.Id;
 
         Opportunity blocker = TestDataUtility.createAppointmentOpportunity(params);
-
-        // Ensure legacy status field is also set if the controller queries it
-        blocker.Appointment_Status__c = 'Approved';
+        blocker.Re_Visit_Site_Appointment_Status__c = 'Approved';
         update blocker;
 
         Test.startTest();
         try {
-            // 2. Try to schedule the target opp for the exact same time
             ScheduleAppointmentonOppController.scheduleAppointmentAndSendEmails(
                 targetOpp.Id, 
-                String.valueOf(Date.today().addDays(3)), 
+                String.valueOf(conflictDate), 
                 conflictSlot, 
                 'Virtual'
             );
@@ -113,20 +117,67 @@ public class ScheduleAppointmentonOppControllerTest {
     @isTest
     static void testValidationAlreadyConfirmed() {
         Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
-        opp.Re_Visit_Appointmnet_Confirmation__c = true; // Already confirmed
+        
+        // 1. Set Confirmation to TRUE to trigger validation
+        opp.Re_Visit_Appointmnet_Confirmation__c = true; 
         update opp;
 
         List<String> validSlots = ScheduleAppointmentonOppController.getTimeSlotsPicklistValues();
-        String slot = validSlots.isEmpty() ? '9AM-10AM' : validSlots[0];
+        String slot = validSlots.isEmpty() ? '9 AM - 10 AM' : validSlots[0];
 
         Test.startTest();
         try {
             ScheduleAppointmentonOppController.scheduleAppointmentAndSendEmails(
-                opp.Id, String.valueOf(Date.today().addDays(2)), slot, 'Type'
+                opp.Id, String.valueOf(Date.today().addDays(2)), slot, 'Virtual'
             );
             System.assert(false, 'Should fail if already confirmed');
         } catch(AuraHandledException e) {
-            System.assert(true, 'Expected exception for already confirmed');
+            System.assert(true, 'Caught expected AuraHandledException');
+        }
+        Test.stopTest();
+    }
+
+    @isTest
+    static void testValidationClosedWon() {
+        User supervisor = [SELECT Id FROM User WHERE Alias = 'SupOpp' LIMIT 1];
+        Opportunity opp = [SELECT Id, Supervisor_User__c FROM Opportunity LIMIT 1];
+        
+        // 1. Create a Vendor for the agreement check
+        Vendor__c vendor = TestDataUtility.createVendor('Test Vendor', 'Electrical & Networking', 'v@test.com');
+
+        // 2. Satisfy Project Creation Gates
+        opp.Client_Agreement_Signed__c = true;
+        opp.All_Vendors_Agreement_Completed__c = true;
+        // Make Supervisor the owner so runAs works correctly and Flow ownership transfer doesn't fail
+        opp.OwnerId = supervisor.Id;
+        update opp;
+
+        // 3. Create Signed Vendor Opportunity
+        Vendor_Opportunity__c vo = new Vendor_Opportunity__c(
+            Opportunity__c = opp.Id,
+            Vendor__c = vendor.Id,
+            Vendor_Agreement_Signed__c = true 
+        );
+        insert vo;
+
+        // 4. Update Stage to Closed Won AS SUPERVISOR
+        // This ensures the created Project is owned by Supervisor, preventing "TRANSFER_REQUIRES_READ" error in Flow.
+        System.runAs(supervisor) {
+            opp.StageName = 'Closed Won';
+            update opp;
+        }
+
+        List<String> validSlots = ScheduleAppointmentonOppController.getTimeSlotsPicklistValues();
+        String slot = validSlots.isEmpty() ? '9 AM - 10 AM' : validSlots[0];
+
+        Test.startTest();
+        try {
+            ScheduleAppointmentonOppController.scheduleAppointmentAndSendEmails(
+                opp.Id, String.valueOf(Date.today().addDays(2)), slot, 'Virtual'
+            );
+            System.assert(false, 'Should fail if Closed Won');
+        } catch(AuraHandledException e) {
+            System.assert(true, 'Caught expected AuraHandledException for Closed Won');
         }
         Test.stopTest();
     }
@@ -137,7 +188,6 @@ public class ScheduleAppointmentonOppControllerTest {
         Contact c = [SELECT Id FROM Contact LIMIT 1];
 
         List<String> validSlots = ScheduleAppointmentonOppController.getTimeSlotsPicklistValues();
-        // Guard clause for missing picklist values
         if (validSlots.isEmpty()) {
             return; 
         }
@@ -145,7 +195,7 @@ public class ScheduleAppointmentonOppControllerTest {
         String slotToBlock = validSlots[0];
         Date testDate = Date.today().addDays(10);
 
-        // 1. Create Blocker using Utility
+        // Create Blocker
         TestDataUtility.AppointmentOppParams params = new TestDataUtility.AppointmentOppParams();
         params.supervisorId = opp.Supervisor_User__c;
         params.status = 'Approved';
@@ -155,22 +205,20 @@ public class ScheduleAppointmentonOppControllerTest {
 
         Opportunity blocker = TestDataUtility.createAppointmentOpportunity(params);
         
-        // Ensure legacy status is set for query compatibility
-        blocker.Appointment_Status__c = 'Approved';
+        // Ensure status field used by getAvailableTimeSlotsOpp logic is set
+        blocker.Appointment_Status__c = 'Approved'; 
+        blocker.Re_Visit_Site_Appointment_Status__c = 'Approved';
         update blocker;
 
         Test.startTest();
-        // 2. Fetch available slots
         List<String> available = ScheduleAppointmentonOppController.getAvailableTimeSlotsOpp(testDate, opp.Id);
         Test.stopTest();
 
-        // 3. Assert the blocked slot is missing
         System.assert(!available.contains(slotToBlock), 'Available slots should not contain the blocked slot');
     }
 
     @isTest
     static void testHelpers() {
-        // Verify picklist helpers return non-null lists
         List<String> types = ScheduleAppointmentonOppController.getAppointmentTypesPicklistValues();
         System.assertNotEquals(null, types, 'Types list should not be null');
         

@@ -3,21 +3,22 @@ public class VendorOpportunityAgreementServiceTest {
 
     @testSetup
     static void setupData() {
-        // 1. Create Supervisor
+        // 1. Create Supervisor using Utility
         User supervisor = TestDataUtility.createSupervisorUser('SupAgree');
 
-        // 2. Create Opportunity
+        // 2. Create Opportunity using Utility
         Opportunity opp = TestDataUtility.createOpportunity('Agreement Opp', supervisor.Id);
         // Ensure flag starts as false
         opp.All_Vendors_Agreement_Completed__c = false;
         update opp;
 
-        // 3. Create Vendors
-        Vendor__c v1 = TestDataUtility.createVendor('Vendor One', 'Walls and Paintings', 'v1@test.com');
-        Vendor__c v2 = TestDataUtility.createVendor('Vendor Two', 'Plumbing', 'v2@test.com');
+        // 3. Create Vendors using Utility
+        Vendor__c v1 = TestDataUtility.createVendor('Vendor One', 'Carpentry & Woodwork', 'v1@test.com');
+        Vendor__c v2 = TestDataUtility.createVendor('Vendor Two', 'Electrical & Networking', 'v2@test.com');
 
-        // 4. Create Vendor Opportunities (Not Signed initially)
+        // 4. Create Vendor Opportunities (Not Signed initially) using Utility
         Vendor_Opportunity__c vo1 = TestDataUtility.createVendorOpportunity(opp.Id, v1.Id, 'Active');
+        // Utility sets status but boolean flag might need manual update if not defaulted
         vo1.Vendor_Agreement_Signed__c = false;
         update vo1;
 
@@ -25,7 +26,7 @@ public class VendorOpportunityAgreementServiceTest {
         vo2.Vendor_Agreement_Signed__c = false;
         update vo2;
 
-        // 5. Create a File for one Vendor Opportunity to test Copy Logic
+        // 5. Create a File for one Vendor Opportunity to test Copy Logic using Utility
         ContentVersion cv = TestDataUtility.createContentVersion('Vendor Agreement Doc', 'Signed Contract');
         TestDataUtility.linkFileToRecord(cv.Id, vo1.Id);
     }
@@ -76,7 +77,6 @@ public class VendorOpportunityAgreementServiceTest {
         ];
         
         System.assertEquals(1, oppLinks.size(), 'File from Vendor Opp should be copied to Parent Opp');
-        // FIX: Added message parameter to satisfy PMD
         System.assertEquals('Vendor Agreement Doc', oppLinks[0].ContentDocument.Title, 'File title should match the original');
     }
 
@@ -94,7 +94,6 @@ public class VendorOpportunityAgreementServiceTest {
 
         // Verify initial state is TRUE
         Opportunity midResult = [SELECT All_Vendors_Agreement_Completed__c FROM Opportunity WHERE Id = :opp.Id];
-        // FIX: Added message parameter to satisfy PMD
         System.assertEquals(true, midResult.All_Vendors_Agreement_Completed__c, 'Initial state should be true before unsigning');
 
         Test.startTest();
@@ -123,18 +122,22 @@ public class VendorOpportunityAgreementServiceTest {
     @isTest
     static void testBulkOperations() {
         User sup = [SELECT Id FROM User WHERE Alias = 'SupAgree' LIMIT 1];
+        Vendor__c v = [SELECT Id FROM Vendor__c LIMIT 1];
         
         // Create 5 Opps, each with 1 signed vendor
+        // Using standard list instantiation for bulk creation efficiency in test
         List<Opportunity> newOpps = new List<Opportunity>();
         for(Integer i=0; i<5; i++) {
-            Opportunity o = new Opportunity(Name='Bulk Opp '+i, StageName='Prospecting', CloseDate=Date.today(), Supervisor_User__c=sup.Id);
-            newOpps.add(o);
+            newOpps.add(new Opportunity(
+                Name='Bulk Opp '+i, 
+                StageName='Prospecting', 
+                CloseDate=Date.today(), 
+                Supervisor_User__c=sup.Id
+            ));
         }
         insert newOpps;
         
         List<Vendor_Opportunity__c> newVos = new List<Vendor_Opportunity__c>();
-        Vendor__c v = [SELECT Id FROM Vendor__c LIMIT 1];
-        
         for(Opportunity o : newOpps) {
             newVos.add(new Vendor_Opportunity__c(
                 Opportunity__c = o.Id, 

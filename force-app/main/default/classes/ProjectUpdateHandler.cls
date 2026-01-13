@@ -1,4 +1,3 @@
-
 /**
  * Class: ProjectUpdateHandler
  * Responsibility:

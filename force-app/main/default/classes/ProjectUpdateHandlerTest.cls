@@ -8,24 +8,25 @@ public class ProjectUpdateHandlerTest {
 
         // 1. Create Setup Objects (Templates & User) inside runAs to avoid Mixed DML
         System.runAs(new User(Id = UserInfo.getUserId())) {
+            // Using a local helper for templates since they are specific to this Handler's labels
             createMockTemplate(Label.Arelia_Living_Project_Status_Update_Lead_Template);
             createMockTemplate(Label.Arelia_Living_Project_Status_Update_Supervisor_Template);
             
-            // Create the Supervisor User
+            // Create the Supervisor User using Utility
             supervisor = TestDataUtility.createSupervisorUser('sup');
         }
 
-        // 2. Create Non-Setup Objects (Contacts)
-        Contact dummy = TestDataUtility.createContact('Dummy Contact', 'dummy@test.com');
-        Contact client = TestDataUtility.createContact('Real Client', 'client@real.com');
+        // 2. Create Non-Setup Objects (Contacts) using Utility
+        // Utility method requires (Name, Email, Password)
+        Contact dummy = TestDataUtility.createContact('Dummy Contact', 'dummy@test.com', 'pass123');
+        Contact client = TestDataUtility.createContact('Real Client', 'client@real.com', 'pass123');
 
-        // 3. Create Project
-        Project__c proj = TestDataUtility.createProject('Test Project Update');
-        proj.Client__c = client.Id;
+        // 3. Create Project using Utility
+        // Utility requires (Name, Budget, ContactId)
+        Project__c proj = TestDataUtility.createProject('Test Project Update', 10000, client.Id);
         
-        // Use the Lookup field, not the Formula field
+        // Update fields specific to this test
         proj.Supervisor_User__c = supervisor.Id; 
-        
         proj.Project_Completion_Status__c = 0;
         update proj;
     }
@@ -99,7 +100,6 @@ public class ProjectUpdateHandlerTest {
         try { 
             p.put('Client_Email__c', null); 
         } catch(Exception e) {
-            // FIX: Added debug statement to satisfy PMD "EmptyCatchBlock" rule
             System.debug(LoggingLevel.INFO, 'Ignored write to formula field: ' + e.getMessage());
         }
         

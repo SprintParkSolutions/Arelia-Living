@@ -2,19 +2,33 @@ import { LightningElement, api, wire, track } from 'lwc';
 import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CloseActionScreenEvent } from 'lightning/actions';
-import createTasks from '@salesforce/apex/TaskBulkController.createTasks';
 
-// Import field to get OwnerId from Vendor Assignment
+// Apex
+import createTasks from '@salesforce/apex/TaskBulkController.createTasks';
+import updateTasks from '@salesforce/apex/TaskBulkController.updateTasks';
+import hasExistingTasks from '@salesforce/apex/TaskBulkController.hasExistingTasks';
+import getExistingTasks from '@salesforce/apex/TaskBulkController.getExistingTasks';
+import getTaskFiles from '@salesforce/apex/TaskBulkController.getTaskFiles';
+
 import OWNER_ID_FIELD from '@salesforce/schema/Vendor_Assignment__c.OwnerId'; 
 
-// ** IMPORTANT: Replace 'Vendor_Assignment__c' with the actual API Name of your object **
-
 export default class VendorTaskCreator extends LightningElement {
-    @api recordId; // The ID of the Vendor Assignment Record
-    @track taskList = []; 
-    @track isSaving = false;
+    @api recordId;
+    @track isLoading = true;
+    
+    showLanding = false;
+    showCreation = false;
+    showPreview = false;
+    @track currentStep = 'start'; 
 
-    // Default Status Options
+    @track taskList = []; 
+    @track previewData = [];
+
+    @wire(getRecord, { recordId: '$recordId', fields: [OWNER_ID_FIELD] })
+    vendorRecord;
+
+    get vendorOwnerId() { return getFieldValue(this.vendorRecord.data, OWNER_ID_FIELD); }
+
     get statusOptions() {
         return [
             { label: 'Not Started', value: 'Not Started' },
@@ -25,106 +39,169 @@ export default class VendorTaskCreator extends LightningElement {
         ];
     }
 
-    // Fetch the OwnerId of the current Vendor Assignment record
-    @wire(getRecord, { recordId: '$recordId', fields: [OWNER_ID_FIELD] })
-    vendorRecord;
+    connectedCallback() { this.init(); }
 
-    get vendorOwnerId() {
-        return getFieldValue(this.vendorRecord.data, OWNER_ID_FIELD);
+    async init() {
+        try {
+            const exists = await hasExistingTasks({ parentId: this.recordId });
+            if (exists) {
+                this.showLanding = true;
+                this.currentStep = 'start';
+            } else {
+                this.initCreation();
+            }
+        } catch (error) {
+            console.error('Init Error', error);
+            this.showToast('Error', 'Init failed', 'error');
+        } finally {
+            this.isLoading = false;
+        }
     }
 
-    get isMoreThanOneRow() {
-        return this.taskList.length > 1;
+    initCreation() {
+        this.showLanding = false;
+        this.showPreview = false;
+        this.showCreation = true;
+        this.currentStep = 'draft';
+        if(this.taskList.length === 0) this.addNewRow();
     }
 
-    connectedCallback() {
-        // Initialize with one empty row
-        this.addNewRow();
-    }
-
-    // Add a new blank task object to the list
     addNewRow() {
         this.taskList.push({
-            key: Date.now(), // Unique key for UI iteration
-            index: this.taskList.length + 1,
-            Subject: '',
-            Status: 'Not Started',
-            Start_Date__c: null,
-            ActivityDate: null,
-            Assigned_Percentage__c: null
+            key: Date.now(),
+            displayIndex: this.taskList.length + 1,
+            Subject: '', Status: 'Not Started', Start_Date__c: null, ActivityDate: null, Assigned_Percentage__c: null
         });
     }
 
-    // Remove a specific row
     removeRow(event) {
         if (this.taskList.length > 1) {
-            const indexToRemove = event.target.dataset.index;
-            this.taskList.splice(indexToRemove, 1);
-            // Re-index for display purposes
-            this.taskList.forEach((task, idx) => { task.index = idx + 1; });
+            this.taskList.splice(event.target.dataset.index, 1);
+            this.taskList.forEach((task, idx) => { task.displayIndex = idx + 1; });
         }
     }
 
-    // Handle input changes for any field in any row
+    get isMoreThanOneRow() { return this.taskList.length > 1; }
+
     handleInputChange(event) {
-        const index = event.target.dataset.index;
-        const field = event.target.dataset.field;
-        const value = event.target.value;
-
-        this.taskList[index][field] = value;
+        this.taskList[event.target.dataset.index][event.target.dataset.field] = event.target.value;
     }
 
-    handleSave() {
-        // Basic Validation: Check if Subject is filled
-        const allValid = [...this.template.querySelectorAll('lightning-input')]
-            .reduce((validSoFar, inputCmp) => {
-                inputCmp.reportValidity();
-                return validSoFar && inputCmp.checkValidity();
-            }, true);
+    handleCreateAndProceed() {
+        const allValid = [...this.template.querySelectorAll('lightning-input, lightning-combobox')]
+            .reduce((validSoFar, inputCmp) => { inputCmp.reportValidity(); return validSoFar && inputCmp.checkValidity(); }, true);
 
-        if (!allValid) {
-            this.showToast('Error', 'Please complete all required fields.', 'error');
-            return;
-        }
+        if (!allValid) return;
 
-        if (!this.vendorOwnerId) {
-            this.showToast('Error', 'Could not fetch Vendor Assignment Owner. Please refresh and try again.', 'error');
-            return;
-        }
+        this.isLoading = true;
+        const tasksToInsert = this.taskList.map(row => ({
+            sobjectType: 'Task',
+            WhatId: this.recordId,
+            OwnerId: this.vendorOwnerId,
+            Subject: row.Subject,
+            Status: row.Status,
+            Start_Date__c: row.Start_Date__c,
+            ActivityDate: row.ActivityDate,
+            Assigned_Percentage__c: row.Assigned_Percentage__c
+        }));
 
-        this.isSaving = true;
-
-        // Map UI data to Salesforce Task Objects
-        const tasksToInsert = this.taskList.map(row => {
-            return {
-                sobjectType: 'Task',
-                WhatId: this.recordId,       // Parent Vendor Assignment ID
-                OwnerId: this.vendorOwnerId, // Parent Vendor Owner ID
-                Subject: row.Subject,
-                Status: row.Status,
-                Start_Date__c: row.Start_Date__c,
-                ActivityDate: row.ActivityDate,
-                Assigned_Percentage__c: row.Assigned_Percentage__c
-            };
-        });
-
-        // Call Apex
         createTasks({ newTasks: tasksToInsert })
             .then(() => {
-                this.showToast('Success', 'Tasks created successfully', 'success');
+                this.showToast('Success', 'Tasks created.', 'success');
+                this.taskList = [];
+                this.goToPreview();
+            })
+            .catch(error => {
+                this.showToast('Error', error.body.message, 'error');
+                this.isLoading = false;
+            });
+    }
+
+    // --- UPDATED PREVIEW LOGIC FOR MULTIPLE FILES ---
+    async goToPreview() {
+        this.isLoading = true;
+        this.showLanding = false;
+        this.showCreation = false;
+        this.showPreview = true;
+        this.currentStep = 'review';
+
+        try {
+            const tasks = await getExistingTasks({ parentId: this.recordId });
+            const taskIds = tasks.map(t => t.Id);
+            
+            // Fetch returns Map<Id, List<FileData>>
+            const fileMap = await getTaskFiles({ parentIds: taskIds });
+
+            this.previewData = tasks.map((t, index) => {
+                // Get the raw list from Apex, default to empty array if none
+                const rawFiles = fileMap[t.Id] || [];
+                
+                // Process the list into UI-friendly objects with Image URLs
+                const processedFileList = rawFiles.map(fd => ({
+                    key: fd.documentId, // Unique key for iteration
+                    fileName: fd.fileName,
+                    // Standard Salesforce Image Preview URL
+                    imageUrl: `/sfc/servlet.shepherd/version/download/${fd.versionId}`
+                }));
+
+                return {
+                    Id: t.Id,
+                    Subject: t.Subject || t.subject,
+                    Status: t.Status || t.status,
+                    Start_Date__c: t.Start_Date__c || t.start_date__c,
+                    ActivityDate: t.ActivityDate || t.activitydate,
+                    Assigned_Percentage__c: t.Assigned_Percentage__c || t.assigned_percentage__c,
+                    serialNumber: index + 1,
+                    
+                    // New Array property to hold multiple files
+                    fileList: processedFileList,
+                    hasFiles: processedFileList.length > 0
+                };
+            });
+
+        } catch (error) {
+            console.error(error);
+            this.showToast('Error', 'Could not load preview', 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    handlePreviewChange(event) {
+        this.previewData[event.target.dataset.index][event.target.dataset.field] = event.target.value;
+    }
+
+    handlePreviewUpload(event) {
+        const files = event.detail.files;
+        if (files.length > 0) {
+            // We just reload the whole preview. Apex will fetch the new complete list.
+            this.showToast('Success', 'Files uploaded.', 'success');
+            this.goToPreview(); 
+        }
+    }
+
+    handleFinalSave() {
+        this.isLoading = true;
+        const recordsToUpdate = this.previewData.map(row => ({
+            Id: row.Id,
+            Subject: row.Subject,
+            Status: row.Status,
+            Start_Date__c: row.Start_Date__c,
+            ActivityDate: row.ActivityDate,
+            Assigned_Percentage__c: row.Assigned_Percentage__c
+        }));
+
+        updateTasks({ tasksToUpdate: recordsToUpdate })
+            .then(() => {
+                this.showToast('Success', 'All records saved!', 'success');
                 this.closeAction();
             })
             .catch(error => {
                 this.showToast('Error', error.body.message, 'error');
-                this.isSaving = false;
+                this.isLoading = false;
             });
     }
 
-    closeAction() {
-        this.dispatchEvent(new CloseActionScreenEvent());
-    }
-
-    showToast(title, message, variant) {
-        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
-    }
+    closeAction() { this.dispatchEvent(new CloseActionScreenEvent()); }
+    showToast(title, message, variant) { this.dispatchEvent(new ShowToastEvent({ title, message, variant })); }
 }

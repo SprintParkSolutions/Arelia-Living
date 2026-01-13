@@ -1,4 +1,4 @@
-    public with sharing class VendorOpportunityController {
+public with sharing class VendorOpportunityController {
 
         // Wrapper to send Field Set data to LWC
         public class FieldSetMember {

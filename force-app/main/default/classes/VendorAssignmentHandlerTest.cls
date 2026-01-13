@@ -3,27 +3,41 @@ public class VendorAssignmentHandlerTest {
 
     @testSetup
     static void setupData() {
-        // 1. Create Project
-        Project__c proj = TestDataUtility.createProject('Test Project VA Handler');
+        // 1. Create Prerequisites (Account & Contact) using Utility
+        // Utility createProject requires a Contact ID.
+        Account acc = TestDataUtility.createAccount('Test Account');
         
-        // FIX: 'Remaining_Project_Budget__c' is read-only. We must set the source field.
-        // TODO: Replace 'Total_Budget__c' with your actual writable Budget field API name.
+        Contact con = TestDataUtility.createContact('Test Contact', 'test@example.com', 'pass123');
+        con.AccountId = acc.Id;
+        update con;
+
+        // 2. Create Project using Utility
+        // Utility requires (Name, Budget, ContactId)
+        Project__c proj = TestDataUtility.createProject('Test Project VA Handler', 10000, con.Id);
+        
+        // FIX: 'Remaining_Project_Budget__c' is likely read-only formula. We set the source field.
+        // Assuming 'Total_Budget__c' is the writable source if it exists.
         try {
             proj.put('Total_Budget__c', 10000); 
+            update proj;
         } catch(Exception e) {
             System.debug('Could not set Total_Budget__c dynamically: ' + e.getMessage());
         }
-        update proj;
 
-        // 2. Create Vendor
-        Vendor__c vendor = TestDataUtility.createVendor('Test Vendor', 'Plumbing', 'test@vendor.com');
+        // 3. Create Vendor using Utility
+        Vendor__c vendor = TestDataUtility.createVendor('Test Vendor', 'Electrical & Networking', 'test@vendor.com');
 
-        // 3. Create Assignments
-        Vendor_Assignment__c va1 = TestDataUtility.createVendorAssignment(proj.Id);
+        // 4. Create User (Supervisor)
+        User supervisor = TestDataUtility.createSupervisorUser('vahsup');
+
+        // 5. Create Assignments using Utility
+        // Utility sets Status='In-Progress', Start=Today, End=Today+10
+        Vendor_Assignment__c va1 = TestDataUtility.createVendorAssignment(proj.Id, 0);
         va1.Vendor__c = vendor.Id;
+        va1.Supervisor_User__c = supervisor.Id;
         
-        // FIX: 'Vendor_Amount__c' is read-only. We must set the source field.
-        // TODO: Replace 'Contract_Amount__c' with your actual writable Amount field API name.
+        // FIX: 'Vendor_Amount__c' is read-only. We set the source field.
+        // Assuming 'Contract_Amount__c' is the writable source.
         try {
             va1.put('Contract_Amount__c', 2000); 
         } catch(Exception e) {
@@ -37,6 +51,7 @@ public class VendorAssignmentHandlerTest {
     static void testUpdateProjectCompletion() {
         Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
         Vendor__c vendor = [SELECT Id FROM Vendor__c LIMIT 1];
+        User supervisor = [SELECT Id FROM User WHERE Alias = 'vahsup' LIMIT 1];
 
         // Scenario: 
         // VA1: 50% Complete
@@ -50,27 +65,31 @@ public class VendorAssignmentHandlerTest {
         Vendor_Assignment__c va2 = new Vendor_Assignment__c(
             Project__c = proj.Id,
             Vendor__c = vendor.Id,
+            Supervisor_User__c = supervisor.Id,
             Completion__c = 100,
-            Status__c = 'In-Progress'
+            Status__c = 'In-Progress',
+            Vendor_Work_Start_Date__c = Date.today(),
+            Vendor_Work_End_Date__c = Date.today().addDays(5)
         );
         
         // FIX: Set amount using the writeable field
         try {
             va2.put('Contract_Amount__c', 3000);
         } catch(Exception e) {
-            // FIX: Added debug statement to satisfy PMD EmptyCatchBlock rule
             System.debug('Could not set Contract_Amount__c dynamically: ' + e.getMessage());
         }
         
         insert va2;
 
         Test.startTest();
-        // Invoke handler manually (simulating Trigger)
+        // Invoke handler manually (simulating Trigger logic call)
         VendorAssignmentHandler.updateProjectCompletion(new Set<Id>{proj.Id});
         Test.stopTest();
 
         // Verify Project updates
-        Project__c updatedProj = [SELECT Project_Completion_Status__c, Remaining_Budget_Pending__c FROM Project__c WHERE Id = :proj.Id];
+        // Note: Remaining_Budget_Pending__c might depend on formula fields we couldn't write to, 
+        // so we primarily assert the Completion Status calculation.
+        Project__c updatedProj = [SELECT Project_Completion_Status__c FROM Project__c WHERE Id = :proj.Id];
         
         System.assertEquals(75.00, updatedProj.Project_Completion_Status__c, 'Average completion should be 75%');
     }
@@ -130,6 +149,8 @@ public class VendorAssignmentHandlerTest {
         VendorAssignmentHandler.calculateEfficiency(new List<Vendor_Assignment__c>{va});
         Test.stopTest();
 
+        // Calculation: (Planned Duration / Actual Duration) * 100
+        // (5 / 10) * 100 = 50
         System.assertEquals(50.00, va.Vendor_Efficiency__c, 'Efficiency should be 50% for double duration');
     }
 
@@ -137,14 +158,18 @@ public class VendorAssignmentHandlerTest {
     static void testUpdateVendorAverageEfficiency() {
         Vendor__c vendor = [SELECT Id FROM Vendor__c LIMIT 1];
         Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
+        User supervisor = [SELECT Id FROM User WHERE Alias = 'vahsup' LIMIT 1];
 
         // 1. Create two completed assignments for this vendor
         // Assignment A: 100% Efficiency
         Vendor_Assignment__c va1 = new Vendor_Assignment__c(
             Project__c = proj.Id,
             Vendor__c = vendor.Id,
+            Supervisor_User__c = supervisor.Id,
             Status__c = 'Completed',
-            Vendor_Efficiency__c = 100
+            Vendor_Efficiency__c = 100,
+            Vendor_Work_Start_Date__c = Date.today(),
+            Vendor_Work_End_Date__c = Date.today()
         );
         insert va1;
 
@@ -152,8 +177,11 @@ public class VendorAssignmentHandlerTest {
         Vendor_Assignment__c va2 = new Vendor_Assignment__c(
             Project__c = proj.Id,
             Vendor__c = vendor.Id,
+            Supervisor_User__c = supervisor.Id,
             Status__c = 'Completed',
-            Vendor_Efficiency__c = 50
+            Vendor_Efficiency__c = 50,
+            Vendor_Work_Start_Date__c = Date.today(),
+            Vendor_Work_End_Date__c = Date.today()
         );
         insert va2;
 
@@ -171,12 +199,16 @@ public class VendorAssignmentHandlerTest {
     static void testUpdateVendorAverageEfficiencyNoCompleted() {
         Vendor__c vendor = [SELECT Id FROM Vendor__c LIMIT 1];
         Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
+        User supervisor = [SELECT Id FROM User WHERE Alias = 'vahsup' LIMIT 1];
 
         // Insert a non-completed assignment
         Vendor_Assignment__c va1 = new Vendor_Assignment__c(
             Project__c = proj.Id,
             Vendor__c = vendor.Id,
-            Status__c = 'In-Progress' // Not 'Completed'
+            Supervisor_User__c = supervisor.Id,
+            Status__c = 'In-Progress', // Not 'Completed'
+            Vendor_Work_Start_Date__c = Date.today(),
+            Vendor_Work_End_Date__c = Date.today()
         );
         insert va1;
 

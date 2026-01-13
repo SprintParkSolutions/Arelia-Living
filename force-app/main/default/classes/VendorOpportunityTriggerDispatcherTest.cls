@@ -3,17 +3,18 @@ public class VendorOpportunityTriggerDispatcherTest {
 
     @testSetup
     static void setupData() {
-        // 1. Create Supervisor
+        // 1. Create Supervisor using Utility
         User supervisor = TestDataUtility.createSupervisorUser('SupDisp');
 
-        // 2. Create Opportunity
+        // 2. Create Opportunity using Utility
         Opportunity opp = TestDataUtility.createOpportunity('Dispatcher Opp', supervisor.Id);
-        // Ensure flag starts as false
+        
+        // Ensure flag starts as false for testing
         opp.All_Vendors_Agreement_Completed__c = false;
         update opp;
 
-        // 3. Create Vendor
-        TestDataUtility.createVendor('Disp Vendor', 'Plumbing', 'disp@test.com');
+        // 3. Create Vendor using Utility
+        TestDataUtility.createVendor('Disp Vendor', 'Plumbing & Sanitary', 'disp@test.com');
     }
 
     @isTest
@@ -24,6 +25,9 @@ public class VendorOpportunityTriggerDispatcherTest {
         Test.startTest();
         // 1. Insert a VO that is explicitly SIGNED
         // This should fire Trigger -> Dispatcher -> Service -> Opp Update
+        
+        // Using standard instantiation here to set specific boolean field before insert, 
+        // as Utility method creates it with a status string but doesn't take boolean flags.
         Vendor_Opportunity__c vo = new Vendor_Opportunity__c(
             Opportunity__c = opp.Id,
             Vendor__c = vendor.Id,

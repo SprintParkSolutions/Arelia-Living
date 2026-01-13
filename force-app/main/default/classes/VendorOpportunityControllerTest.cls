@@ -3,14 +3,14 @@ public class VendorOpportunityControllerTest {
 
     @testSetup
     static void setup() {
-        // 1. Create User
+        // 1. Create User (Supervisor)
         User u = TestDataUtility.createSupervisorUser('vendtest');
 
         // 2. Create Opportunity
         Opportunity opp = TestDataUtility.createOpportunity('Test Vendor Opp Controller', u.Id);
 
         // 3. Create Vendor
-        TestDataUtility.createVendor('Test Supplier', 'Plumbing', 'supplier@test.com');
+        TestDataUtility.createVendor('Test Supplier', 'Carpentry & Woodwork', 'supplier@test.com');
     }
 
     // ==========================================

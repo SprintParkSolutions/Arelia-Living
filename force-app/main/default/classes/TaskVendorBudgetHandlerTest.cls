@@ -3,14 +3,23 @@ public class TaskVendorBudgetHandlerTest {
 
     @testSetup
     static void setupData() {
-        // 1. Create Project
-        Project__c proj = TestDataUtility.createProject('Budget Test Project');
+        // 1. Create Prerequisites (Account & Contact) using Utility
+        // Utility createProject requires a Contact ID.
+        Account acc = TestDataUtility.createAccount('Budget Test Acc');
+        
+        Contact con = TestDataUtility.createContact('Budget Contact', 'budget@test.com', 'pass123');
+        con.AccountId = acc.Id;
+        update con;
 
-        // 2. Create Vendor Assignment
-        // We set a specific Vendor Percentage Cap (e.g., 50%) to test against.
-        Vendor_Assignment__c va = TestDataUtility.createVendorAssignment(proj.Id);
-        va.Budget_Percentage__c = 50.00; // Cap
-        va.Vendor_Tasks_Remaining_Percentage__c = 50.00; // Initial state
+        // 2. Create Project using Utility
+        Project__c proj = TestDataUtility.createProject('Budget Test Project', 10000, con.Id);
+
+        // 3. Create Vendor Assignment using Utility
+        // The utility creates it with some default values. We will update it for our specific test needs.
+        Vendor_Assignment__c va = TestDataUtility.createVendorAssignment(proj.Id, 50.00); // 50% Budget Cap
+        
+        // Ensure Remaining % starts correctly synced for the test
+        va.Vendor_Tasks_Remaining_Percentage__c = 50.00; 
         update va;
     }
 
@@ -19,6 +28,11 @@ public class TaskVendorBudgetHandlerTest {
         Vendor_Assignment__c va = [SELECT Id FROM Vendor_Assignment__c LIMIT 1];
 
         // 1. Insert Task 1 (20%) - Should pass (20 < 50)
+        // Using standard Task instantiation as utility createTask inserts immediately, 
+        // but we want to test validation logic which might happen before insertion in some designs.
+        // However, for integration testing, let's use the utility if we want valid data, 
+        // OR standard new Task() if we are testing the handler logic directly.
+        // The original test tested the Handler methods directly, so we will stick to that pattern.
         Task t1 = new Task(
             Subject = 'Task 1',
             Status = 'Not Started',
@@ -27,12 +41,11 @@ public class TaskVendorBudgetHandlerTest {
         );
         
         Test.startTest();
-        // Manually invoke the handler since we don't have the actual Trigger code here.
-        // In a real scenario, 'insert t1' would fire the trigger calling this method.
+        // Manually invoke validation logic
         TaskVendorBudgetHandler.validatePercentTotals(new List<Task>{t1}, null);
         insert t1; 
         
-        // Simulate After Insert Trigger
+        // Manually invoke rollup logic (simulating After Trigger)
         TaskVendorBudgetHandler.recalcRemainingFromTasks(new List<Task>{t1}, null);
         Test.stopTest();
 
@@ -58,16 +71,15 @@ public class TaskVendorBudgetHandlerTest {
             // Simulate Trigger Validation
             TaskVendorBudgetHandler.validatePercentTotals(new List<Task>{t1}, null);
             
-            // If the handler adds an error, DML usually fails in a real trigger context.
-            // Since we are calling the handler directly on a list, we check if errors were added to the object instance.
+            // Check for errors added to the record
             if (t1.getErrors().size() > 0) {
                 throw new DmlException(t1.getErrors()[0].getMessage());
             }
-            // Fallback if not verifying via addError directly
+            // Fallback: If handler relies on DML context to throw, try inserting
             insert t1;
             System.assert(false, 'Should have thrown exception due to budget overflow');
         } catch(Exception e) {
-            System.assert(e.getMessage().contains('You can assign only'), 'Error message should explain the limit');
+            System.assert(e.getMessage().contains('You can assign only'), 'Error message should explain the limit. Actual: ' + e.getMessage());
         }
         Test.stopTest();
     }
@@ -76,9 +88,8 @@ public class TaskVendorBudgetHandlerTest {
     static void testValidationFailureUpdate() {
         Vendor_Assignment__c va = [SELECT Id FROM Vendor_Assignment__c LIMIT 1];
 
-        // 1. Insert valid task (40%)
-        Task t1 = new Task(Subject = 'T1', WhatId = va.Id, Assigned_Percentage__c = 40);
-        insert t1;
+        // 1. Insert valid task (40%) using Utility
+        Task t1 = TestDataUtility.createTask('Not Started', va.Id, 40);
         
         // Update rollup manually to simulate state
         TaskVendorBudgetHandler.recalcRemainingFromTasks(new List<Task>{t1}, null);
@@ -107,14 +118,13 @@ public class TaskVendorBudgetHandlerTest {
     static void testRollupLogicDelete() {
         Vendor_Assignment__c va = [SELECT Id FROM Vendor_Assignment__c LIMIT 1];
 
-        // 1. Insert Task (20%)
-        Task t1 = new Task(Subject = 'T1', WhatId = va.Id, Assigned_Percentage__c = 20);
-        insert t1;
+        // 1. Insert Task (20%) using Utility
+        Task t1 = TestDataUtility.createTask('Not Started', va.Id, 20);
         TaskVendorBudgetHandler.recalcRemainingFromTasks(new List<Task>{t1}, null);
 
-        // Verify state: 30% remaining
+        // Verify state: 30% remaining (50 - 20)
         Vendor_Assignment__c midResult = [SELECT Vendor_Tasks_Remaining_Percentage__c FROM Vendor_Assignment__c WHERE Id = :va.Id];
-        System.assertEquals(30.00, midResult.Vendor_Tasks_Remaining_Percentage__c);
+        System.assertEquals(30.00, midResult.Vendor_Tasks_Remaining_Percentage__c , 'After insert, remaining should be 30%') ;
 
         Test.startTest();
         // 2. Delete Task
@@ -138,7 +148,8 @@ public class TaskVendorBudgetHandlerTest {
             tasks.add(new Task(
                 Subject = 'Bulk Task ' + i,
                 WhatId = va.Id,
-                Assigned_Percentage__c = 10
+                Assigned_Percentage__c = 10,
+                Status = 'Not Started'
             ));
         }
 

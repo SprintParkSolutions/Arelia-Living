@@ -3,37 +3,48 @@ public class HandleVendorAbscondControllerTest {
 
     @testSetup
     static void setup() {
-        // 1. Create Supervisor
+        // 1. Create Supervisor using Utility
         User u = TestDataUtility.createSupervisorUser('abscUser');
 
-        // 2. Create Account (Client)
+        // 2. Create Account (Client) using Utility
         Account acc = TestDataUtility.createAccount('Abscond Client Co');
-        acc.Email__c = 'client@test.com'; 
+        acc.Email__c = 'client@test.com'; // Custom field not in utility, updated here
         update acc;
 
-        // 3. Create Opportunity
+        // 3. Create Contact (required for Project/Opp in some contexts, good practice)
+        Contact client = TestDataUtility.createContact('Test Client Name', 'client@test.com', 'password123');
+        client.AccountId = acc.Id;
+        update client;
+
+        // 4. Create Opportunity using Utility
         Opportunity opp = TestDataUtility.createOpportunity('Abscond Opp', u.Id);
+        
+        // Update fields specific to this controller's logic
         opp.AccountId = acc.Id;
         opp.Email__c = 'oppclient@test.com'; 
         opp.Lead_Name__c = 'Test Client Name';
         update opp;
 
-        // 4. Create Vendor
-        Vendor__c v = TestDataUtility.createVendor('Runaway Vendor', 'Plumbing', 'vendor@runaway.com');
+        // 5. Create Vendor using Utility
+        Vendor__c v = TestDataUtility.createVendor('Runaway Vendor', 'Electrical & Networking', 'vendor@runaway.com');
 
-        // 5. Create Vendor Opportunity
+        // 6. Create Vendor Opportunity using Utility
         Vendor_Opportunity__c vo = TestDataUtility.createVendorOpportunity(opp.Id, v.Id, 'Active');
 
-        // 6. Create Project
-        Project__c proj = TestDataUtility.createProject('Abscond Project');
+        // 7. Create Project using Utility (requires Budget and Contact)
+        Project__c proj = TestDataUtility.createProject('Abscond Project', 50000, client.Id);
         proj.Status__c = 'In Progress'; 
         update proj;
 
-        // 7. Create Vendor Assignment
-        Vendor_Assignment__c va = TestDataUtility.createVendorAssignment(proj.Id); 
+        // 8. Create Vendor Assignment using Utility
+        // Utility sets Status to 'In-Progress'. We update it to 'Abscond'.
+        Vendor_Assignment__c va = TestDataUtility.createVendorAssignment(proj.Id, 0); 
+        
         va.Opportunity__c = opp.Id;
         va.Vendor_Opportunity__c = vo.Id;
-        va.Status__c = 'Abscond'; 
+        va.Vendor__c = v.Id; // Ensure vendor link is set
+        va.Supervisor_User__c = u.Id;
+        va.Status__c = 'Abscond'; // Key filter for the controller
         update va;
     }
 
@@ -105,17 +116,13 @@ public class HandleVendorAbscondControllerTest {
         // Wrap Setup Object creation in System.runAs
         EmailTemplate tpl;
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            tpl = new EmailTemplate(
-                DeveloperName = 'Test_Abscond_Template',
-                Name = 'Test Abscond',
-                Subject = 'Warning',
-                HtmlValue = 'Content',
-                Body = 'Content', // Good practice to set text body too
-                TemplateType = 'custom',
-                FolderId = UserInfo.getUserId(),
-                IsActive = true // FIX: Template must be active to send email
+            // Using Utility to create template if possible, or manual if specific logic needed
+            tpl = TestDataUtility.createSpecificEmailTemplate(
+                'Test_Abscond_Template',
+                'Test Abscond',
+                'Warning'
             );
-            insert tpl;
+            // Utility creates it Active by default, which is correct
         }
 
         List<String> recipients = new List<String>{'vendor@test.com'};
@@ -144,17 +151,11 @@ public class HandleVendorAbscondControllerTest {
         // Wrap Setup Object creation in System.runAs
         EmailTemplate tpl;
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            tpl = new EmailTemplate(
-                DeveloperName = 'Test_Client_Template',
-                Name = 'Test Client',
-                Subject = 'Update',
-                HtmlValue = 'Content',
-                Body = 'Content',
-                TemplateType = 'custom',
-                FolderId = UserInfo.getUserId(),
-                IsActive = true // FIX: Template must be active
+            tpl = TestDataUtility.createSpecificEmailTemplate(
+                'Test_Client_Template',
+                'Test Client',
+                'Update'
             );
-            insert tpl;
         }
 
         Test.startTest();
@@ -187,16 +188,11 @@ public class HandleVendorAbscondControllerTest {
         // Wrap Setup Object creation in System.runAs
         EmailTemplate tpl;
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            tpl = new EmailTemplate(
-                DeveloperName = 'Test_Val_Template',
-                Name = 'Test Val',
-                Subject = 'S',
-                HtmlValue = 'B',
-                TemplateType = 'custom',
-                FolderId = UserInfo.getUserId(),
-                IsActive = true // FIX: Template must be active
+            tpl = TestDataUtility.createSpecificEmailTemplate(
+                'Test_Val_Template',
+                'Test Val',
+                'S'
             );
-            insert tpl;
         }
 
         Test.startTest();

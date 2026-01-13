@@ -10,38 +10,41 @@ public class ProjectCompletionEmailHandlerTest {
 
     @testSetup
     static void setup() {
-        // 1. Create Supervisor
+        // 1. Create Supervisor using Utility
         User sup = TestDataUtility.createSupervisorUser('projSup');
 
-        // 2. Create Client (Account + Contact)
+        // 2. Create Account using Utility
         Account acc = TestDataUtility.createAccount('Project Client Co');
-        Contact client = TestDataUtility.createContact('Project Client', 'client@project.test');
+
+        // 3. Create Contact using Utility and link Account
+        Contact client = TestDataUtility.createContact('Project Client', 'client@project.test', 'password123');
         client.AccountId = acc.Id;
         update client;
 
-        // 3. Create Project (Initial State: In Progress, 0%)
-        Project__c proj = TestDataUtility.createProject('Test Completion Project');
+        // 4. Create Project using Utility (Requires Budget and ContactId)
+        Project__c proj = TestDataUtility.createProject('Test Completion Project', 50000, client.Id);
+        
+        // Update Project fields specific to this test
         proj.Status__c = 'In Progress';
         proj.Project_Completion_Status__c = 0;
         proj.Supervisor_User__c = sup.Id;
-        proj.Client__c = client.Id;
         proj.Project_Code__c = 'PRJ-001'; 
-        // Removed .put() calls for formula fields to avoid SObjectException
         update proj;
 
-        // 4. Create Email Templates
+        // 5. Create Email Templates (Local Helper Logic, as Utility createSpecificEmailTemplate is for one-offs)
         System.runAs(new User(Id = UserInfo.getUserId())) {
             List<EmailTemplate> templates = new List<EmailTemplate>();
-            templates.add(createTemplate(CLIENT_TPL, 'Client Notif'));
-            templates.add(createTemplate(SUPERVISOR_TPL, 'Sup Notif'));
-            templates.add(createTemplate(MANAGER_TPL, 'Manager Notif'));
-            templates.add(createTemplate(MGMT_TPL, 'Mgmt Notif'));
-            templates.add(createTemplate(ENROLL_TPL, 'Enroll Notif'));
+            templates.add(createLocalTemplate(CLIENT_TPL, 'Client Notif'));
+            templates.add(createLocalTemplate(SUPERVISOR_TPL, 'Sup Notif'));
+            templates.add(createLocalTemplate(MANAGER_TPL, 'Manager Notif'));
+            templates.add(createLocalTemplate(MGMT_TPL, 'Mgmt Notif'));
+            templates.add(createLocalTemplate(ENROLL_TPL, 'Enroll Notif'));
             insert templates;
         }
     }
 
-    private static EmailTemplate createTemplate(String devName, String name) {
+    // Local Helper for Setup (Not in Utility)
+    private static EmailTemplate createLocalTemplate(String devName, String name) {
         return new EmailTemplate(
             DeveloperName = devName,
             Name = name,
@@ -89,12 +92,12 @@ public class ProjectCompletionEmailHandlerTest {
 
     @isTest
     static void testManagerRoleLogic() {
-        UserRole mgrRole = new UserRole(Name = 'Regional Project Manager');
-        insert mgrRole;
+        // Create Role manually (Utility creates role but returns UserRole object, we need to create user with it)
+        // Utility method #21: createUserRole
+        UserRole mgrRole = TestDataUtility.createUserRole('Regional Project Manager');
 
-        User mgrUser = TestDataUtility.createSupervisorUser('mgrUser');
-        mgrUser.UserRoleId = mgrRole.Id;
-        update mgrUser;
+        // Utility method #22: createUserWithRole
+        User mgrUser = TestDataUtility.createUserWithRole('mgrUser', mgrRole.Id);
 
         Project__c proj = [
             SELECT Id, Name, Status__c, Project_Completion_Status__c, 
@@ -104,6 +107,9 @@ public class ProjectCompletionEmailHandlerTest {
             FROM Project__c 
             LIMIT 1
         ];
+        
+        // Update Project to use this Manager as Supervisor (to trigger manager logic)
+        proj.Supervisor_User__c = mgrUser.Id;
         
         Map<Id, Project__c> oldMap = new Map<Id, Project__c>{ proj.Id => proj.clone(true, true, true, true) };
 
@@ -131,12 +137,12 @@ public class ProjectCompletionEmailHandlerTest {
             LIMIT 1
         ];
         
-        // Clear lookups
+        // Clear lookups to test null email handling
         proj.Client__c = null;
         proj.Supervisor_User__c = null;
         update proj;
 
-        // Refresh
+        // Refresh to ensure formula fields update (like Client_Email__c)
         proj = [
             SELECT Id, Name, Status__c, Project_Completion_Status__c, 
                    Client__c, Supervisor_User__c, 
@@ -213,6 +219,7 @@ public class ProjectCompletionEmailHandlerTest {
         
         Map<Id, Project__c> oldMap = new Map<Id, Project__c>{ proj.Id => oldProj };
 
+        // No Change
         proj.Status__c = 'Completed';
         proj.Project_Completion_Status__c = 100;
 
@@ -235,8 +242,6 @@ public class ProjectCompletionEmailHandlerTest {
         ProjectCompletionEmailHandler.sendProjectApprovedEmail(null);
         Test.stopTest();
         
-        // FIX: Removed strict limit assertion due to org-specific interference.
-        // The main goal is ensuring the code does not throw exceptions on null input.
         Assert.isTrue(true, 'Should handle empty/null inputs gracefully');
     }
 }
