@@ -12,12 +12,156 @@
    Notes:
      - Bulk safe, low cognitive complexity, null-safe booleans.
 */
-@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation')
-public without sharing class CreateProjectFromOpportunityHandler {
- 
-    // ---------- Orchestrator ----------
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ApexUnitTestShouldNotUseSeeAllData')
+public with sharing class CreateProjectFromOpportunityHandler {
+
+    // ---------- Orchestrator: AFTER INSERT (send customer email) ----------
+    public static void handleAfterInsert(List<Opportunity> newList) {
+        System.debug('CreateProjectFromOpportunityHandler.handleAfterInsert START, size=' +
+                    (newList == null ? 0 : newList.size()));
+
+        if (newList == null || newList.isEmpty()) {
+            System.debug('Send email 23:: No opportunities in trigger; exiting.');
+            return;
+        }
+
+        // Collect only Opps where Primary_Contact__c is populated
+        Set<Id> oppIdsWithPrimaryContact = new Set<Id>();
+        for (Opportunity o : newList) {
+            if (o != null) {
+                oppIdsWithPrimaryContact.add(o.Id);
+            }
+        }
+
+        // Query only fields required for email sending
+        List<Opportunity> opps = [SELECT Id,
+                Email__c,
+                Primary_Contact__c,
+                Primary_Contact__r.Email
+            FROM Opportunity
+            WHERE Id IN :oppIdsWithPrimaryContact
+        ];
+        System.debug('Send email 44::opps data::'+opps);
+        if (opps.isEmpty()) {
+            System.debug('Send email 45:: Query returned no opportunities; exiting.');
+            return;
+        }
+
+        // Build emails
+        List<Messaging.SingleEmailMessage> mails = new List<Messaging.SingleEmailMessage>();
+
+        Id owdId = getDefaultOrgWideEmailAddressId();
+        System.debug('OrgWideEmailAddress Id resolved as: ' + owdId);
+
+        List<EmailTemplate> templateList = [
+            SELECT Id
+            FROM EmailTemplate
+            WHERE DeveloperName = :Label.Arelia_Living_Architect_3D_Design_Approval_Email
+            LIMIT 1
+        ];
+        if (templateList.isEmpty()) {
+            System.debug('Send email 56:: No template found for DeveloperName = ' +
+                        Label.Arelia_Living_Architect_3D_Design_Approval_Email);
+            return;
+        }
+        Id templateId = templateList[0].Id;
+
+        for (Opportunity oppData : opps) {
+            System.debug('Send email 61:: Processing Opp ' + oppData.Id);
+
+            if (oppData == null) {
+                continue;
+            }
+
+            if (oppData.Primary_Contact__c == null) {
+                System.debug('Opp ' + oppData.Id + ' has no Primary_Contact__c; skipping.');
+                continue;
+            }
+
+            if (oppData.Primary_Contact__r == null ||
+                String.isBlank(oppData.Primary_Contact__r.Email)) {
+                System.debug('Opp ' + oppData.Id +
+                            ' has Primary_Contact__c but contact has no Email; skipping.');
+                continue;
+            }
+
+            Messaging.SingleEmailMessage emailMessage = new Messaging.SingleEmailMessage();
+            emailMessage.setTemplateId(templateId);
+
+            // REQUIRED for template merge + recipient
+            emailMessage.setTargetObjectId(oppData.Primary_Contact__c);
+
+            // Relate the email to the opportunity
+            emailMessage.setWhatId(oppData.Id);
+
+            if (owdId != null) {
+                emailMessage.setOrgWideEmailAddressId(owdId);
+            }
+
+            emailMessage.setSaveAsActivity(true);
+            mails.add(emailMessage);
+
+            System.debug('Send email 73:: Prepared email for Opp ' + oppData.Id +
+                        ', targetObjectId=' + oppData.Primary_Contact__c +
+                        ', contactEmail=' + oppData.Primary_Contact__r.Email);
+        }
+
+
+        try {
+            System.debug('Send email 79:: Sending ' + mails.size() + ' email(s)...');
+            List<Messaging.SendEmailResult> results = Messaging.sendEmail(mails, false);
+
+            for (Integer i = 0; i < results.size(); i++) {
+                Messaging.SendEmailResult r = results[i];
+                if (!r.isSuccess()) {
+                    for (Messaging.SendEmailError err : r.getErrors()) {
+                        System.debug('Email ' + i + ' failed: ' + err.getStatusCode() +
+                                    ' - ' + err.getMessage());
+                    }
+                } else {
+                    System.debug('Email ' + i + ' sent successfully.');
+                }
+            }
+        } catch (Exception e) {
+            System.debug('Exception while sending emails: ' + e.getMessage());
+        }
+    }
+
+
+     // ---------- Helper: Org-Wide Email Address from Custom Label ----------
+    private static Id getDefaultOrgWideEmailAddressId() {
+        List<OrgWideEmailAddress> owd = [SELECT Id FROM OrgWideEmailAddress
+            WHERE Address = :Label.Arelia_OWD AND IsAllowAllProfiles = true LIMIT 1];
+        return owd.isEmpty() ? null : owd[0].Id;
+    }
+
+    // ---------- Orchestrator: AFTER UPDATE (existing behavior) ----------
     public static void handleAfterUpdate(List<Opportunity> newList, Map<Id, Opportunity> oldMap) {
         if (newList == null || newList.isEmpty()) {return;}
+
+            // ---------------------------------------------
+        // NEW: Send email when Primary_Contact__c is set by Flow
+        // (old value = null, new value != null)
+        // ---------------------------------------------
+        List<Opportunity> newlyGotPrimaryContact = new List<Opportunity>();
+        for (Opportunity newOpp : newList) {
+            if (newOpp == null) {
+                continue;
+            }
+            Opportunity oldOpp = oldMap.get(newOpp.Id);
+            if (oldOpp != null &&
+                oldOpp.Primary_Contact__c == null &&
+                newOpp.Primary_Contact__c != null) {
+
+                newlyGotPrimaryContact.add(newOpp);
+            }
+        }
+
+        // Reuse existing email logic
+        if (!newlyGotPrimaryContact.isEmpty()) {
+
+            handleAfterInsert(newlyGotPrimaryContact);
+        }
  
         // 1) Only Opps that just moved to Closed Won
         List<Opportunity> justClosedWon = pickJustClosedWon(newList, oldMap);
@@ -61,7 +205,7 @@ public without sharing class CreateProjectFromOpportunityHandler {
         // 7) Copy files only for newly created projects (unchanged behavior)
         if (!oppToNewProject.isEmpty()) {copyFilesFromOppToProject(oppToNewProject);}
     }
- 
+
     // ---------- Step 1: find Opps that just moved to Closed Won ----------
     private static List<Opportunity> pickJustClosedWon(List<Opportunity> newList, Map<Id, Opportunity> oldMap) {
         List<Opportunity> result = new List<Opportunity>();
