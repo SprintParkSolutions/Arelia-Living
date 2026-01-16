@@ -263,6 +263,7 @@ public without sharing class ProjectTriggerHandler {
             .replace('{{{Project__c.Type_Of_Project__c}}}', safe(proj != null ? proj.Type_Of_Project__c : ''))
             .replace('{{{Project__c.Project_Scope__c}}}', safe(proj != null ? proj.Project_Scope__c : ''))
             .replace('{{{Project__r.Client__r.Name}}}', safe(contact != null ? contact.Name : ''))
+            .replace('{{{Project__c.Project_Request_Quotation_Type__c}}}', safe(proj != null ? proj.Project_Request_Quotation_Type__c : ''))
             .replace('{{{Project__r.Supervisor_User__r.Name}}}', safe(sup != null ? sup.Name : ''));
         if (base.contains('{{{ManagerName}}}')) {
             base = base.replace('{{{ManagerName}}}', safe(managerName));
