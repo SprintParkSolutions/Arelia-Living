@@ -408,6 +408,10 @@ export default class InventoryProductManager extends LightningElement {
                     Opportunity__c: this.recordId,
                     Interior_Product__c: productId,
                     Name: prod?.Name,
+
+                      // 🔥 ADD THESE TWO
+    Room_Type__c: this.selectedRoomType,
+    Product_Category__c: this.selectedCategory,
                     Quantity__c: qty,
                     Unit_Price__c: price,
                     Quality__c: quality,
@@ -484,15 +488,24 @@ export default class InventoryProductManager extends LightningElement {
 
     handleRemoveItem(event) {
     const specId = event.currentTarget.dataset.id;
-    if (!specId) return;
+    const productId = event.currentTarget.dataset.productid;
 
-    // 🔥 UI-FIRST: remove immediately from cartItems
+    // 🔥 CASE 1: UNSAVED ITEM (no Id yet)
+    if (!specId) {
+        this.cartItems = this.cartItems.filter(
+            i => i.Interior_Product__c !== productId
+        );
+
+        this.syncProductsWithCart();
+        this.showToast('Removed', 'Item removed from cart', 'success');
+        return;
+    }
+
+    // 🔥 CASE 2: SAVED ITEM (has Id)
     const removedItem = this.cartItems.find(i => i.Id === specId);
+
     this.cartItems = this.cartItems.filter(i => i.Id !== specId);
-
-    // 🔄 Sync product cards instantly
     this.syncProductsWithCart();
-
     this.isLoading = true;
 
     deactivateCartItem({ specItemId: specId })
@@ -500,7 +513,7 @@ export default class InventoryProductManager extends LightningElement {
             this.showToast('Removed', 'Item removed from cart', 'success');
         })
         .catch(error => {
-            // ❌ rollback UI if server fails
+            // rollback if Apex fails
             if (removedItem) {
                 this.cartItems = [...this.cartItems, removedItem];
                 this.syncProductsWithCart();
@@ -593,7 +606,7 @@ export default class InventoryProductManager extends LightningElement {
 
     showToast(title, message, variant) {
         this.dispatchEvent(
-            new ShowToastEvent({ title, message, variant, mode: 'sticky' })
+            new ShowToastEvent({ title, message, variant, mode: 'dismissible' })
         );
     }
 }
