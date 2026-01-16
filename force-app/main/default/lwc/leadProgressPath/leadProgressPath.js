@@ -104,7 +104,8 @@ export default class LeadProgressPath extends LightningElement {
 
         // ✅ NEW: Appointment Status
         const appointmentStatus = data.fields.Appointment_Status__c?.value || 'Pending';
-        const appointmentApproved = appointmentStatus === 'Approved';
+        const appointmentCleared = appointmentStatus === 'Approved' || appointmentStatus === 'Rescheduled';
+
 
         const converted = !!data.fields.IsConverted?.value;
         const hasSupervisor = !!data.fields.Supervisor_User__c?.value;
@@ -138,7 +139,7 @@ export default class LeadProgressPath extends LightningElement {
         } else if (!appointmentCompleted) {
             // still need to schedule appointment
             currentStepIndex = 3;
-        } else if (!appointmentApproved) {
+        } else if (!appointmentCleared) {
             // ✅ scheduled but status is not Approved (Rescheduled/Pending/etc)
             currentStepIndex = 4;
         } else if (!siteVisitApproved) {
