@@ -2,11 +2,8 @@
 import { LightningElement, api, track, wire } from 'lwc';
 import { CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
+import getCatalogConfig from '@salesforce/apex/InventoryApiService.getCatalogConfig';
 
-import PROJECT_SPEC_OBJECT from '@salesforce/schema/Project_Specification__c';
-import ROOM_TYPE_FIELD from '@salesforce/schema/Project_Specification__c.Room_Type__c';
-import PRODUCT_CATEGORY_FIELD from '@salesforce/schema/Project_Specification__c.Product_Category__c';
 
 import getProducts from '@salesforce/apex/InventoryApiService.getProducts';
 import saveCart from '@salesforce/apex/OpportunityQuotePDFController.saveCart';
@@ -19,11 +16,9 @@ export default class InventoryProductManager extends LightningElement {
     @api recordId;
 
     /* ================= OBJECT INFO ================= */
-    @wire(getObjectInfo, { objectApiName: PROJECT_SPEC_OBJECT })
-    objectInfo;
-
-    roomTypesBase = [];
-    categoriesBase = [];
+   @track roomTypes = [];
+@track categoriesByRoom = {};
+    
 
     /* ================= MAIN STATE ================= */
     @track _products = [];
@@ -72,7 +67,6 @@ export default class InventoryProductManager extends LightningElement {
     /* ================= LIFECYCLE ================= */
     connectedCallback() {
         this.loadQualityOptions();
-        this.fetchSavedCart();
 
         // restore step from URL
         const params = new URLSearchParams(window.location.search);
@@ -107,50 +101,62 @@ export default class InventoryProductManager extends LightningElement {
             this.updateUrlStep();
         }
     }
+    loadCatalogConfig() {
+    if (!this.recordId) return;
+
+    getCatalogConfig({ opportunityId: this.recordId })
+        .then(res => {
+            this.roomTypes = res.rooms || [];
+            this.categoriesByRoom = res.categoriesByRoom || {};
+            if (!this.roomTypes.length) {
+        this.showToast(
+            'No Products Available',
+            'No catalogue items found for this project type',
+            'warning'
+        );
+    }
+        })
+        .catch(() => {
+            this.showToast(
+                'Error',
+                'Unable to load catalogue configuration',
+                'error'
+            );
+        });
+}
+
 
     /* ================= COMMUNITY PARAM ================= */
     @wire(CurrentPageReference)
-    getPageRef(pageRef) {
-        if (pageRef?.state?.id) {
-            this.recordId = pageRef.state.id;
-        }
-    }
+getPageRef(pageRef) {
+    if (pageRef?.state?.id) {
+        this.recordId = pageRef.state.id;
 
+        // 🔥 LOAD CATALOG ONLY AFTER recordId IS AVAILABLE
+        this.loadCatalogConfig();
+        this.fetchSavedCart();
+    }
+}
     /* ================= PICKLISTS ================= */
-    @wire(getPicklistValues, {
-        recordTypeId: '$objectInfo.data.defaultRecordTypeId',
-        fieldApiName: ROOM_TYPE_FIELD
-    })
-    roomTypePicklist({ data }) {
-        if (data) {
-            this.roomTypesBase = data.values.map(v => v.label);
-        }
-    }
+    
 
-    @wire(getPicklistValues, {
-        recordTypeId: '$objectInfo.data.defaultRecordTypeId',
-        fieldApiName: PRODUCT_CATEGORY_FIELD
-    })
-    categoryPicklist({ data }) {
-        if (data) {
-            this.categoriesBase = data.values.map(v => v.label);
-        }
-    }
+    
 
     /* ================= UI GETTERS ================= */
-    get roomTypes() {
-        return this.roomTypesBase.map(v => ({
-            value: v,
-            className: `chip ${this.selectedRoomType === v ? 'chip-selected' : ''}`
-        }));
-    }
+    get roomTypesUI() {
+    return this.roomTypes.map(v => ({
+        value: v,
+        className: `chip ${this.selectedRoomType === v ? 'chip-selected' : ''}`
+    }));
+}
 
     get categories() {
-        return this.categoriesBase.map(v => ({
-            value: v,
-            className: `chip ${this.selectedCategory === v ? 'chip-selected' : ''}`
-        }));
-    }
+    const cats = this.categoriesByRoom[this.selectedRoomType] || [];
+    return cats.map(v => ({
+        value: v,
+        className: `chip ${this.selectedCategory === v ? 'chip-selected' : ''}`
+    }));
+}
 
     get selectedProductsList() {
         return this.cartItems.map(i => ({
@@ -165,12 +171,17 @@ export default class InventoryProductManager extends LightningElement {
 
     /* ================= STEP HANDLERS ================= */
     handleRoomSelect(event) {
-        this.selectedRoomType = event.currentTarget.dataset.value;
-        this.selectedCategory = null;
-        this.products = [];
-        this.currentStep = 2;
-        this.updateUrlStep();
-    }
+    this.selectedRoomType = event.currentTarget.dataset.value;
+    this.selectedCategory = null;
+
+    // 🔥 Reset dependent state
+    this.products = [];
+    this.visibleProducts = [];
+    this.currentPage = 1;
+
+    this.currentStep = 2;
+    this.updateUrlStep();
+}
 
     handleCategorySelect(event) {
         this.selectedCategory = event.currentTarget.dataset.value;

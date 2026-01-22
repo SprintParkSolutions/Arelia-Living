@@ -42,10 +42,10 @@
                 Browse curated interior solutions and build your quotation effortlessly.
             </p>
 
-            <div class="filter-label">Choose Room Type</div>
+            <div class="filter-label">Choose Below Based on Your Project Type</div>
 
             <div class="chip-row">
-                <template for:each={roomTypes} for:item="room">
+                <template for:each={roomTypesUI} for:item="room">
                     <div key={room.value}
                          class={room.className}
                          data-value={room.value}
