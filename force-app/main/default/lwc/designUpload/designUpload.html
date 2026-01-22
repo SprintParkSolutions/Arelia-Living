@@ -1,0 +1,69 @@
+<template>
+    <div class="slds-box slds-theme_default slds-p-around_large main-container">
+        
+        <div class="slds-text-align_center slds-m-bottom_medium">
+            <h2 class="slds-text-heading_medium"><strong>Design Approval Center</strong></h2>
+            <p class="slds-text-color_weak slds-m-top_xx-small">Upload a design (PDF or Image) to send for client approval</p>
+        </div>
+
+        <template if:false={latestFile}>
+            <div class="upload-zone slds-align_absolute-center slds-p-around_xx-large">
+                <div class="slds-text-align_center">
+                    <lightning-icon icon-name="utility:upload" size="large" class="slds-m-bottom_medium"></lightning-icon>
+                    <lightning-file-upload
+                        label="Upload Design File"
+                        name="fileUploader"
+                        record-id={recordId}
+                        accept={acceptedFormats}
+                        onuploadfinished={handleUploadFinished}
+                        class="file-uploader-input">
+                    </lightning-file-upload>
+                    <p class="slds-text-body_small slds-m-top_small slds-text-color_weak">Supports PDF, JPG, PNG</p>
+                </div>
+            </div>
+        </template>
+
+        <template if:true={latestFile}>
+            <div class="file-card slds-card slds-p-around_medium slds-align_absolute-center slds-text-align_center">
+                <div class="slds-grid slds-grid_vertical slds-align_absolute-center">
+                    
+                    <div class="preview-container slds-m-bottom_medium">
+                        <template if:true={latestFile.isPdf}>
+                            <lightning-icon icon-name="doctype:pdf" size="large" class="pdf-icon"></lightning-icon>
+                        </template>
+                        <template if:false={latestFile.isPdf}>
+                            <img src={latestFile.url} alt="Design Preview" class="img-preview shadow-soft"/>
+                        </template>
+                    </div>
+
+                    <h3 class="slds-text-heading_small slds-m-bottom_xx-small"><strong>{latestFile.title}</strong></h3>
+                    <div class={latestFile.statusClass}>{latestFile.status}</div>
+
+                    <div class="slds-grid slds-gutters slds-m-top_large">
+                        <div class="slds-col">
+                            <lightning-button 
+                                variant="brand" 
+                                label="Send to Client" 
+                                icon-name="utility:email" 
+                                onclick={handleSendClick} 
+                                disabled={isLoading}>
+                            </lightning-button>
+                        </div>
+                        <div class="slds-col">
+                            <lightning-button 
+                                variant="neutral" 
+                                label="Upload New" 
+                                onclick={handleReset}
+                                disabled={isLoading}>
+                            </lightning-button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+        
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+    </div>
+</template>
