@@ -1538,3 +1538,62 @@ input[id^="luxury-"]:checked ~ .glass-glider {
 .step-screen.fade-slide .chip-row {
     justify-content: center;
 }
+
+.stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem auto 2rem;
+    max-width: 720px;
+    gap: 1rem;
+}
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+    color: rgba(255,255,255,0.45);
+    transition: all 0.3s ease;
+}
+.step-index {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(129,140,248,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    background: transparent;
+    color: #c7d2fe;
+    transition: all 0.3s ease;
+}
+.step-label {
+    margin-top: 6px;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: inherit;
+}
+.step-label {
+    margin-top: 6px;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: inherit;
+}
+.step.active {
+    color: #ffffff;
+}
+
+.step.active .step-index {
+    background: rgb(61, 106, 255);
+    color: #fff;
+    border-color: rgb(61, 106, 255);
+
+    /* 🔥 SAME GLOW FEEL */
+    box-shadow:
+        0 0 10px rgba(61,106,255,0.6),
+        0 0 30px rgba(0,142,236,0.8);
+}
