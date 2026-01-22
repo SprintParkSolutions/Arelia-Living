@@ -3,6 +3,7 @@ import { LightningElement, api, track, wire } from 'lwc';
 import { CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getCatalogConfig from '@salesforce/apex/InventoryApiService.getCatalogConfig';
+import getOpportunitySummary from '@salesforce/apex/InventoryApiService.getOpportunitySummary';
 
 
 import getProducts from '@salesforce/apex/InventoryApiService.getProducts';
@@ -20,6 +21,34 @@ export default class InventoryProductManager extends LightningElement {
 @track categoriesByRoom = {};
     
 
+
+@track oppSummary;
+
+@wire(getOpportunitySummary, { opportunityId: '$recordId' })
+wiredOpp({ data }) {
+    if (data) {
+        this.oppSummary = data;
+    }
+}
+get isManual() {
+    return this.oppSummary?.Project_Request_Quotation_Type__c === 'Manual Quotation';
+}
+
+get isAutomatic() {
+    return this.oppSummary?.Project_Request_Quotation_Type__c === 'Automatic Quotation';
+}
+
+goToStep0() {
+    this.currentStep = 0;
+    this.updateUrlStep();
+}
+
+goToStep1() {
+    this.currentStep = 1;
+    this.updateUrlStep();
+    this.loadCatalogConfig();
+}
+
     /* ================= MAIN STATE ================= */
     @track _products = [];
     @track visibleProducts = [];
@@ -34,8 +63,11 @@ export default class InventoryProductManager extends LightningElement {
     @track isCartOpen = false;
 
     /* ================= STEP UX ================= */
-    @track currentStep = 1;
+    @track currentStep = 0; // 👈 START FROM STEP 0
 
+get isStep0() { 
+    return this.currentStep === 0; 
+}
     get isStep1() { return this.currentStep === 1; }
     get isStep2() { return this.currentStep === 2; }
     get isStep3() { return this.currentStep === 3; }
@@ -49,6 +81,7 @@ export default class InventoryProductManager extends LightningElement {
     get stepClass3() {
         return `step ${this.currentStep === 3 ? 'active' : ''}`;
     }
+
 
     /* ================= IMAGE MODAL ================= */
     @track isImageModalOpen = false;
@@ -71,9 +104,9 @@ export default class InventoryProductManager extends LightningElement {
         // restore step from URL
         const params = new URLSearchParams(window.location.search);
         const step = Number(params.get('step'));
-        if (step >= 1 && step <= 3) {
-            this.currentStep = step;
-        }
+        if (step >= 0 && step <= 3) {
+    this.currentStep = step;
+}
 
         // ESC key closes image modal
         this._escHandler = (e) => {
@@ -88,6 +121,26 @@ export default class InventoryProductManager extends LightningElement {
         window.removeEventListener('keydown', this._escHandler);
     }
 
+  
+
+get interiorProjectTypeName() {
+    return this.oppSummary &&
+           this.oppSummary.Interior_Project_Type__r
+        ? this.oppSummary.Interior_Project_Type__r.Name
+        : '';
+}
+
+get backButtonLabel() {
+    return this.currentStep === 1 ? 'Back to Summary' : 'Back';
+}
+
+handleBackClick() {
+    if (this.currentStep === 1) {
+        this.goToStep0();   // Step 1 → Summary
+    } else {
+        this.goBack();     // Step 2/3 → previous step
+    }
+}
     /* ================= URL STEP ================= */
     updateUrlStep() {
         const url = new URL(window.location.href);
@@ -96,11 +149,11 @@ export default class InventoryProductManager extends LightningElement {
     }
 
     goBack() {
-        if (this.currentStep > 1) {
-            this.currentStep--;
-            this.updateUrlStep();
-        }
+    if (this.currentStep > 0) {
+        this.currentStep--;
+        this.updateUrlStep();
     }
+}
     loadCatalogConfig() {
     if (!this.recordId) return;
 
@@ -132,8 +185,7 @@ getPageRef(pageRef) {
     if (pageRef?.state?.id) {
         this.recordId = pageRef.state.id;
 
-        // 🔥 LOAD CATALOG ONLY AFTER recordId IS AVAILABLE
-        this.loadCatalogConfig();
+       
         this.fetchSavedCart();
     }
 }
