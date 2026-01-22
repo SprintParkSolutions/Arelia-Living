@@ -73,14 +73,14 @@ get isStep0() {
     get isStep3() { return this.currentStep === 3; }
 
     get stepClass1() {
-        return `step ${this.currentStep >= 1 ? 'active completed' : ''}`;
-    }
-    get stepClass2() {
-        return `step ${this.currentStep >= 2 ? 'active completed' : ''}`;
-    }
-    get stepClass3() {
-        return `step ${this.currentStep === 3 ? 'active' : ''}`;
-    }
+    return `step ${this.currentStep === 1 ? 'active' : ''}`;
+}
+get stepClass2() {
+    return `step ${this.currentStep === 2 ? 'active' : ''}`;
+}
+get stepClass3() {
+    return `step ${this.currentStep === 3 ? 'active' : ''}`;
+}
 
 
     /* ================= IMAGE MODAL ================= */
