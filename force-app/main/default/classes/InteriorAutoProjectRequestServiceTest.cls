@@ -1,7 +1,7 @@
 @IsTest
 @SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ApexAssertionsShouldIncludeMessage')
 private class InteriorAutoProjectRequestServiceTest {
-
+ 
     /* =========================================================
        TEST DATA SETUP
        ========================================================= */
@@ -15,21 +15,21 @@ private class InteriorAutoProjectRequestServiceTest {
         ld.LastName = 'Doe';
         ld.Company = 'Test Co';
         update ld;
-
+ 
         // 2. Create Master Data (Room & Design)
         Interior_Room__c room = new Interior_Room__c(Name = 'Living Room');
         insert room;
-
+ 
         Interior_Design__c design = new Interior_Design__c(Name = 'Luxury Design');
         insert design;
-
+ 
         // 3. Create Existing Request Records
         insert new Interior_Request_Room__c(
             Lead__c = ld.Id,
             Interior_Room__c = room.Id,
             Quantity__c = 1
         );
-
+ 
         insert new Interior_Request_Room_Design__c(
             Lead__c = ld.Id,
             Interior_Room__c = room.Id,
@@ -37,16 +37,16 @@ private class InteriorAutoProjectRequestServiceTest {
             Quantity__c = 1,
             Design_Amount__c = 100
         );
-
+ 
         // 4. Create a File linked to the DESIGN
         ContentVersion cv = TestDataUtility.createContentVersion('Design Spec', 'Spec Data');
         TestDataUtility.linkFileToRecord(cv.Id, design.Id);
     }
-
+ 
     /* =========================================================
        TESTS
        ========================================================= */
-
+ 
     /**
      * @description Tests the full save flow: Updates Lead, Replaces Children, Copies Files.
      */
@@ -55,7 +55,7 @@ private class InteriorAutoProjectRequestServiceTest {
         Lead ld = [SELECT Id FROM Lead LIMIT 1];
         Interior_Room__c room = [SELECT Id FROM Interior_Room__c LIMIT 1];
         Interior_Design__c design = [SELECT Id FROM Interior_Design__c LIMIT 1];
-
+ 
         // Prepare Payload
         List<Object> rooms = new List<Object>{
             new Map<String, Object>{
@@ -63,60 +63,60 @@ private class InteriorAutoProjectRequestServiceTest {
                 'quantity' => 5
             }
         };
-
+ 
         List<Object> designs = new List<Object>{
             new Map<String, Object>{
                 'roomId' => room.Id,
-                'designId' => design.Id, 
+                'designId' => design.Id,
                 'quantity' => 2,
                 'lineAmount' => 5000.50
             }
         };
-
+ 
         Map<String, Object> req = new Map<String, Object>{
             'leadId' => ld.Id,
             'firstName' => 'John',
-            'lastName' => 'Doe', 
+            'lastName' => 'Doe',
             'email' => 'john.doe@test.com',
             'phone' => '1234567890',
-            'company' => 'JD Corp', 
+            'company' => 'JD Corp',
             'address' => '123 Main St',
             'siteSpace' => '2 BHK',
             'description' => 'Full Reno',
             'totalBudget' => 50000,
             'planLevel' => 'Standard',
             'quotationType' => 'Manual Quotation',
-            'projectTypeId' => null, 
+            'projectTypeId' => null,
             'categoryId' => null,
             'rooms' => rooms,
             'selectedRoomDesigns' => designs
         };
-
+ 
         Test.startTest();
         Id resultId = InteriorAutoProjectRequestService.saveRequest(req);
         Test.stopTest();
-
+ 
         // 1. Validate Lead Update
         Lead updatedLead = [SELECT FirstName, LastName, Site_Location__c, Project_Request_Submitted__c, Estimated_Budget__c FROM Lead WHERE Id = :resultId];
         System.assertEquals('John', updatedLead.FirstName, 'Lead FirstName should be updated');
         System.assertEquals('Doe', updatedLead.LastName, 'Lead LastName should be updated');
         System.assertEquals(50000, updatedLead.Estimated_Budget__c, 'Budget should be updated');
         System.assertEquals(true, updatedLead.Project_Request_Submitted__c, 'Submitted flag should be true');
-
+ 
         // 2. Validate Child Records Replaced
         List<Interior_Request_Room__c> newRooms = [SELECT Quantity__c FROM Interior_Request_Room__c WHERE Lead__c = :ld.Id];
         System.assertEquals(1, newRooms.size(), 'Should have 1 room record');
         System.assertEquals(5, newRooms[0].Quantity__c, 'Room quantity should be updated/replaced');
-
+ 
         List<Interior_Request_Room_Design__c> newDesigns = [SELECT Design_Amount__c FROM Interior_Request_Room_Design__c WHERE Lead__c = :ld.Id];
         System.assertEquals(1, newDesigns.size(), 'Should have 1 design record');
         System.assertEquals(5000.50, newDesigns[0].Design_Amount__c, 'Design amount should be updated');
-
+ 
         // 3. Validate File Copy (Design -> Lead)
         List<ContentDocumentLink> leadFiles = [SELECT Id FROM ContentDocumentLink WHERE LinkedEntityId = :ld.Id];
         System.assert(leadFiles.size() > 0, 'File linked to Design should have been copied to the Lead');
     }
-
+ 
     /**
      * @description Covers "Default Value" logic in helpers (getInt, getStr) by omitting optional fields.
      */
@@ -124,15 +124,15 @@ private class InteriorAutoProjectRequestServiceTest {
     static void testSaveRequestWithDefaults() {
         Lead ld = [SELECT Id FROM Lead LIMIT 1];
         Interior_Room__c room = [SELECT Id FROM Interior_Room__c LIMIT 1];
-
+ 
         // Payload missing 'quantity' (triggers default 1) and 'lineAmount' (triggers null)
         List<Object> rooms = new List<Object>{
-            new Map<String, Object>{ 'roomId' => room.Id } 
+            new Map<String, Object>{ 'roomId' => room.Id }
         };
         List<Object> designs = new List<Object>{
             new Map<String, Object>{ 'roomId' => room.Id, 'designId' => null }
         };
-
+ 
         Map<String, Object> req = new Map<String, Object>{
             'leadId' => ld.Id,
             'lastName' => 'Doe',
@@ -140,15 +140,15 @@ private class InteriorAutoProjectRequestServiceTest {
             'rooms' => rooms,
             'selectedRoomDesigns' => designs
         };
-
+ 
         Test.startTest();
         InteriorAutoProjectRequestService.saveRequest(req);
         Test.stopTest();
-
+ 
         List<Interior_Request_Room__c> newRooms = [SELECT Quantity__c FROM Interior_Request_Room__c WHERE Lead__c = :ld.Id];
         System.assertEquals(1, newRooms[0].Quantity__c, 'Should default quantity to 1 when missing');
     }
-
+ 
     /**
      * @description Tests attempting to submit for a Lead that is already submitted.
      */
@@ -157,13 +157,13 @@ private class InteriorAutoProjectRequestServiceTest {
         Lead ld = [SELECT Id, LastName, Company FROM Lead LIMIT 1];
         ld.Project_Request_Submitted__c = true;
         update ld;
-
-        Map<String, Object> req = new Map<String, Object>{ 
+ 
+        Map<String, Object> req = new Map<String, Object>{
             'leadId' => ld.Id,
             'lastName' => ld.LastName,
             'company' => ld.Company
         };
-
+ 
         Boolean caught = false;
         Test.startTest();
         try {
@@ -173,10 +173,10 @@ private class InteriorAutoProjectRequestServiceTest {
             System.assertNotEquals(null, e, 'Exception should be thrown');
         }
         Test.stopTest();
-
+ 
         System.assertEquals(true, caught, 'Should block double submission');
     }
-
+ 
     /**
      * @description Tests validations for empty payload or missing Lead Id.
      */
@@ -189,7 +189,7 @@ private class InteriorAutoProjectRequestServiceTest {
         } catch (AuraHandledException e) {
             System.assert(true);
         }
-
+ 
         // 2. Missing Lead Id
         Map<String, Object> req = new Map<String, Object>{ 'firstName' => 'Test' };
         try {
@@ -199,50 +199,50 @@ private class InteriorAutoProjectRequestServiceTest {
             System.assert(true);
         }
     }
-
+ 
     /**
      * @description Tests clearing selections (sending empty lists).
      */
     @IsTest
     static void testSaveRequestEmptyChildren() {
         Lead ld = [SELECT Id, LastName, Company FROM Lead LIMIT 1];
-
+ 
         Map<String, Object> req = new Map<String, Object>{
             'leadId' => ld.Id,
-            'lastName' => ld.LastName, 
-            'company' => ld.Company,   
+            'lastName' => ld.LastName,
+            'company' => ld.Company,  
             'rooms' => new List<Object>(), // Empty List
             'selectedRoomDesigns' => new List<Object>() // Empty List
         };
-
+ 
         Test.startTest();
         InteriorAutoProjectRequestService.saveRequest(req);
         Test.stopTest();
-
+ 
         // Should have deleted existing ones from Setup and created 0 new ones
         Integer roomCount = [SELECT Count() FROM Interior_Request_Room__c WHERE Lead__c = :ld.Id];
         Integer designCount = [SELECT Count() FROM Interior_Request_Room_Design__c WHERE Lead__c = :ld.Id];
-
+ 
         System.assertEquals(0, roomCount, 'All rooms should be removed');
         System.assertEquals(0, designCount, 'All designs should be removed');
     }
-
+ 
     /* =========================================================
        DATA RETRIEVAL TESTS
        ========================================================= */
-
+ 
     @IsTest
     static void testFetchLeadForAutoRequest() {
         Lead ld = [SELECT Id FROM Lead LIMIT 1];
-
+ 
         Test.startTest();
         Lead result = InteriorAutoProjectRequestService.fetchLeadForAutoRequest(ld.Id);
         Test.stopTest();
-
+ 
         System.assertNotEquals(null, result, 'Should return lead');
         System.assertEquals(ld.Id, result.Id, 'Ids should match');
     }
-
+ 
     @IsTest
     static void testFetchLeadForAutoRequestErrors() {
         try {
@@ -252,21 +252,21 @@ private class InteriorAutoProjectRequestServiceTest {
             System.assert(true);
         }
     }
-
+ 
     @IsTest
     static void testFetchExistingRequest() {
         Lead ld = [SELECT Id FROM Lead LIMIT 1];
-
+ 
         Test.startTest();
-        InteriorAutoProjectRequestService.ExistingRequestDTO dto = 
+        InteriorAutoProjectRequestService.ExistingRequestDTO dto =
             InteriorAutoProjectRequestService.fetchExistingRequest(ld.Id);
         Test.stopTest();
-
+ 
         System.assertNotEquals(null, dto, 'DTO should return');
         System.assertEquals(1, dto.rooms.size(), 'Should return 1 existing room');
         System.assertEquals(1, dto.roomDesigns.size(), 'Should return 1 existing design');
     }
-
+ 
     @IsTest
     static void testFetchExistingRequestErrors() {
         try {
@@ -276,7 +276,7 @@ private class InteriorAutoProjectRequestServiceTest {
             System.assert(true);
         }
     }
-
+ 
     /**
      * @description Tests the static utility helper methods directly to ensure >90% coverage.
      */
@@ -286,11 +286,11 @@ private class InteriorAutoProjectRequestServiceTest {
         System.assertEquals(true, InteriorAutoProjectRequestService.isEmpty(null), 'isEmpty should return true for null list');
         System.assertEquals(true, InteriorAutoProjectRequestService.isEmpty(new List<String>()), 'isEmpty should return true for empty list');
         System.assertEquals(false, InteriorAutoProjectRequestService.isEmpty(new List<String>{'A'}), 'isEmpty should return false for populated list');
-
+ 
         // 2. Test nvl(String)
         System.assertEquals('Not specified', InteriorAutoProjectRequestService.nvl(null), 'nvl should return default for null input');
         System.assertEquals('Valid Value', InteriorAutoProjectRequestService.nvl('Valid Value'), 'nvl should return original string if not null');
-
+ 
         // 3. Test formatAmount(Decimal)
         System.assertEquals('', InteriorAutoProjectRequestService.formatAmount(null), 'formatAmount should return empty string for null');
         System.assertEquals('500.00', InteriorAutoProjectRequestService.formatAmount(500), 'Should format simple hundreds');
