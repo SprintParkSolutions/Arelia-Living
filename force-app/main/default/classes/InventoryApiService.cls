@@ -60,6 +60,20 @@ public without sharing class InventoryApiService {
         result.put('categoriesByRoom', finalCategoryMap);
         return result;
     }
+@AuraEnabled(cacheable=true)
+public static Opportunity getOpportunitySummary(Id opportunityId) {
+    return [
+        SELECT
+            Lead_Name__c,
+            Email__c,            
+            Type_of_Project__c,
+            Project_Request_Quotation_Type__c,
+            Interior_Project_Type__r.Name
+        FROM Opportunity
+        WHERE Id = :opportunityId
+        LIMIT 1
+    ];
+}
 
 
     /* ===============================
