@@ -1,4 +1,4 @@
-public with sharing class PaymentTermController {
+public without sharing class PaymentTermController {
     
     // ADDED cacheable=true for better LWC wire support
     @AuraEnabled(cacheable=true)
