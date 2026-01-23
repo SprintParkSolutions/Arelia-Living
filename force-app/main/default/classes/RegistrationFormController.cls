@@ -141,8 +141,9 @@ public without sharing class RegistrationFormController {
         Lead leadToInsert = buildLead(firstName, lastName, email, phone, companyName);
 
         assertCanCreateLead();
-        // Insert in system mode so guest can create Lead (with explicit CRUD check above)
-        Database.insert(leadToInsert, AccessLevel.SYSTEM_MODE);
+        // If we use AccessLevel.SYSTEM_MODE,it will not allow duplicates. It will show dml exception.
+        //Database.insert(leadToInsert, AccessLevel.SYSTEM_MODE);
+        Database.insert(leadToInsert,false);
 
         sendWelcomeEmailSafely(leadToInsert);
         return leadToInsert.Id;
