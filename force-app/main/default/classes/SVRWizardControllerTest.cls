@@ -7,10 +7,25 @@ public class SVRWizardControllerTest {
         User u = TestDataUtility.createSupervisorUser('svrtest');
         
         // 2. Create Lead
-        TestDataUtility.createLead('Test Lead');
+        Lead l = TestDataUtility.createLead('Test Lead');
 
         // 3. Create Opportunity
         TestDataUtility.createOpportunity('Test Opp SVR', u.Id);
+
+        // =================================================================
+        // FIX: Satisfy Validation Rule using 'Appointment_Completed__c'
+        // =================================================================
+        // The validation rule blocks SVR creation unless this checkbox is checked.
+        try {
+            // Using .put() to safely handle the field provided
+            l.put('Appointment_Completed__c', true); 
+            
+            // Just in case there are other status dependencies, we keep this status update
+            l.Status = 'Appointment Completed'; // Or whatever status matches the checkbox logically
+        } catch(Exception e) {
+            System.debug('Field write failed: ' + e.getMessage());
+        }
+        update l;
     }
 
     // ==========================================
@@ -21,7 +36,7 @@ public class SVRWizardControllerTest {
     static void testGetLatestSVRForLeadSuccess() {
         Lead l = [SELECT Id FROM Lead LIMIT 1];
         
-        // Create an SVR for this Lead
+        // Create an SVR for this Lead (Now succeeds because Appointment_Completed__c is true)
         TestDataUtility.createSiteVisitReport(l.Id, 'Lead Site Visit Report');
 
         Test.startTest();
@@ -72,12 +87,13 @@ public class SVRWizardControllerTest {
     static void testCreateSVRNewLead() {
         Lead l = [SELECT Id FROM Lead LIMIT 1];
         
-        // FIXED: Added required field Total_Estimated_Cost__c
+        // Added required field Total_Estimated_Cost__c
         Site_Visit_Report__c draft = new Site_Visit_Report__c(
             Total_Estimated_Cost__c = 5000 
         );
 
         Test.startTest();
+        // This will now succeed because the Lead in setup() has Appointment_Completed__c = true
         Id svrId = SVRWizardController.createSVR(l.Id, 'Lead', draft);
         Test.stopTest();
 
@@ -90,7 +106,7 @@ public class SVRWizardControllerTest {
     @isTest
     static void testCreateSVRExisting() {
         Lead l = [SELECT Id FROM Lead LIMIT 1];
-        // Pre-create one
+        // Pre-create one (Succeeds due to setup fix)
         Site_Visit_Report__c existing = TestDataUtility.createSiteVisitReport(l.Id, 'Lead Site Visit Report');
 
         Test.startTest();
@@ -104,7 +120,7 @@ public class SVRWizardControllerTest {
     static void testCreateSVROpportunity() {
         Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
         
-        // FIXED: Added required field Total_Estimated_Cost__c
+        // Added required field
         Site_Visit_Report__c draft = new Site_Visit_Report__c(
              Total_Estimated_Cost__c = 7500
         );
@@ -151,7 +167,6 @@ public class SVRWizardControllerTest {
         Lead l = [SELECT Id FROM Lead LIMIT 1];
         Site_Visit_Report__c svr = TestDataUtility.createSiteVisitReport(l.Id, 'Lead Site Visit Report');
         
-        // FIXED: Using 'Management_Approval__c' instead of 'Comments__c'
         svr.Management_Approval__c = true;
 
         Test.startTest();

@@ -1,0 +1,24 @@
+<html>
+<head>
+	<title></title>
+</head>
+<body style="height: auto; min-height: auto;">
+<p>Dear [SUPERVISOR_NAME],</p>
+
+<p>This notification confirms that the Manager has completed the review of the pending Architecture Design. A final decision has been logged.</p>
+
+<p><strong>Approval Status:</strong></p>
+
+<p><strong>Project Reference:</strong> [PROJECT_NAME]<br />
+<strong>Client Name:</strong> [CLIENT_NAME]<br />
+<strong>Manager Decision:</strong> [DECISION]</p>
+
+<p><strong>Manager's Review Feedback:</strong><br />
+[COMMENTS]</p>
+
+<p>The system record has been updated. Please proceed with the next phase of the enrollment workflow.</p>
+
+<p>Sincerely,<br />
+Arelia Living&nbsp;</p>
+</body>
+</html>
