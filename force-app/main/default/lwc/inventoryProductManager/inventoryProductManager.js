@@ -4,6 +4,7 @@ import { CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getCatalogConfig from '@salesforce/apex/InventoryApiService.getCatalogConfig';
 import getOpportunitySummary from '@salesforce/apex/InventoryApiService.getOpportunitySummary';
+import ARELIA_SITE_URL from '@salesforce/label/c.Arelia_Site_Label';
 
 
 import getProducts from '@salesforce/apex/InventoryApiService.getProducts';
@@ -473,8 +474,8 @@ getPageRef(pageRef) {
                     Name: prod?.Name,
 
                       // 🔥 ADD THESE TWO
-    Room_Type__c: this.selectedRoomType,
-    Product_Category__c: this.selectedCategory,
+    Room_Type__c: this.selectedRoomType || prod?.Room_Type__c || 'Unknown',
+Product_Category__c: this.selectedCategory || prod?.Product_Category__c || 'Others',
                     Quantity__c: qty,
                     Unit_Price__c: price,
                     Quality__c: quality,
@@ -615,9 +616,13 @@ getPageRef(pageRef) {
                 this.showCustomPopup('🎉 Success', 'Quotation PDF generated & emailed!');
             })
             .catch(error => {
-                this.isLoading = false;
-                this.showToast('Error', error.body?.message || 'Unknown error', 'error');
-            });
+    this.isLoading = false;
+    const msg =
+        error?.body?.message ||
+        error?.message ||
+        'PDF generation failed. Check product data.';
+    this.showToast('Error', msg, 'error');
+});
     }
 
     /* ================= IMAGE MODAL ================= */
@@ -643,8 +648,13 @@ getPageRef(pageRef) {
     }
 
     closePopup() {
-        this.showPopup = false;
-    }
+    this.showPopup = false;
+
+    setTimeout(() => {
+        window.location.href = ARELIA_SITE_URL;
+    }, 300);
+}
+
 
     /* ================= HELPERS ================= */
     fetchSavedCart() {
