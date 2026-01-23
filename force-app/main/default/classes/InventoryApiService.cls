@@ -14,22 +14,25 @@ public without sharing class InventoryApiService {
 
         // 1️⃣ Get Opportunity context
         Opportunity opp = [
-            SELECT Type_of_Project__c
+            SELECT Type_of_Project__c,Interior_Project_Type_Value_Name__c
             FROM Opportunity
             WHERE Id = :opportunityId
             LIMIT 1
         ];
 
-        if (String.isBlank(opp.Type_of_Project__c)) {
+        /*if (String.isBlank(opp.Type_of_Project__c)) {
             throw new AuraHandledException('Type of Project is not set on Opportunity');
-        }
+        }*/
+
+        String projectTypeValue = String.isNotBlank(opp.Type_of_Project__c) ? opp.Type_of_Project__c : opp.Interior_Project_Type_Value_Name__c;
 
         // 2️⃣ Get product-based configuration
         List<Interior_Product__c> products = [
             SELECT Room_Type__c, Product_Category__c
             FROM Interior_Product__c
-            WHERE Type_of_Project__c = :opp.Type_of_Project__c
+            WHERE Type_of_Project__c = :projectTypeValue
         ];
+        System.debug('products List::'+products);
 
         // 3️⃣ Build dynamic dependency structure
         Set<String> roomSet = new Set<String>();

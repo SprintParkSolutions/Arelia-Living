@@ -4,11 +4,18 @@ public with sharing class OpportunityCatalogueEmailSender {
     public static void sendCatalogueEmail(Id oppId, Boolean forceSend) {
 
         Opportunity opp = [
-            SELECT Id, Lead_Name__c, Email__c, Catalogue_Link_Sent__c
+            SELECT Id, Lead_Name__c, Email__c, Catalogue_Link_Sent__c,Architecture_Manager_Approval__c
             FROM Opportunity
             WHERE Id = :oppId
             LIMIT 1
         ];
+
+// Architecture Manager approval check
+        if (!opp.Architecture_Manager_Approval__c) {
+            throw new AuraHandledException(
+                'Catalogue link can be sent only after Architecture Manager approval.'
+            );
+        }
 
         // Feasibility check for resend
         if (opp.Catalogue_Link_Sent__c && !forceSend) {

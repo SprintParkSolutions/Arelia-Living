@@ -22,13 +22,18 @@ public without sharing class OpportunityQuotePDFController {
 
         //  Load Opportunity
         Opp = [
-            SELECT Id, Name, Lead_Name__c, Email__c, Lead_Phone__c,
-                   Type_of_Project__c,
-                   Supervisor_User__c
-            FROM Opportunity
-            WHERE Id = :oppId
-            LIMIT 1
-        ];
+    SELECT Id,
+           Name,
+           Lead_Name__c,
+           Email__c,
+           Lead_Phone__c,
+           Project_Request_Quotation_Type__c,
+           Type_of_Project__c,
+           Interior_Project_Type__r.Name
+    FROM Opportunity
+    WHERE Id = :oppId
+    LIMIT 1
+];
 
         //  Load ONLY active cart items
         specItems = [
@@ -39,6 +44,7 @@ public without sharing class OpportunityQuotePDFController {
                    Interior_Product__r.Room_Type__c
             FROM Project_Specification__c
             WHERE Opportunity__c = :oppId
+            AND Interior_Product__c != NULL
             AND Is_Active_Cart_Item__c = TRUE
             ORDER BY CreatedDate ASC
         ];
@@ -50,7 +56,38 @@ public without sharing class OpportunityQuotePDFController {
             }
         }
     }
+/* ===============================
+   COMPUTED GETTERS (VF SAFE)
+=============================== */
 
+// Quotation Type
+public String quotationType {
+    get {
+        return (Opp != null && !String.isBlank(Opp.Project_Request_Quotation_Type__c))
+            ? Opp.Project_Request_Quotation_Type__c
+            : '—';
+    }
+}
+
+// Project Type (Manual vs Automatic)
+public String projectType {
+    get {
+        if (Opp == null) return '—';
+
+        if (Opp.Project_Request_Quotation_Type__c == 'Manual Quotation') {
+            return String.isBlank(Opp.Type_of_Project__c)
+                ? '—'
+                : Opp.Type_of_Project__c;
+        }
+
+        if (Opp.Project_Request_Quotation_Type__c == 'Automatic Quotation'
+            && Opp.Interior_Project_Type__r != null) {
+            return Opp.Interior_Project_Type__r.Name;
+        }
+
+        return '—';
+    }
+}
 
     /* ===============================
        CART OPERATIONS
@@ -79,9 +116,18 @@ ORDER BY LastModifiedDate DESC
     @AuraEnabled
     public static void saveCart(Id opportunityId, List<Project_Specification__c> cartItems) {
 
+
+
         if (opportunityId == null || cartItems == null || cartItems.isEmpty()) {
             throw new AuraHandledException('Nothing to save');
         }
+
+ Opportunity opp = [
+        SELECT Type_of_Project__c
+        FROM Opportunity
+        WHERE Id = :opportunityId
+        LIMIT 1
+    ];
 
         //  Mark previous cart items inactive
         List<Project_Specification__c> oldItems = [
@@ -115,7 +161,7 @@ ORDER BY LastModifiedDate DESC
         for (Project_Specification__c ci : cartItems) {
             ci.Opportunity__c = opportunityId;
             ci.Is_Active_Cart_Item__c = TRUE;
-
+ci.Type_of_Project__c = opp.Type_of_Project__c;
             Interior_Product__c prod = productMap.get(ci.Interior_Product__c);
             if (prod != null) {
                 ci.Room_Type__c = prod.Room_Type__c;
@@ -150,6 +196,7 @@ ORDER BY LastModifiedDate DESC
     @AuraEnabled
     public static String generateQuoteAndSave(Id opportunityId) {
 
+
         if (opportunityId == null)
             throw new AuraHandledException('Opportunity Id missing');
 
@@ -164,6 +211,15 @@ ORDER BY LastModifiedDate DESC
         if (cartItems.isEmpty())
             throw new AuraHandledException('Cart is empty. Save items first.');
 
+// 🔥 NORMALIZE DATA (MUST)
+    for (Project_Specification__c s : cartItems) {
+        if (s.Quantity__c == null) s.Quantity__c = 1;
+        if (s.Unit_Price__c == null) s.Unit_Price__c = 0;
+        if (s.Quality__c == null) s.Quality__c = 'Standard';
+        if (s.Vendor_Category__c == null) s.Vendor_Category__c = 'Others';
+    }
+    update cartItems;
+
         Quotation__c qt = new Quotation__c(
             Opportunity__c = opportunityId,
             Name = 'Quotation - ' + Datetime.now().format('yyyyMMdd_HHmmss'),
@@ -174,9 +230,16 @@ ORDER BY LastModifiedDate DESC
         PageReference pageRef = Page.Opportunity_Quote_PDF;
         pageRef.getParameters().put('id', opportunityId);
 
-        Blob pdfBlob = Test.isRunningTest()
-            ? Blob.valueOf('TEST PDF')
-            : pageRef.getContentAsPDF();
+        Blob pdfBlob;
+try {
+    pdfBlob = Test.isRunningTest()
+        ? Blob.valueOf('TEST PDF')
+        : pageRef.getContentAsPDF();
+} catch (Exception e) {
+    throw new AuraHandledException(
+        'Quotation PDF generation failed. Please check product data completeness.'
+    );
+}
 
         // Create Salesforce File
 ContentVersion cv = new ContentVersion();
