@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Type_Of_Project__c</fullName>
-    <label>Type Of Project</label>
+    <fullName>Plan_Level__c</fullName>
+    <label>Plan Level</label>
     <required>false</required>
-    <trackHistory>true</trackHistory>
+    <trackHistory>false</trackHistory>
     <trackTrending>false</trackTrending>
     <type>Picklist</type>
     <valueSet>
@@ -11,24 +11,19 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
-                <fullName>Home</fullName>
+                <fullName>Standard</fullName>
                 <default>false</default>
-                <label>Home</label>
+                <label>Standard</label>
             </value>
             <value>
-                <fullName>Office</fullName>
+                <fullName>Premium</fullName>
                 <default>false</default>
-                <label>Office</label>
+                <label>Premium</label>
             </value>
             <value>
-                <fullName>Only Project Plan</fullName>
+                <fullName>Luxury</fullName>
                 <default>false</default>
-                <label>Only Project Plan</label>
-            </value>
-            <value>
-                <fullName>Other</fullName>
-                <default>false</default>
-                <label>Other</label>
+                <label>Luxury</label>
             </value>
         </valueSetDefinition>
     </valueSet>

@@ -3,7 +3,7 @@
     <fullName>Start_Date__c</fullName>
     <description>Project initiation date</description>
     <inlineHelpText>Project initiation date</inlineHelpText>
-    <label>Start Date</label>
+    <label>Project Start Date</label>
     <required>false</required>
     <trackHistory>true</trackHistory>
     <trackTrending>false</trackTrending>

@@ -159,7 +159,7 @@ private class ProjectAdditionalBudgetControllerTest {
         ProjectAdditionalBudgetController.submitRequest(p.Id, 200, 'Extra material', null);
 
         Test.startTest();
-        ProjectAdditionalBudgetController.rejectRequest(p.Id);
+        ProjectAdditionalBudgetController.rejectRequest(p.Id,'Rejected Reason');
         Test.stopTest();
 
         Project__c updated = [

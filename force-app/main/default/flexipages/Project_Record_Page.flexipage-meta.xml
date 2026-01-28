@@ -4,43 +4,20 @@
         <itemInstances>
             <componentInstance>
                 <componentInstanceProperties>
-                    <name>actionNames</name>
-                    <valueList>
-                        <valueListItems>
-                            <value>Lead.Lead_Approval</value>
-                        </valueListItems>
-                        <valueListItems>
-                            <value>Lead.Assign_Supervisor</value>
-                        </valueListItems>
-                        <valueListItems>
-                            <value>Lead.Book_Site_Visit</value>
-                        </valueListItems>
-                        <valueListItems>
-                            <value>Lead.Site_Visit_Report_Data</value>
-                        </valueListItems>
-                        <valueListItems>
-                            <value>Convert</value>
-                        </valueListItems>
-                        <valueListItems>
-                            <value>Edit</value>
-                        </valueListItems>
-                    </valueList>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
                     <name>collapsed</name>
                     <value>false</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>enableActionsConfiguration</name>
-                    <value>true</value>
+                    <value>false</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>enableActionsInNative</name>
-                    <value>true</value>
+                    <value>false</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>hideChatterActions</name>
-                    <value>true</value>
+                    <value>false</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>numVisibleActions</name>
@@ -50,19 +27,14 @@
                 <identifier>force_highlightsPanel</identifier>
             </componentInstance>
         </itemInstances>
-        <mode>Replace</mode>
-        <name>header</name>
-        <type>Region</type>
-    </flexiPageRegions>
-    <flexiPageRegions>
         <itemInstances>
             <componentInstance>
-                <componentName>leadProgressPath</componentName>
-                <identifier>c_leadProgressPath</identifier>
+                <componentName>projectCustomPath</componentName>
+                <identifier>c_projectCustomPath</identifier>
             </componentInstance>
         </itemInstances>
         <mode>Replace</mode>
-        <name>subheader</name>
+        <name>header</name>
         <type>Region</type>
     </flexiPageRegions>
     <flexiPageRegions>
@@ -87,8 +59,7 @@
                 <identifier>runtime_sales_activities_activityPanel</identifier>
             </componentInstance>
         </itemInstances>
-        <mode>Replace</mode>
-        <name>activityTabContent</name>
+        <name>Facet-620a1120-2c70-406c-af6d-d91a5e2a085f</name>
         <type>Facet</type>
     </flexiPageRegions>
     <flexiPageRegions>
@@ -98,8 +69,7 @@
                 <identifier>c_waMessagePanel2</identifier>
             </componentInstance>
         </itemInstances>
-        <mode>Replace</mode>
-        <name>feedTabContent</name>
+        <name>Facet-7e4ef27f-60c2-4587-9d52-fe653bb89f2c</name>
         <type>Facet</type>
     </flexiPageRegions>
     <flexiPageRegions>
@@ -124,37 +94,33 @@
         <itemInstances>
             <componentInstance>
                 <componentInstanceProperties>
-                    <name>active</name>
-                    <value>false</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
                     <name>body</name>
-                    <value>activityTabContent</value>
+                    <value>Facet-620a1120-2c70-406c-af6d-d91a5e2a085f</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>title</name>
-                    <value>Standard.Tab.activity</value>
+                    <value>Standard.Tab.eduActivities</value>
                 </componentInstanceProperties>
                 <componentName>flexipage:tab</componentName>
-                <identifier>activityTab</identifier>
+                <identifier>flexipage_tab</identifier>
             </componentInstance>
         </itemInstances>
         <itemInstances>
             <componentInstance>
                 <componentInstanceProperties>
                     <name>body</name>
-                    <value>feedTabContent</value>
+                    <value>Facet-7e4ef27f-60c2-4587-9d52-fe653bb89f2c</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>title</name>
                     <value>WhatsApp Chat</value>
                 </componentInstanceProperties>
                 <componentName>flexipage:tab</componentName>
-                <identifier>collaborateTab</identifier>
+                <identifier>flexipage_tab2</identifier>
             </componentInstance>
         </itemInstances>
         <mode>Replace</mode>
-        <name>tabs</name>
+        <name>maintabs</name>
         <type>Facet</type>
     </flexiPageRegions>
     <flexiPageRegions>
@@ -166,7 +132,7 @@
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>tabs</name>
-                    <value>tabs</value>
+                    <value>maintabs</value>
                 </componentInstanceProperties>
                 <componentName>flexipage:tabset</componentName>
                 <identifier>flexipage_tabset</identifier>
@@ -192,7 +158,7 @@
                     <value>true</value>
                 </componentInstanceProperties>
                 <componentName>force:relatedListContainer</componentName>
-                <identifier>force_relatedListContainer</identifier>
+                <identifier>force_relatedListContainer2</identifier>
             </componentInstance>
         </itemInstances>
         <itemInstances>
@@ -205,11 +171,11 @@
         <name>sidebar</name>
         <type>Region</type>
     </flexiPageRegions>
-    <masterLabel>Lead Record Page</masterLabel>
-    <parentFlexiPage>runtime_sales_lead__Lead_rec_L</parentFlexiPage>
-    <sobjectType>Lead</sobjectType>
+    <masterLabel>Project Record Page</masterLabel>
+    <parentFlexiPage>flexipage__default_rec_L</parentFlexiPage>
+    <sobjectType>Project__c</sobjectType>
     <template>
-        <name>flexipage:recordHomeWithSubheaderTemplateDesktop</name>
+        <name>flexipage:recordHomeTemplateDesktop</name>
     </template>
     <type>RecordPage</type>
 </FlexiPage>
