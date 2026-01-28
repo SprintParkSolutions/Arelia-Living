@@ -88,7 +88,16 @@ export default class SiteVisitReportWizard extends LightningElement {
             });
             this.handleStartWizard();
         } catch (error) {
-            this.showToast('Error', error.body.message, 'error');
+            // 1. Extract the readable message
+            let message = 'Unknown Error';
+            if (Array.isArray(error.body)) {
+                message = error.body.map(e => e.message).join(', ');
+            } else if (typeof error.body.message === 'string') {
+                message = error.body.message;
+            }
+            
+            // 2. Show the specific validation error
+            this.showToast('Error Creating Record', message, 'error');
             this.currentView = 'CREATE';
         }
     }

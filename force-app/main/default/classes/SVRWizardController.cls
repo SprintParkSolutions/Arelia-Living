@@ -3,43 +3,46 @@ public with sharing class SVRWizardController {
     /* ========== GET LATEST SVR (Strict Record Type Check) ========== */
     @AuraEnabled
     public static Site_Visit_Report__c getLatestSVR(Id parentId, String objectApiName) {
-        if (parentId == null) return null;
-
-        // 1. Determine the STRICT Record Type we are looking for
-        String targetRtName = '';
-        if (objectApiName == 'Lead') {
-            targetRtName = 'Lead Site Visit Report';
-        } else if (objectApiName == 'Opportunity') {
-            targetRtName = 'Opportunity Site Visit Report';
-        } else {
-            return null; // Unsupported object
+        if (parentId == null) {
+            return null;
         }
 
-        // 2. Build Query with RecordType Filter
-        String query = 'SELECT Id, Wizard_Step__c, Is_Final_Submitted__c, Layout_Blueprint_Uploaded__c, Management_Approval__c ' +
-                       'FROM Site_Visit_Report__c ' + 
-                       'WHERE RecordType.Name = :targetRtName '; // <--- STRICT CHECK
+        List<Site_Visit_Report__c> svrs = new List<Site_Visit_Report__c>();
 
-        // 3. Add Parent Filter
+        // FIX: Switched to Static SOQL to resolve "ApexSOQLInjection" PMD error
         if (objectApiName == 'Lead') {
-            query += 'AND Lead__c = :parentId ';
+            svrs = [
+                SELECT Id, Wizard_Step__c, Is_Final_Submitted__c, Layout_Blueprint_Uploaded__c, Management_Approval__c
+                FROM Site_Visit_Report__c
+                WHERE RecordType.Name = 'Lead Site Visit Report'
+                AND Lead__c = :parentId
+                WITH USER_MODE
+                ORDER BY CreatedDate DESC
+                LIMIT 1
+            ];
         } else if (objectApiName == 'Opportunity') {
-            query += 'AND Opportunity__c = :parentId ';
+            svrs = [
+                SELECT Id, Wizard_Step__c, Is_Final_Submitted__c, Layout_Blueprint_Uploaded__c, Management_Approval__c
+                FROM Site_Visit_Report__c
+                WHERE RecordType.Name = 'Opportunity Site Visit Report'
+                AND Opportunity__c = :parentId
+                WITH USER_MODE
+                ORDER BY CreatedDate DESC
+                LIMIT 1
+            ];
         }
 
-        query += 'ORDER BY CreatedDate DESC LIMIT 1';
-
-        List<Site_Visit_Report__c> svrs = Database.query(query);
         return svrs.isEmpty() ? null : svrs[0];
     }
 
-    /* ========== CREATE SVR (Unchanged, but benefits from stricter check) ========== */
+    /* ========== CREATE SVR ========== */
     @AuraEnabled
     public static Id createSVR(Id parentId, String objectApiName, Site_Visit_Report__c draftData) {
         
-        // 1. Double check using the new strict logic
         Site_Visit_Report__c existing = getLatestSVR(parentId, objectApiName);
-        if (existing != null) return existing.Id;
+        if (existing != null) {
+            return existing.Id;
+        }
 
         String rtName = '';
         if (objectApiName == 'Lead') {
@@ -62,37 +65,56 @@ public with sharing class SVRWizardController {
         }
 
         draftData.Wizard_Step__c = 2;
-        insert draftData;
+
+        try {
+            // FIX: AccessLevel.USER_MODE satisfies "ApexCRUDViolation"
+            Database.insert(draftData, AccessLevel.USER_MODE);
+        } catch (DmlException e) {
+            // Captures Validation Rule errors for the LWC
+            throw new AuraHandledException(e.getDmlMessage(0));
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+        
         return draftData.Id;
     }
 
     /* ========== SAVE STEP ========== */
     @AuraEnabled
     public static void saveStep(Id svrId, Integer stepNo) {
-        update new Site_Visit_Report__c(Id = svrId, Wizard_Step__c = stepNo);
+        Site_Visit_Report__c toUpdate = new Site_Visit_Report__c(Id = svrId, Wizard_Step__c = stepNo);
+        Database.update(toUpdate, AccessLevel.USER_MODE);
     }
 
     /* ========== SAVE DRAFT ========== */
     @AuraEnabled
     public static void saveDraft(Site_Visit_Report__c data) {
-        update data;
+        try {
+            Database.update(data, AccessLevel.USER_MODE);
+        } catch (DmlException e) {
+            throw new AuraHandledException(e.getDmlMessage(0));
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
     }
 
     /* ========== MARK BLUEPRINT ========== */
     @AuraEnabled
     public static void markBlueprintUploaded(Id svrId) {
-        update new Site_Visit_Report__c(Id = svrId, Layout_Blueprint_Uploaded__c = true);
+        Site_Visit_Report__c toUpdate = new Site_Visit_Report__c(Id = svrId, Layout_Blueprint_Uploaded__c = true);
+        Database.update(toUpdate, AccessLevel.USER_MODE);
     }
 
     /* ========== FINAL SUBMIT ========== */
     @AuraEnabled
     public static void finalSubmit(Id svrId) {
-        update new Site_Visit_Report__c(
+        Site_Visit_Report__c toUpdate = new Site_Visit_Report__c(
             Id = svrId,
             Wizard_Step__c = 3,
             Is_Final_Submitted__c = true,
             Site_Visit_Report_Status__c = 'Approved' 
         );
+        Database.update(toUpdate, AccessLevel.USER_MODE);
     }
 
     /* ========== UTILS ========== */
@@ -100,10 +122,12 @@ public with sharing class SVRWizardController {
     public static List<String> getFieldSetFields(String objectApi, String fieldSetName) {
         List<String> fields = new List<String>();
         Schema.SObjectType t = Schema.getGlobalDescribe().get(objectApi);
-        if(t == null) return fields;
+        if (t == null) {
+            return fields;
+        }
         
         Schema.DescribeSObjectResult describe = t.getDescribe();
-        if(describe.fieldSets.getMap().containsKey(fieldSetName)) {
+        if (describe.fieldSets.getMap().containsKey(fieldSetName)) {
             Schema.FieldSet fs = describe.fieldSets.getMap().get(fieldSetName);
             for (Schema.FieldSetMember f : fs.getFields()) {
                 fields.add(f.getFieldPath());
@@ -118,6 +142,7 @@ public with sharing class SVRWizardController {
             SELECT ContentDocumentId, ContentDocument.Title, ContentDocument.FileType
             FROM ContentDocumentLink
             WHERE LinkedEntityId = :recordId
+            WITH USER_MODE
         ];
     }
 }

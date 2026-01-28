@@ -1,4 +1,5 @@
 @isTest
+@SuppressWarnings('PMD.ExcessivePublicCount, PMD.ExcessiveParameterList')
 public class TestDataUtility {
 
     // 1. Create User
@@ -87,7 +88,15 @@ public class TestDataUtility {
 
     // 6. Link File to Record (ContentDocumentLink)
     public static ContentDocumentLink linkFileToRecord(Id contentVersionId, Id linkedEntityId) {
-        Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :contentVersionId].ContentDocumentId;
+        // Handle case where contentVersionId is already a ContentDocumentId vs ContentVersionId
+        Id conDocId;
+        String keyPrefix = String.valueOf(contentVersionId).substring(0,3);
+        
+        if (keyPrefix == '068') { // ContentVersion
+             conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :contentVersionId].ContentDocumentId;
+        } else { // ContentDocument
+             conDocId = contentVersionId;
+        }
         
         ContentDocumentLink cdl = new ContentDocumentLink(
             LinkedEntityId = linkedEntityId,
@@ -99,7 +108,7 @@ public class TestDataUtility {
         return cdl;
     }
 
-    // 7. Create Email Templates
+    // 7. Create Email Templates (Generic)
     public static void createEmailTemplates() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             List<EmailTemplate> templates = new List<EmailTemplate>();
@@ -126,9 +135,7 @@ public class TestDataUtility {
         }
     }
 
-    // ==========================================================================
     // Wrapper class to solve "Excessive Parameter List"
-    // ==========================================================================
     public class AbscondDataParams {
         public Id oppId;
         public Id vendorId;
@@ -182,7 +189,7 @@ public class TestDataUtility {
         insert spec;
     }
 
-    // 10. Create Payment Term (Dynamic Parent Linking)
+    // 10. Create Payment Term
     public static Payment_Term__c createPaymentTerm(Id parentId, String label, Decimal percentage) {
         Payment_Term__c term = new Payment_Term__c(
             Term_Label__c = label,
@@ -191,7 +198,6 @@ public class TestDataUtility {
             Name = label
         );
 
-        // Dynamically determining parent type
         String sObjName = parentId.getSObjectType().getDescribe().getName();
         if (sObjName == 'Opportunity') {
             term.Opportunity__c = parentId;
@@ -214,7 +220,7 @@ public class TestDataUtility {
         return l;
     }
 
-    // 12. Create Site Visit Report (Handles RecordType Lookup)
+    // 12. Create Site Visit Report
     public static Site_Visit_Report__c createSiteVisitReport(Id parentId, String rtName) {
         Id rtId = Schema.SObjectType.Site_Visit_Report__c
             .getRecordTypeInfosByName()
@@ -238,7 +244,7 @@ public class TestDataUtility {
         return svr;
     }
 
-    // 13. Create Vendor Opportunity (Simple)
+    // 13. Create Vendor Opportunity
     public static Vendor_Opportunity__c createVendorOpportunity(Id oppId, Id vendorId, String status) {
         Vendor_Opportunity__c vo = new Vendor_Opportunity__c(
             Opportunity__c = oppId,
@@ -259,7 +265,7 @@ public class TestDataUtility {
         return q;
     }
 
-    // 15. Create Vendor Assignment (Simple)
+    // 15. Create Vendor Assignment
     public static Vendor_Assignment__c createVendorAssignment(Id projectId, Decimal assignedPercentage) {
         Vendor_Assignment__c va = new Vendor_Assignment__c(
             Project__c = projectId,
@@ -272,27 +278,24 @@ public class TestDataUtility {
         return va;
     }
     
-    // 16. Create Account (New Addition)
+    // 16. Create Account
     public static Account createAccount(String name) {
         Account acc = new Account(Name = name);
         insert acc;
         return acc;
     }
     
-    // 17. Create Contact (New Addition)
+    // 17. Create Contact
     public static Contact createContact(String lastName, String email, String password) {
         Contact c = new Contact(
             LastName = lastName,
             Email = email,
-            Password__c =password
+            Password__c = password
         );
         insert c;
         return c;
     }
 
-    // ==========================================================================
-    // Wrapper class for Appointment Lead
-    // ==========================================================================
     public class AppointmentLeadParams {
         public Id supervisorId;
         public String status;
@@ -300,7 +303,7 @@ public class TestDataUtility {
         public String slot;
     }
 
-    // 18. Create Appointment Lead (Refactored with Duplicate Rule Bypass)
+    // 18. Create Appointment Lead
     public static Lead createAppointmentLead(AppointmentLeadParams params) {
         String uniqueEmail = 'testlead' + DateTime.now().getTime() + '@example.com';
         
@@ -315,7 +318,6 @@ public class TestDataUtility {
             Email = uniqueEmail
         );
 
-        // FIX: Bypass Duplicate Rules
         Database.DMLOptions dml = new Database.DMLOptions();
         dml.DuplicateRuleHeader.allowSave = true; 
         dml.DuplicateRuleHeader.runAsCurrentUser = true;
@@ -325,9 +327,6 @@ public class TestDataUtility {
         return l;
     }
 
-    // ==========================================================================
-    // Wrapper class for Appointment Opportunity
-    // ==========================================================================
     public class AppointmentOppParams {
         public Id supervisorId;
         public String status; 
@@ -352,13 +351,18 @@ public class TestDataUtility {
         return opp;
     }
 
-    // 20. Create Specific Email Template (Dynamic)
+    // 20. Create Specific Email Template (Default Body)
     public static EmailTemplate createSpecificEmailTemplate(String devName, String name, String subject) {
+        return createSpecificEmailTemplate(devName, name, subject, '<html><body>Test Content for ' + name + '</body></html>');
+    }
+
+    // 20b. Create Specific Email Template (Custom Body) - NEW
+    public static EmailTemplate createSpecificEmailTemplate(String devName, String name, String subject, String htmlBody) {
         EmailTemplate et = new EmailTemplate(
             DeveloperName = devName,
             Name = name,
             Subject = subject,
-            HtmlValue = '<html><body>Test Content for ' + name + '</body></html>',
+            HtmlValue = htmlBody,
             TemplateType = 'custom',
             FolderId = UserInfo.getUserId(),
             IsActive = true
@@ -367,14 +371,14 @@ public class TestDataUtility {
         return et;
     }
 
-    // 21. Create User Role (Helper)
+    // 21. Create User Role
     public static UserRole createUserRole(String name) {
         UserRole r = new UserRole(DeveloperName = name.replaceAll('\\s+','_'), Name = name);
         insert r;
         return r;
     }
 
-    // 22. Create User with specific Role
+    // 22. Create User with Role
     public static User createUserWithRole(String alias, Id roleId) {
         Profile p = [SELECT Id FROM Profile WHERE Name='Standard User' LIMIT 1];
         User u = new User(
@@ -385,11 +389,44 @@ public class TestDataUtility {
             LanguageLocaleKey = 'en_US', 
             LocaleSidKey = 'en_US', 
             ProfileId = p.Id, 
-            UserRoleId = roleId,
+            UserRoleId = roleId, 
             TimeZoneSidKey = 'America/Los_Angeles', 
             UserName = alias + DateTime.now().getTime() + '@testorg.com'
         );
         insert u;
         return u;
+    }
+
+    // 23. Create Architecture Design - NEW
+    public static Architecture_Design__c createArchitectureDesign(Id parentId, String fileId, String status) {
+        Architecture_Design__c ad = new Architecture_Design__c(
+            Related_File_Id__c = fileId,
+            Status__c = status,
+            Secure_Token__c = UUID.randomUUID().toString() // Generate default token
+        );
+        
+        // Dynamic parent link
+        String sObjName = parentId.getSObjectType().getDescribe().getName();
+        if (sObjName == 'Opportunity') {
+            ad.Opportunity__c = parentId;
+        } else if (sObjName == 'Project__c') {
+            ad.Project__c = parentId;
+        }
+        
+        insert ad;
+        return ad;
+    }
+
+    // 25. Create Interior Product - CORRECTED
+    public static Interior_Product__c createInteriorProduct(String name, String roomType, String category, Decimal price) {
+        Interior_Product__c prod = new Interior_Product__c(
+            Name = name,
+            Room_Type__c = roomType,
+            Product_Category__c = category,
+            Unit_Price__c = price,
+            Image_File_Name__c = 'test_image.jpg' // Dummy value for field coverage
+        );
+        insert prod;
+        return prod;
     }
 }
