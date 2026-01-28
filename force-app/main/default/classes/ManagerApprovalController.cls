@@ -2,8 +2,7 @@
  * @description Controller for the Manager Approval Portal (LWC).
  * Handles fetching design details and processing approval/rejection logic.
  * * SECURITY NOTE: This class is explicitly 'without sharing' to allow external Managers 
- * (operating as Guest Users) to view specific records via ID and perform updates 
- * that their profile permissions would otherwise block.
+ * (operating as Guest Users) to view specific records via ID and perform updates.
  */
 @SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class ManagerApprovalController {
@@ -62,13 +61,13 @@ public without sharing class ManagerApprovalController {
         System.debug('--- START submitManagerDecision ---');
         
         try {
-            // UPDATED QUERY: Added Lead_Name__c and Supervisor_User__r.Name
             Architecture_Design__c design = [
                 SELECT Id, Opportunity__c, 
                        Opportunity__r.Name,
-                       Opportunity__r.Lead_Name__c, // For Client Name
+                       Opportunity__r.Lead_Name__c, 
                        Opportunity__r.Supervisor_User_Email__c,
-                       Opportunity__r.Supervisor_User__r.Name, // For Supervisor Name
+                       Opportunity__r.Supervisor_User__r.FirstName, 
+                       Opportunity__r.Supervisor_User__r.LastName,  
                        Project__r.Name,
                        Manager_Comments__c 
                 FROM Architecture_Design__c 
@@ -154,26 +153,55 @@ public without sharing class ManagerApprovalController {
         return toAddresses;
     }
 
+    // --- Helpers to Reduce Complexity ---
+
+    private static String resolveSupervisorName(Architecture_Design__c design) {
+        String supervisorName = 'Enrollment Team';
+        
+        if (design.Opportunity__r != null && design.Opportunity__r.Supervisor_User__r != null) {
+            String fname = design.Opportunity__r.Supervisor_User__r.FirstName;
+            String lname = design.Opportunity__r.Supervisor_User__r.LastName;
+            
+            // Build full name safely
+            String fullName = (fname != null ? fname + ' ' : '') + (lname != null ? lname : '');
+            
+            if (String.isNotBlank(fullName)) {
+                supervisorName = fullName.trim();
+            }
+        }
+        return supervisorName;
+    }
+
+    private static String resolveClientName(Architecture_Design__c design) {
+        String clientName = 'Valued Client';
+        
+        if (design.Opportunity__r != null && design.Opportunity__r.Lead_Name__c != null) {
+            clientName = design.Opportunity__r.Lead_Name__c;
+        }
+        return clientName;
+    }
+
     private static Messaging.SingleEmailMessage buildManagerEmail(
         EmailTemplate et, 
         List<String> toAddresses, 
         ManagerNotificationData data
     ) {
+        // Resolve dynamic data
         String projectName = (data.design.Opportunity__r != null) ? data.design.Opportunity__r.Name : 
                              (data.design.Project__r != null) ? data.design.Project__r.Name : 'Unknown Project';
         
         String safeComments = String.isNotBlank(data.comments) ? data.comments : 'No comments provided.';
         String decisionLabel = (data.action == 'Approve') ? 'Approved' : 'Rejected / Changes Requested';
 
-        // ADDITION: Logic for Supervisor Name and Client Name
-        String supervisorName = (data.design.Opportunity__r != null && data.design.Opportunity__r.Supervisor_User__r.Name != null) ? data.design.Opportunity__r.Supervisor_User__r.Name : 'Enrollment Team';
-        String clientName = (data.design.Opportunity__r != null && data.design.Opportunity__r.Lead_Name__c != null) ? data.design.Opportunity__r.Lead_Name__c : 'Valued Client';
+        // Resolve names using helpers
+        String supervisorName = resolveSupervisorName(data.design);
+        String clientName = resolveClientName(data.design);
 
+        // Replace Placeholders
         String htmlBody = et.HtmlValue;
         htmlBody = htmlBody.replace('[PROJECT_NAME]', projectName);
         htmlBody = htmlBody.replace('[DECISION]', decisionLabel);
         htmlBody = htmlBody.replace('[COMMENTS]', safeComments);
-        // ADDITION: Replace placeholders in HTML
         htmlBody = htmlBody.replace('[SUPERVISOR_NAME]', supervisorName);
         htmlBody = htmlBody.replace('[CLIENT_NAME]', clientName);
 
