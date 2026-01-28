@@ -4,14 +4,13 @@
     <deleteConstraint>SetNull</deleteConstraint>
     <label>Vendor Opportunity</label>
     <lookupFilter>
-        <active>true</active>
-        <errorMessage>Please select opportunity value to display the vendor opportunities.</errorMessage>
+        <active>false</active>
         <filterItems>
             <field>Vendor_Opportunity__c.Opportunity__c</field>
             <operation>equals</operation>
             <valueField>$Source.Opportunity__c</valueField>
         </filterItems>
-        <isOptional>false</isOptional>
+        <isOptional>true</isOptional>
     </lookupFilter>
     <referenceTo>Vendor_Opportunity__c</referenceTo>
     <relationshipLabel>Vendor Assignments</relationshipLabel>
