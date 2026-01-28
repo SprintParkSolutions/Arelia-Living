@@ -1,3 +1,9 @@
+/**
+ * @description       : Handles Vendor Abscond Logic
+ * @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+ * @group             : 
+ * @last modified on  : 01-13-2026
+**/
 public with sharing class HandleVendorAbscondController { 
 
     // -------------------------------------------------------------------
@@ -25,18 +31,19 @@ public with sharing class HandleVendorAbscondController {
     // -------------------------------------------------------------------
     // 🔹 Folder Name Constant
     // -------------------------------------------------------------------
-    private static final String EMAIL_TEMPLATE_FOLDER_NAME = 'Vendor Abscond Templates';
+    @TestVisible 
+    private static String EMAIL_TEMPLATE_FOLDER_NAME = Label.Arelia_Living_Vendor_Abscond_Templates;
 
-    // -------------------------------------------------------------------
-    // 🔹 Get Email Templates
-    // -------------------------------------------------------------------
     @AuraEnabled(cacheable=true)
     public static List<EmailTemplateDTO> getEmailTemplatesByFolder() {
         List<EmailTemplateDTO> templates = new List<EmailTemplateDTO>();
+        
+        String folderToQuery = EMAIL_TEMPLATE_FOLDER_NAME;
+
         for (EmailTemplate et : [
             SELECT Id, Name, DeveloperName, Folder.DeveloperName, Folder.Name
             FROM EmailTemplate
-            WHERE Folder.Name = :EMAIL_TEMPLATE_FOLDER_NAME
+            WHERE Folder.Name = :folderToQuery
             WITH SECURITY_ENFORCED
             ORDER BY Name
         ]) {
@@ -104,73 +111,72 @@ public with sharing class HandleVendorAbscondController {
     }
 
     // -------------------------------------------------------------------
-    // 🔹 Send Email
+    // 🔹 Send Email (Supports multiple recipients)
     // -------------------------------------------------------------------
-  // -------------------------------------------------------------------
-// 🔹 Send Email (Supports multiple recipients)
-// -------------------------------------------------------------------
-@AuraEnabled
-public static String sendEmail(Id templateId, List<String> recipientEmails, Id opportunityId, String templateType, List<Id> vendorAssignmentIds) {
-    if (templateId == null) {
-        throw new AuraHandledException('Template Id is required.');
-    }
-    if (recipientEmails == null || recipientEmails.isEmpty()) {
-        throw new AuraHandledException('Recipient email is required.');
-    }
-
-    List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
-
-    // 🔹 Create dummy contact for merge context
-    Contact dummyContact = new Contact(LastName = 'TempRecipient', Email = 'temp@example.com');
-    insert dummyContact;
-
-    // 🔹 Loop through recipients
-    for (Integer i = 0; i < recipientEmails.size(); i++) {
-        String toEmail = recipientEmails[i];
-        if (String.isBlank(toEmail)) continue;
-
-        Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
-        mail.setTemplateId(templateId);
-        mail.setTargetObjectId(dummyContact.Id);
-        mail.setToAddresses(new String[] { toEmail });
-
-        // ✅ Use correct record for WhatId
-        if (templateType == 'Vendor' && vendorAssignmentIds != null && vendorAssignmentIds.size() > i) {
-            mail.setWhatId(vendorAssignmentIds[i]);
-        } else {
-            mail.setWhatId(opportunityId);
+    @AuraEnabled
+    public static String sendEmail(Id templateId, List<String> recipientEmails, Id opportunityId, String templateType, List<Id> vendorAssignmentIds) {
+        if (templateId == null) {
+            throw new AuraHandledException('Template Id is required.');
+        }
+        if (recipientEmails == null || recipientEmails.isEmpty()) {
+            throw new AuraHandledException('Recipient email is required.');
         }
 
-        mail.setTreatTargetObjectAsRecipient(false);
-        if (templateType == 'Vendor') {
-    mail.setSaveAsActivity(false); // 🔥 skip creating Task for vendor mail
-} else {
-    mail.setSaveAsActivity(true);
-}
-        emails.add(mail);
-    }
+        List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
 
-    if (emails.isEmpty()) {
-        throw new AuraHandledException('No valid emails found.');
-    }
+        // 🔹 Create dummy contact for merge context
+        Contact dummyContact = new Contact(LastName = 'TempRecipient', Email = 'temp@example.com');
+        insert dummyContact;
 
-    // 🔹 Send
-    Messaging.SendEmailResult[] results = Messaging.sendEmail(emails, false);
+        try {
+            // 🔹 Loop through recipients
+            for (Integer i = 0; i < recipientEmails.size(); i++) {
+                String toEmail = recipientEmails[i];
+                if (String.isBlank(toEmail)) continue;
 
-    for (Messaging.SendEmailResult res : results) {
-        if (!res.isSuccess()) {
-            String err = 'Failed to send email.';
-            if (res.getErrors() != null && res.getErrors().size() > 0) {
-                err += ' ' + res.getErrors()[0].getMessage();
+                Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+                mail.setTemplateId(templateId);
+                mail.setTargetObjectId(dummyContact.Id);
+                mail.setToAddresses(new String[] { toEmail });
+
+                // ✅ Use correct record for WhatId
+                if (templateType == 'Vendor' && vendorAssignmentIds != null && vendorAssignmentIds.size() > i) {
+                    mail.setWhatId(vendorAssignmentIds[i]);
+                } else {
+                    mail.setWhatId(opportunityId);
+                }
+
+                mail.setTreatTargetObjectAsRecipient(false);
+                
+                if (templateType == 'Vendor') {
+                    mail.setSaveAsActivity(false); // 🔥 skip creating Task for vendor mail
+                } else {
+                    mail.setSaveAsActivity(true);
+                }
+                emails.add(mail);
             }
-            throw new AuraHandledException(err);
+
+            if (emails.isEmpty()) {
+                throw new AuraHandledException('No valid emails found.');
+            }
+
+            // 🔹 Send
+            Messaging.SendEmailResult[] results = Messaging.sendEmail(emails, false);
+
+            for (Messaging.SendEmailResult res : results) {
+                if (!res.isSuccess()) {
+                    String err = 'Failed to send email.';
+                    if (res.getErrors() != null && res.getErrors().size() > 0) {
+                        err += ' ' + res.getErrors()[0].getMessage();
+                    }
+                    throw new AuraHandledException(err);
+                }
+            }
+        } finally {
+            // Clean dummy (Always clean up even if exception occurs)
+            if(dummyContact.Id != null) delete dummyContact;
         }
+
+        return 'SUCCESS';
     }
-
-    // Clean dummy
-    delete dummyContact;
-
-    return 'SUCCESS';
-}
-
 }
