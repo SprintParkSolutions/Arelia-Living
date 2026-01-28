@@ -1,0 +1,31 @@
+<html>
+<head>
+	<title></title>
+</head>
+<body style="height: auto; min-height: auto;">
+<p>Hi {{{Recipient.Name}}},<br />
+<br />
+<br />
+Revisit Appointment has been scheduled for the Client/Lead mentioned below. Please review the details and ensure your availability for the upcoming site visit.<br />
+<br />
+<strong>Client Details :</strong></p>
+
+<ul>
+	<li>Client Name:&nbsp;<strong>{{{leadName}}}</strong></li>
+	<li>Client Email:&nbsp;<strong>{{{leadEmail}}}</strong></li>
+	<li>Appointment Type:<strong>&nbsp;{{{appointmentType}}}</strong></li>
+	<li>Appointment Date:&nbsp;<strong>{{{appointmentDate}}}</strong></li>
+	<li>Appointment Time Slot:<strong>&nbsp;{{{timeSlot}}}</strong></li>
+</ul>
+
+<p><br />
+Please ensure you are available for this revisit appointment and take note of the Client preferences.<br />
+If there are any issues or adjustments needed, kindly reach out to the Client directly via the contact details above or feel free to contact us.<br />
+<br />
+We appreciate your continued dedication to providing excellent service and support to our clients.<br />
+<br />
+<br />
+Best regards,<br />
+The Arelia Living Team</p>
+</body>
+</html>

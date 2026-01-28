@@ -1,0 +1,509 @@
+<template>
+    <section class="form-wrapper">
+        <div class="card-shell">
+            <!-- HEADER -->
+            <header class="card-header">
+                <div class="header-left">
+                    <h1 class="card-title">
+                        Interior Project Request – Automatic Quotation
+                    </h1>
+                    <p class="card-subtitle">
+                        Please verify your details and share more information about your project
+                        so that we can automatically prepare a customised quotation.
+                    </p>
+                </div>
+            </header>
+
+            <!-- BODY -->
+            <div class="card-body">
+                <!-- Back to quotation page (under header, like manual screen) -->
+                <!-- NEW: show only on Step 1 -->
+                <template if:true={isStep1}>
+                    <div class="back-row">
+                        <button class="back-link back-link-hero" type="button" onclick={handlePreviousClick}>
+                            ← Back to Quotation Page
+                        </button>
+                    </div>
+                </template>
+
+                <!-- Step chips -->
+                <div class="steps-bar">
+                    <template for:each={steps} for:item="s">
+                        <div key={s.number} class={s.cls}>
+                            <div class="step-dot">
+                                {s.number}
+                            </div>
+                            <div class="step-name">
+                                {s.label}
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="body-divider"></div>
+
+                <!-- STEP 1: CUSTOMER -->
+                <template if:true={isStep1}>
+                    <div class="section">
+                        <h2 class="section-title">Customer Details</h2>
+                        <p class="section-subtitle">
+                            These details are stored on your Lead and used for communication.
+                        </p>
+
+                        <div class="grid-2">
+                            <lightning-input label="First Name" required value={firstName} data-field="firstName"
+                                onchange={handleInput} readonly>
+                            </lightning-input>
+
+                            <lightning-input label="Last Name" required value={lastName} data-field="lastName"
+                                onchange={handleInput} readonly>
+                            </lightning-input>
+                        </div>
+
+                        <div class="grid-2">
+                            <lightning-input type="email" label="Email" required value={email} data-field="email"
+                                onchange={handleInput} readonly>
+                            </lightning-input>
+
+                            <lightning-input type="tel" label="Phone" required value={phone} data-field="phone"
+                                onchange={handleInput} readonly>
+                            </lightning-input>
+                        </div>
+
+                        <div class="grid-2">
+                            <lightning-input label="Company Name" value={company} data-field="company"
+                                onchange={handleInput}>
+                            </lightning-input>
+
+                            <lightning-input label="Full Address" value={address} data-field="address"
+                                onchange={handleInput}>
+                            </lightning-input>
+                        </div>
+
+                        <div class="grid-2 top-gap">
+                            <lightning-input type="number" label="Total Site Space (sq.ft.)" required value={siteSpace}
+                                data-field="siteSpace" onchange={handleInput}>
+                            </lightning-input>
+
+                            <lightning-textarea label="Project Notes / Expectations" value={description}
+                                data-field="description" onchange={handleInput}>
+                            </lightning-textarea>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- STEP 2: PROJECT TYPE -->
+                <template if:true={isStep2}>
+                    <div class="section">
+                        <h2 class="section-title">Choose Project Type</h2>
+                        <p class="section-subtitle">
+                            Select the overall type of interior project you’re planning.
+                        </p>
+
+                        <div class="card-grid">
+                            <template for:each={projectTypeOptions} for:item="pt">
+                                <article key={pt.value} class={pt.cardClass} data-id={pt.value}
+                                    onclick={handleProjectTypeCardClick}>
+                                    <h3 class="choice-title">{pt.label}</h3>
+                                    <p class="choice-text">
+                                        Click to use this project type.
+                                    </p>
+                                </article>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- STEP 3: CATEGORY -->
+                <template if:true={isStep3}>
+                    <div class="section">
+                        <h2 class="section-title">Select Category</h2>
+                        <p class="section-subtitle">
+                            Choose the interior category under the selected project type.
+                        </p>
+
+                        <template if:true={categoryCards.length}>
+                            <div class="card-grid">
+                                <template for:each={categoryCards} for:item="cat">
+                                    <article key={cat.value} class={cat.cardClass} data-id={cat.value}
+                                        onclick={handleCategoryCardClick}>
+                                        <h3 class="choice-title">{cat.label}</h3>
+                                        <p class="choice-text">
+                                            Category under the selected project type.
+                                        </p>
+                                    </article>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template if:false={categoryCards.length}>
+                            <p class="hint-text">
+                                No categories available for this project type.
+                            </p>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- STEP 4: ROOMS -->
+                <template if:true={isStep4}>
+                    <div class="section">
+                        <h2 class="section-title">Select Rooms & Quantities</h2>
+                        <p class="section-subtitle">
+                            Add how many of each room you want to design.
+                        </p>
+
+                        <template if:true={roomsWithQty.length}>
+                            <div class="room-list">
+                                <template for:each={roomsWithQty} for:item="room">
+                                    <div key={room.id} class="room-row">
+                                        <div class="room-name">{room.name}</div>
+                                        <div class="room-qty-controls">
+                                            <button type="button" class="qty-btn" data-id={room.id}
+                                                onclick={handleRoomDecrement}>
+                                                −
+                                            </button>
+                                            <span class="qty-value">{room.quantity}</span>
+                                            <button type="button" class="qty-btn" data-id={room.id}
+                                                onclick={handleRoomIncrement}>
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template if:false={roomsWithQty.length}>
+                            <p class="hint-text">
+                                No rooms found for this category.
+                            </p>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- STEP 5: PLAN LEVEL -->
+                <template if:true={isStep5}>
+                    <div class="section">
+                        <h2 class="section-title">Choose Design Level / Plan</h2>
+                        <p class="section-subtitle">
+                            Plan levels control the style and base budget for your designs.
+                        </p>
+
+                        <div class="card-grid">
+                            <template for:each={planOptions} for:item="pl">
+                                <article key={pl.value} class={pl.cardClass} data-id={pl.value}
+                                    onclick={handlePlanSelect}>
+                                    <h3 class="choice-title">{pl.label}</h3>
+                                    <p class="choice-text">
+                                        Click to choose this level.
+                                    </p>
+                                </article>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- STEP 6: DESIGN SELECTION -->
+                <template if:true={isStep6}>
+                    <div class="section">
+                        <h2 class="section-title">Assign Designs to Each Room</h2>
+                        <p class="section-subtitle">
+                            For every room, pick a design that matches your plan level.
+                        </p>
+
+                        <div class="two-column">
+                            <!-- Left: room list -->
+                            <div class="rooms-panel">
+                                <h3 class="panel-title">Rooms</h3>
+
+                                <!-- ✅ UPDATED: roomInstances instead of selectedRoomList -->
+                                <template if:true={roomInstances.length}>
+                                    <template for:each={roomInstances} for:item="r">
+                                        <div key={r.instanceKey} class={r.cardClass} data-id={r.instanceKey}
+                                            onclick={handleRoomSelectForDesign}>
+                                            <div class="room-sel-name">
+                                                {r.displayName}
+                                            </div>
+                                            <div class="room-sel-design">
+                                                {r.selectedDesignName}
+                                            </div>
+                                        </div>
+                                    </template>
+                                </template>
+
+                                <template if:false={roomInstances.length}>
+                                    <p class="hint-text">
+                                        Add at least one room in the previous step.
+                                    </p>
+                                </template>
+                            </div>
+
+                            <!-- Right: designs -->
+                            <div class="designs-panel">
+                                <h3 class="panel-title">Designs</h3>
+
+                                <template if:true={currentRoomDesigns.length}>
+                                    <div class="design-grid">
+                                        <template for:each={currentRoomDesigns} for:item="d">
+                                            <article key={d.id} class={d.itemClass} data-id={d.id}
+                                                onclick={handleRoomDesignPick}>
+                                                <div class="design-img-wrap">
+                                                    <img src={d.thumbUrl} alt={d.name} data-img={d.fullImageUrl}
+                                                        data-title={d.name} onclick={openImageModal} />
+                                                </div>
+                                                <div class="design-info">
+                                                    <div class="design-name">
+                                                        {d.name}
+                                                    </div>
+                                                    <div class="design-meta">
+                                                        <span class="pill">
+                                                            {d.designLevel}
+                                                        </span>
+                                                        <span class="price">
+                                                            <lightning-formatted-number value={d.basePrice}
+                                                                format-style="currency">
+                                                            </lightning-formatted-number>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </article>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <template if:false={currentRoomDesigns.length}>
+                                    <p class="hint-text">
+                                        Select a room on the left to see matching designs.
+                                    </p>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- STEP 7: PREVIEW DESIGNS -->
+                <template if:true={isStep7}>
+                    <div class="section">
+                        <div class="preview-header">
+                            <div>
+                                <h2 class="section-title">Design Preview</h2>
+                                <p class="section-subtitle">
+                                    Review all selected room designs and estimated budget before final confirmation.
+                                </p>
+                            </div>
+
+                            <div class="preview-total-pill">
+                                <span>Estimated Total Budget</span>
+                                <span class="preview-total-value">
+                                    <lightning-formatted-number value={totalBudget} format-style="currency">
+                                    </lightning-formatted-number>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="preview-summary-strip">
+                            <div class="summary-chip">
+                                <span class="chip-label">Rooms with Designs</span>
+                                <span class="chip-value">{roomsWithDesignCount}</span>
+                            </div>
+                            <div class="summary-chip">
+                                <span class="chip-label">Total Room Quantity</span>
+                                <span class="chip-value">{totalRoomQuantity}</span>
+                            </div>
+                            <div class="summary-chip">
+                                <span class="chip-label">Design Lines</span>
+                                <span class="chip-value">{selectedDesignTiles.length}</span>
+                            </div>
+                        </div>
+
+                        <template if:true={selectedDesignTiles.length}>
+                            <div class="preview-table-card">
+                                <div class="preview-table-header">
+                                    <span class="col-room">Room</span>
+                                    <span class="col-design">Design</span>
+                                    <span class="col-qty">Qty</span>
+                                    <span class="col-amount">Line Amount</span>
+                                    <span class="col-actions">Action</span>
+                                </div>
+
+                                <div class="preview-table-body">
+                                    <template for:each={selectedDesignTiles} for:item="t">
+                                        <!-- ✅ UPDATED: key uses instanceKey -->
+                                        <div key={t.instanceKey} class="preview-table-row">
+                                            <div class="col-room">
+                                                <div class="row-room-name">{t.roomName}</div>
+                                            </div>
+
+                                            <div class="col-design">
+                                                <div class="preview-row-main">
+                                                    <div class="preview-row-img">
+                                                        <img src={t.imageUrl} alt={t.designName} data-img={t.imageUrl}
+                                                            data-title={t.designName} onclick={openImageModal}
+                                                            onerror={handleImgError} />
+                                                    </div>
+                                                    <div class="preview-row-text">
+                                                        <div class="row-design-name">{t.designName}</div>
+                                                        <div class="row-design-meta">
+                                                            Plan: {selectedPlan}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- ✅ each line is one instance -->
+                                            <div class="col-qty">
+                                                x1
+                                            </div>
+
+                                            <div class="col-amount">
+                                                <lightning-formatted-number value={t.lineAmount}
+                                                    format-style="currency">
+                                                </lightning-formatted-number>
+                                            </div>
+
+                                            <div class="col-actions">
+                                                <!-- ✅ UPDATED: remove by instanceKey -->
+                                                <button type="button" class="preview-remove"
+                                                    data-instancekey={t.instanceKey} onclick={handleRemoveSelected}>
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template if:false={selectedDesignTiles.length}>
+                            <p class="hint-text">
+                                No designs selected yet. Go back one step and assign designs.
+                            </p>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- STEP 8: REVIEW -->
+                <template if:true={isStep8}>
+                    <div class="section">
+                        <h2 class="section-title">Review & Confirm</h2>
+                        <p class="section-subtitle">
+                            Final review before we automatically update your Lead with all details.
+                        </p>
+
+                        <div class="review-grid">
+                            <div class="review-card">
+                                <h3 class="review-title">Customer</h3>
+                                <p class="review-line">
+                                    <strong>Name:</strong> {firstName} {lastName}
+                                </p>
+                                <p class="review-line">
+                                    <strong>Email:</strong> {email}
+                                </p>
+                                <p class="review-line">
+                                    <strong>Phone:</strong> {phone}
+                                </p>
+                                <p class="review-line">
+                                    <strong>Company:</strong> {company}
+                                </p>
+                                <p class="review-line">
+                                    <strong>Address:</strong> {address}
+                                </p>
+                                <p class="review-line">
+                                    <strong>Site Space:</strong> {siteSpace} sq.ft
+                                </p>
+                            </div>
+
+                            <div class="review-card">
+                                <h3 class="review-title">Project Setup</h3>
+                                <p class="review-line">
+                                    <strong>Project Type:</strong> {selectedProjectTypeName}
+                                </p>
+                                <p class="review-line">
+                                    <strong>Category:</strong> {selectedCategoryName}
+                                </p>
+                                <p class="review-line">
+                                    <strong>Plan / Level:</strong> {selectedPlan}
+                                </p>
+                                <p class="review-line">
+                                    <strong>Quotation Type:</strong> {quotationType}
+                                </p>
+                            </div>
+
+                            <div class="review-card review-wide">
+                                <h3 class="review-title">Room & Design Summary</h3>
+                                <template if:true={finalRoomDesignLines.length}>
+                                    <ul class="review-list">
+                                        <template for:each={finalRoomDesignLines} for:item="ln">
+                                            <li key={ln}>{ln}</li>
+                                        </template>
+                                    </ul>
+                                </template>
+                                <template if:false={finalRoomDesignLines.length}>
+                                    <p class="hint-text">
+                                        No room/design combinations found.
+                                    </p>
+                                </template>
+
+                                <div class="review-total">
+                                    <span>Estimated Total Budget</span>
+                                    <span class="total-value">
+                                        <lightning-formatted-number value={totalBudget} format-style="currency">
+                                        </lightning-formatted-number>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- FOOTER -->
+            <footer class="card-footer">
+                <div class="footer-left">
+                    <div class="quote-pill">
+                        <span>Quotation Type:</span>
+                        <span>{quotationType}</span>
+                    </div>
+
+                    <span class="step-info">
+                        Step {currentStep} of 8
+                    </span>
+                </div>
+
+                <div class="footer-right">
+                    <lightning-button variant="neutral" label="Previous" onclick={handlePrev} disabled={isFirst}>
+                    </lightning-button>
+
+                    <lightning-button variant="brand" label={nextLabel} onclick={handleNext} disabled={isSaving}>
+                    </lightning-button>
+                </div>
+            </footer>
+        </div>
+
+        <!-- Initial loading overlay -->
+        <template if:true={isInitLoading}>
+            <section class="modal-backdrop">
+                <lightning-spinner alternative-text="Loading project data..." size="medium">
+                </lightning-spinner>
+            </section>
+        </template>
+
+        <!-- Image modal -->
+        <template if:true={isImageModalOpen}>
+            <section class="modal-backdrop">
+                <div class="modal">
+                    <header class="modal-header">
+                        <h2 class="modal-title">{modalTitle}</h2>
+                        <button class="modal-close" type="button" onclick={closeImageModal}>
+                            ✕
+                        </button>
+                    </header>
+                    <div class="modal-body">
+                        <img src={modalImageUrl} alt={modalTitle} class="modal-img" />
+                    </div>
+                </div>
+            </section>
+        </template>
+        <!-- NOTE: success overlay removed – we now use a toast instead -->
+    </section>
+</template>

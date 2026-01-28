@@ -1,0 +1,24 @@
+<html>
+<head>
+	<title></title>
+</head>
+<body style="height: auto; min-height: auto;">
+<p>Dear [SUPERVISOR_NAME],</p>
+
+<p>Please be advised that a formal response has been received regarding the Architecture Design proposal.</p>
+
+<p><strong>Submission Details:</strong></p>
+
+<p><strong>Project Reference:</strong> [PROJECT_NAME]<br />
+<strong>Client Name:</strong> [CLIENT_NAME]<br />
+<strong>Client Decision:</strong> [DECISION]</p>
+
+<p><strong>Feedback &amp; Comments:</strong><br />
+[COMMENTS]</p>
+
+<p>Please log in to Salesforce to review the specific design version and prioritize any requested revisions.</p>
+
+<p>Sincerely,<br />
+Arelia Living&nbsp;</p>
+</body>
+</html>

@@ -1,0 +1,43 @@
+.main-container {
+    background-color: #f8f9fa; /* Light grey background */
+    border-radius: 12px;
+    border: 1px solid #e5e5e5;
+}
+
+.upload-zone {
+    background-color: white;
+    border: 2px dashed #c9c9c9;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.upload-zone:hover {
+    border-color: #0070d2;
+    background-color: #f4f6f9;
+}
+
+.file-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    width: 100%;
+    max-width: 500px;
+}
+
+.img-preview {
+    max-height: 250px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.pdf-icon {
+    transform: scale(1.5);
+    margin: 20px;
+}
+
+.status-badge {
+    font-size: 0.8rem;
+    padding: 4px 12px;
+    border-radius: 12px;
+}

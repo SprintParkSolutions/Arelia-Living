@@ -1,0 +1,90 @@
+.about-us {
+    background-color: #ffffff;
+    padding: 60px 20px;
+}
+
+.about-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    max-width: 1200px;
+    margin: auto;
+}
+
+.about-text {
+    flex: 1 1 45%;
+    padding: 20px;
+}
+
+.about-text h2 {
+    font-size: 36px;
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+
+.about-text p {
+    font-size: 18px;
+    color: #7f8c8d;
+    margin-bottom: 20px;
+}
+
+.custom-button {
+    background-color: #4A4A3F; /* Luxury greige */
+    color: #ffffff; /* Clean white text */
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s ease;
+    box-shadow: 0 4px 12px rgba(50, 45, 35, 0.35); /* warm taupe shadow */
+    font-weight: 600;
+}
+
+/* Hover */
+.custom-button:hover {
+    background-color: #3E3B32; /* Deep warm taupe */
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 6px 16px rgba(35, 30, 25, 0.45); /* stronger elegant shadow */
+}
+
+.about-image {
+    flex: 1 1 45%;
+    text-align: center;
+    padding: 20px;
+}
+
+.about-image img {
+    width: 100%;
+    max-width: 500px;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+@media only screen and (max-width: 768px) {
+    .about-container {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .about-text,
+    .about-image {
+        flex: 1 1 100%;
+        padding: 10px 0;
+    }
+
+    .about-text h2 {
+        font-size: 28px;
+    }
+
+    .about-text p {
+        font-size: 16px;
+    }
+
+    .custom-button {
+        font-size: 14px;
+        padding: 10px 20px;
+    }
+}

@@ -1,0 +1,60 @@
+<template>
+    <div class="container">
+        <lightning-card title="Confirm Appointment" icon-name="custom:custom63">
+            
+            <div class="slds-p-horizontal_medium slds-m-bottom_medium">
+                <p class="slds-text-body_regular">Please select an action:</p>
+                <ul class="slds-list_dotted slds-m-top_xx-small slds-text-color_weak">
+                    <li>
+                        To confirm the site visit, click <strong>Approve</strong>.
+                    </li>
+                    <li>
+                        To choose a different date and time, click <strong>Reschedule</strong>.
+                    </li>
+                </ul>
+            </div>
+            <div class="button-group">
+                <lightning-button label="✅ Approve" variant="brand" onclick={handleApprove} disabled={buttonsDisabled}>
+                </lightning-button>
+
+                <lightning-button label="📅 Reschedule" variant="neutral" onclick={showRescheduleForm}
+                    disabled={buttonsDisabled}>
+                </lightning-button>
+            </div>
+
+            <template if:true={showConfirmPrompt}>
+                <div class="confirm-box">
+                    <p>Are you sure you want to <strong>{actionType}</strong> the appointment?</p>
+                    <div class="confirm-actions">
+                        <lightning-button label="Yes" variant="brand" onclick={confirmAction}></lightning-button>
+                        <lightning-button label="No" variant="destructive" onclick={cancelAction}></lightning-button>
+                    </div>
+                </div>
+            </template>
+
+            <template if:true={showReschedule}>
+                <div class="reschedule-form">
+                    <lightning-input type="date" label="Select New Date" onchange={handleDateChange} min={minDate}>
+                    </lightning-input>
+
+                    <lightning-combobox name="TimeSlot" label="Select Time Slot" value={selectedTimeSlot}
+                        placeholder="Select a time slot" options={timeSlotOptions} onchange={handleTimeSlotChange}>
+                    </lightning-combobox>
+
+                    <div class="submit-btn">
+                        <lightning-button label="Submit Reschedule" variant="brand" onclick={submitReschedule}>
+                        </lightning-button>
+                    </div>
+                </div>
+            </template>
+
+            <template if:true={showConfirmation}>
+                <div class="confirmation-box">
+                    <lightning-icon icon-name="utility:success" size="small"
+                        class="slds-m-right_small"></lightning-icon>
+                    <span>{confirmationMessage}</span>
+                </div>
+            </template>
+        </lightning-card>
+    </div>
+</template>
