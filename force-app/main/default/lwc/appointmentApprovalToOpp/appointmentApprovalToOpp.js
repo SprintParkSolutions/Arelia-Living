@@ -47,6 +47,7 @@ export default class AppointmentApprovalToOpp extends LightningElement {
     handleApprove() {
         this.actionType = 'Approved';
         this.showConfirmPrompt = true;
+        this.showReschedule = false;
     }
 
     showRescheduleForm() {

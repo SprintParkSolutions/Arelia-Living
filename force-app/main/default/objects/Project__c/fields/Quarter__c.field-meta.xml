@@ -4,7 +4,7 @@
     <description>Using for Quarter filter in the Dashboard</description>
     <externalId>false</externalId>
     <formula>CASE(
-MONTH(End_Date__c),
+MONTH(Estimated_End_Date__c),
 1, &quot;Q1&quot;,
 2, &quot;Q1&quot;,
 3, &quot;Q1&quot;,

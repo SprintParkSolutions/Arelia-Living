@@ -4,16 +4,61 @@
         <itemInstances>
             <componentInstance>
                 <componentInstanceProperties>
+                    <name>actionNames</name>
+                    <valueList>
+                        <valueListItems>
+                            <value>Opportunity.Architecture_Approval</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Send_Catalogue_Link</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Payment_Terms</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Send_For_Manager_Approval</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Tendor_Invitation</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Vendor_Opportunity</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Re_Visit_Schedule_Appointment</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Site_Visit_Report_Data</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Resume_Project</value>
+                            <visibilityRule>
+                                <criteria>
+                                    <leftValue>{!Record.StageName}</leftValue>
+                                    <operator>EQUAL</operator>
+                                    <rightValue>Negotiation/Review</rightValue>
+                                </criteria>
+                            </visibilityRule>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Convert_to_project</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Edit</value>
+                        </valueListItems>
+                    </valueList>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
                     <name>collapsed</name>
                     <value>false</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>enableActionsConfiguration</name>
-                    <value>false</value>
+                    <value>true</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>enableActionsInNative</name>
-                    <value>false</value>
+                    <value>true</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>hideChatterActions</name>
@@ -34,16 +79,8 @@
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
-                <componentInstanceProperties>
-                    <name>hideUpdateButton</name>
-                    <value>false</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>variant</name>
-                    <value>linear</value>
-                </componentInstanceProperties>
-                <componentName>runtime_sales_pathassistant:pathAssistant</componentName>
-                <identifier>runtime_sales_pathassistant_pathAssistant</identifier>
+                <componentName>areliaSplitPath</componentName>
+                <identifier>c_areliaSplitPath</identifier>
             </componentInstance>
         </itemInstances>
         <mode>Replace</mode>
@@ -79,8 +116,8 @@
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
-                <componentName>forceChatter:recordFeedContainer</componentName>
-                <identifier>forceChatter_recordFeedContainer</identifier>
+                <componentName>waMessagePanel</componentName>
+                <identifier>c_waMessagePanel2</identifier>
             </componentInstance>
         </itemInstances>
         <mode>Replace</mode>
@@ -132,7 +169,7 @@
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>title</name>
-                    <value>Standard.Tab.collaborate</value>
+                    <value>WhatsApp Chat</value>
                 </componentInstanceProperties>
                 <componentName>flexipage:tab</componentName>
                 <identifier>collaborateTab</identifier>
@@ -220,6 +257,12 @@
                 </componentInstanceProperties>
                 <componentName>flexipage:tabset</componentName>
                 <identifier>flexipage_sidebar_tabset</identifier>
+            </componentInstance>
+        </itemInstances>
+        <itemInstances>
+            <componentInstance>
+                <componentName>waMessagePanel</componentName>
+                <identifier>c_waMessagePanel</identifier>
             </componentInstance>
         </itemInstances>
         <mode>Replace</mode>

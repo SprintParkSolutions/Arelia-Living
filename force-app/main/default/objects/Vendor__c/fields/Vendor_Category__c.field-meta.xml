@@ -11,39 +11,101 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
-                <fullName>Cleaning &amp; Finishing</fullName>
+                <fullName>Painting &amp; Wall Finishing</fullName>
                 <default>false</default>
-                <label>Cleaning &amp; Finishing</label>
+                <label>Painting &amp; Wall Finishing</label>
             </value>
             <value>
-                <fullName>Flooring</fullName>
+                <fullName>Electrical &amp; Lighting</fullName>
                 <default>false</default>
-                <label>Flooring</label>
+                <label>Electrical &amp; Lighting</label>
             </value>
             <value>
-                <fullName>Electrical and Lighting</fullName>
+                <fullName>Plumbing &amp; Sanitary</fullName>
                 <default>false</default>
-                <label>Electrical and Lighting</label>
+                <label>Plumbing &amp; Sanitary</label>
             </value>
             <value>
-                <fullName>Woodwork and Furniture</fullName>
+                <fullName>Carpentry &amp; Woodwork</fullName>
                 <default>false</default>
-                <label>Woodwork and Furniture</label>
+                <label>Carpentry &amp; Woodwork</label>
             </value>
             <value>
-                <fullName>Walls and Paintings</fullName>
+                <fullName>False Ceiling &amp; POP Work</fullName>
                 <default>false</default>
-                <label>Walls and Paintings</label>
+                <label>False Ceiling &amp; POP Work</label>
             </value>
             <value>
-                <fullName>Plumbing</fullName>
+                <fullName>Flooring &amp; Tiling</fullName>
                 <default>false</default>
-                <label>Plumbing</label>
+                <label>Flooring &amp; Tiling</label>
+            </value>
+            <value>
+                <fullName>Wardrobes &amp; Storage</fullName>
+                <default>false</default>
+                <label>Wardrobes &amp; Storage</label>
+            </value>
+            <value>
+                <fullName>Workstations &amp; Office Furniture</fullName>
+                <default>false</default>
+                <label>Workstations &amp; Office Furniture</label>
+            </value>
+            <value>
+                <fullName>Electrical &amp; Networking</fullName>
+                <default>false</default>
+                <label>Electrical &amp; Networking</label>
+            </value>
+            <value>
+                <fullName>Server Room Setup</fullName>
+                <default>false</default>
+                <label>Server Room Setup</label>
+            </value>
+            <value>
+                <fullName>Fire Safety &amp; Sprinklers</fullName>
+                <default>false</default>
+                <label>Fire Safety &amp; Sprinklers</label>
             </value>
             <value>
                 <fullName>Ceiling</fullName>
                 <default>false</default>
+                <isActive>false</isActive>
                 <label>Ceiling</label>
+            </value>
+            <value>
+                <fullName>Cleaning &amp; Finishing</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>Cleaning &amp; Finishing</label>
+            </value>
+            <value>
+                <fullName>Electrical and Lighting</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>Electrical and Lighting</label>
+            </value>
+            <value>
+                <fullName>Flooring</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>Flooring</label>
+            </value>
+            <value>
+                <fullName>Plumbing</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>Plumbing</label>
+            </value>
+            <value>
+                <fullName>Walls and Paintings</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>Walls and Paintings</label>
+            </value>
+            <value>
+                <fullName>Woodwork and Furniture</fullName>
+                <default>false</default>
+                <isActive>false</isActive>
+                <label>Woodwork and Furniture</label>
             </value>
         </valueSetDefinition>
     </valueSet>

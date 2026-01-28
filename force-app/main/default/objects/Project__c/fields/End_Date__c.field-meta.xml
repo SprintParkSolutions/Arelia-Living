@@ -3,7 +3,7 @@
     <fullName>End_Date__c</fullName>
     <description>Project deadline</description>
     <inlineHelpText>Project deadline</inlineHelpText>
-    <label>End Date</label>
+    <label>Project End Date</label>
     <required>false</required>
     <trackHistory>true</trackHistory>
     <trackTrending>false</trackTrending>

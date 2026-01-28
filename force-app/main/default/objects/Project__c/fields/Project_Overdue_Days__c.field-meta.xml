@@ -4,9 +4,9 @@
     <externalId>false</externalId>
     <formula>IF(
 ISBLANK( Actual_Completion_Date__c ),
-IF(TODAY() &gt;  End_Date__c  , TODAY() - End_Date__c , 0),
+IF(TODAY() &gt;  Estimated_End_Date__c  , TODAY() - Estimated_End_Date__c , 0),
 /* If completed, show how many days it finished after planned end */
-MAX(Actual_Completion_Date__c - End_Date__c , 0)
+MAX(Actual_Completion_Date__c - Estimated_End_Date__c , 0)
 )</formula>
     <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
     <label>Project Overdue Days</label>

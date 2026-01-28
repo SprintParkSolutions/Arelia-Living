@@ -48,6 +48,7 @@ export default class AppointmentApproval extends LightningElement {
     handleApprove() {
         this.actionType = 'Approved';
         this.showConfirmPrompt = true;
+        this.showReschedule = false;
     }
 
     showRescheduleForm() {
@@ -60,6 +61,7 @@ export default class AppointmentApproval extends LightningElement {
 
         if (this.actionType === 'Approved') {
             this.submit('Approved');
+            this.showReschedule = false;
             return;
         }
 

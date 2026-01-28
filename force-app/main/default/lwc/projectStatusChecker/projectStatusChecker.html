@@ -25,16 +25,14 @@
 
                     <div class="cardBody">
                         <div class="fieldRow">
-                            <lightning-input type="email" label="Email" value={email}
-                                             placeholder="you@example.com"
-                                             onchange={handleEmailChange} required>
+                            <lightning-input type="email" label="Email" value={email} placeholder="you@example.com"
+                                onchange={handleEmailChange} required>
                             </lightning-input>
                         </div>
 
                         <div class="fieldRow">
                             <lightning-input type="password" label="Password" value={password}
-                                             placeholder="Password used for your project"
-                                             onchange={handlePasswordChange} required>
+                                placeholder="Password used for your project" onchange={handlePasswordChange} required>
                             </lightning-input>
                         </div>
 
@@ -45,9 +43,8 @@
                         </template>
 
                         <div class="btnRow">
-                            <lightning-button variant="brand" label="Login & Check Project Status"
-                                              onclick={handleLogin}
-                                              disabled={isLoading}>
+                            <lightning-button variant="brand" label="Login & Check Project Status" onclick={handleLogin}
+                                disabled={isLoading}>
                             </lightning-button>
                         </div>
 
@@ -79,8 +76,7 @@
                         </div>
 
                         <button class="iconButton" type="button" title="Close" onclick={handleLogout}>
-                            <lightning-icon icon-name="utility:close" size="small"
-                                            alternative-text="Close">
+                            <lightning-icon icon-name="utility:close" size="small" alternative-text="Close">
                             </lightning-icon>
                         </button>
                     </header>
@@ -88,9 +84,112 @@
                     <div class="cardBody">
                         <h2 class="sectionTitle">Your Projects</h2>
 
-                        <template if:true={hasProjects}>
-                            <template for:each={projects} for:item="proj">
-                                <section key={proj.id} class="projCard">
+                        <!-- ✅ CUSTOMER HEADER + TOTAL/ACTIVE/INACTIVE -->
+                        <template if:true={hasCustomer}>
+                            <div class="clientInfoCard">
+                                <div class="clientRow">
+                                    <div class="clientCol">
+                                        <div class="clientLabel">Client</div>
+                                        <div class="clientValue linkLike">{customer.name}</div>
+                                    </div>
+
+                                    <div class="clientCol">
+                                        <div class="clientLabel">Client Email</div>
+                                        <div class="clientValue linkLike">{customer.email}</div>
+                                    </div>
+                                </div>
+
+                                <div class="clientRow">
+                                    <div class="clientCol">
+                                        <div class="clientLabel">Quotation Type</div>
+                                        <div class="clientValue">{customer.quotationType}</div>
+                                    </div>
+
+                                    <div class="clientCol">
+                                        <div class="clientLabel">Client Phone</div>
+                                        <div class="clientValue linkLike">{customer.phone}</div>
+                                    </div>
+                                </div>
+
+                                <div class="projectSummaryBar">
+                                    <span class="summaryTotal">Total Projects: {totalProjects}</span>
+                                    <span class="summaryPill active">Active: <b>{activeProjects}</b></span>
+                                    <span class="summaryPill inactive">Inactive: <b>{inactiveProjects}</b></span>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- ✅ SCREEN 1: PROJECT LIST ONLY -->
+                        <template if:true={isProjectListView}>
+                            <template if:true={hasProjects}>
+                                <div class="projectGrid">
+                                    <template for:each={projects} for:item="proj">
+                                        <article key={proj.id} class={proj.listCardClass}>
+                                            <div class="listTopRow">
+                                                <div class="listTitleBlock">
+                                                    <div class="listProjectName">{proj.name}</div>
+                                                    <div class="listSubLine">
+                                                        <span class={proj.badgeClass}>{proj.status}</span>
+                                                        <span class="listDot">•</span>
+                                                        <span class="listMeta">Start: {proj.startDate}</span>
+                                                        <span class="listDot">•</span>
+                                                        <span class="listMeta">Duration: {proj.estimatedDuration}</span>
+                                                    </div>
+
+                                                    <template if:true={proj.quotationType}>
+                                                        <div class="listSubLine">
+                                                            <span class="listMeta">
+                                                                Quotation Type: <b>{proj.quotationType}</b>
+                                                            </span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+
+                                                <div class="listGaugeWrap">
+                                                    <div class="gaugeRing small" style={proj.circleStyle}>
+                                                        <div class="gaugeInner smallInner">
+                                                            <span
+                                                                class="gaugeValue smallVal">{proj.progressPercent}%</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="miniGaugeLabel">Overall</div>
+                                                </div>
+                                            </div>
+
+                                            <div class="listFooterRow">
+                                                <div class="listKpis">
+                                                    <span class="listKpiPill">Vendors:
+                                                        <b>{proj.vendorAssignments.length}</b></span>
+                                                    <span class="listKpiPill">Progress:
+                                                        <b>{proj.progressPercent}%</b></span>
+                                                </div>
+
+                                                <button class="viewBtn" type="button" data-id={proj.id}
+                                                    onclick={handleSelectProject}>
+                                                    View Details →
+                                                </button>
+                                            </div>
+                                        </article>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <template if:false={hasProjects}>
+                                <p class="noData">No projects found for this account.</p>
+                            </template>
+                        </template>
+
+                        <!-- ✅ SCREEN 2: SELECTED PROJECT FULL DASHBOARD -->
+                        <template if:true={isProjectDetailView}>
+                            <div class="backTopRow">
+                                <button class="backLink backLinkHighlight" type="button" onclick={handleBackToProjects}>
+                                    ← Back to Projects
+                                </button>
+                            </div>
+
+
+                            <template if:true={selectedProject}>
+                                <section class="projCard">
                                     <div class="projHeaderTop">
                                         <div class="sectionChipRow">
                                             <span class="sectionChip">Project Details</span>
@@ -103,48 +202,49 @@
 
                                     <div class="projHeader">
                                         <div class="projInfo">
-                                            <h3 class="projName">{proj.name}</h3>
+                                            <h3 class="projName">{selectedProject.name}</h3>
 
                                             <div class="projMeta">
                                                 <span class="statusChip">
-                                                    Project Status: {proj.status}
+                                                    Project Status: {selectedProject.status}
                                                 </span>
                                                 <span class="datePill">
-                                                    Project Start Date: {proj.startDate}
+                                                    Project Start Date: {selectedProject.startDate}
                                                 </span>
                                                 <span class="datePill">
-                                                    Estimated Duration: {proj.estimatedDuration}
+                                                    Estimated Duration: {selectedProject.estimatedDuration}
                                                 </span>
+
+                                                <template if:true={selectedProject.quotationType}>
+                                                    <span class="datePill">
+                                                        Quotation Type: {selectedProject.quotationType}
+                                                    </span>
+                                                </template>
                                             </div>
 
                                             <div class="projStatsRow">
                                                 <div class="kpi">
                                                     <div class="kpiLabel">Vendors</div>
-                                                    <div class="kpiValue">
-                                                        {proj.vendorAssignments.length}
+                                                    <div class="kpiValue">{selectedProject.vendorAssignments.length}
                                                     </div>
                                                 </div>
                                                 <div class="kpi">
                                                     <div class="kpiLabel">Overall Progress</div>
-                                                    <div class="kpiValue">
-                                                        {proj.progressPercent}%
-                                                    </div>
+                                                    <div class="kpiValue">{selectedProject.progressPercent}%</div>
                                                 </div>
                                                 <div class="kpi">
                                                     <div class="kpiLabel">Duration</div>
-                                                    <div class="kpiValue">{proj.estimatedDuration}</div>
+                                                    <div class="kpiValue">{selectedProject.estimatedDuration}</div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <!-- BIG GAUGE -->
                                         <div class="projCircleWrap">
                                             <div class="gaugeCard">
-                                                <div class="gaugeRing" style={proj.circleStyle}>
+                                                <div class="gaugeRing" style={selectedProject.circleStyle}>
                                                     <div class="gaugeInner">
-                                                        <span class="gaugeValue">
-                                                            {proj.progressPercent}%
-                                                        </span>
+                                                        <span
+                                                            class="gaugeValue">{selectedProject.progressPercent}%</span>
                                                         <span class="gaugeCaption">Overall</span>
                                                     </div>
                                                 </div>
@@ -164,31 +264,25 @@
                                         <div class="projTimelineDot end"></div>
                                     </div>
 
-                                    <!-- Vendors -->
                                     <div class="vendorsWrap">
-                                        <template for:each={proj.vendorAssignments} for:item="va">
+                                        <template for:each={selectedProject.vendorAssignments} for:item="va">
                                             <article key={va.id} class="vaCard">
-                                                <button class="vaHeader" type="button"
-                                                        data-id={va.id}
-                                                        onclick={toggleVendor}>
+                                                <button class="vaHeader" type="button" data-id={va.id}
+                                                    onclick={toggleVendor}>
                                                     <div class="vaAccentBar"></div>
 
                                                     <div class="vaInfo">
                                                         <div class="sectionChipRow subtle">
-                                                            <span class="sectionChip subtleChip">
-                                                                Vendor Details
-                                                            </span>
+                                                            <span class="sectionChip subtleChip">Vendor Details</span>
                                                         </div>
+
                                                         <div class="vaName">
                                                             {va.vendorName}
-                                                            <span class="vaCategory">
-                                                                ({va.category})
-                                                            </span>
+                                                            <span class="vaCategory">({va.category})</span>
                                                         </div>
+
                                                         <div class="vaMeta">
-                                                            <span class="vaStatusChip">
-                                                                Status: {va.status}
-                                                            </span>
+                                                            <span class="vaStatusChip">Status: {va.status}</span>
 
                                                             <span class="vaDateChip vaDateRangeChip">
                                                                 Vendor work Start date: {va.workStartDate}
@@ -209,23 +303,19 @@
                                                         <div class="miniGauge">
                                                             <div class="gaugeRing small" style={va.circleStyle}>
                                                                 <div class="gaugeInner smallInner">
-                                                                    <span class="gaugeValue smallVal">
-                                                                        {va.progressPercent}%
-                                                                    </span>
+                                                                    <span
+                                                                        class="gaugeValue smallVal">{va.progressPercent}%</span>
                                                                 </div>
                                                             </div>
                                                             <div class="miniGaugeLabel">Vendor</div>
                                                         </div>
-
                                                         <span class={va.chevronClass}>▾</span>
                                                     </div>
                                                 </button>
 
                                                 <div class={va.tasksClass}>
                                                     <div class="tableSectionRow">
-                                                        <span class="sectionChip subtleChip">
-                                                            Task Details
-                                                        </span>
+                                                        <span class="sectionChip subtleChip">Task Details</span>
                                                     </div>
 
                                                     <template if:true={va.tasks}>
@@ -256,10 +346,9 @@
                                                             </table>
                                                         </div>
                                                     </template>
+
                                                     <template if:false={va.tasks}>
-                                                        <p class="noData">
-                                                            No tasks found for this vendor.
-                                                        </p>
+                                                        <p class="noData">No tasks found for this vendor.</p>
                                                     </template>
                                                 </div>
                                             </article>
@@ -269,14 +358,8 @@
                             </template>
                         </template>
 
-                        <template if:false={hasProjects}>
-                            <p class="noData">No projects found for this account.</p>
-                        </template>
-
                         <div class="footerCloseRow">
-                            <lightning-button variant="brand" label="Logout"
-                                              onclick={handleLogout}>
-                            </lightning-button>
+                            <lightning-button variant="brand" label="Logout" onclick={handleLogout}></lightning-button>
                         </div>
                     </div>
                 </div>
