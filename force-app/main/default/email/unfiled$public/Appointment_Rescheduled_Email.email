@@ -1,0 +1,20 @@
+<html>
+<head>
+	<title></title>
+</head>
+<body style="height: auto; min-height: auto;">Hi <strong>{{{Recipient.Supervisor_User__c}}}</strong>,<br />
+<br />
+<br />
+The appointment for <strong>{{{Recipient.FirstName}}}</strong>&nbsp;<strong>{{{Recipient.LastName}}}</strong>&nbsp;has been rescheduled.<br />
+<br />
+<strong>New Rescheduled Appointment Details:</strong>
+<ul>
+	<li>Rescheduled Appointment date:&nbsp;<strong>{{{Recipient.Appointment_Rescheduled_Time__c}}}</strong></li>
+	<li>Time Slots:&nbsp;<strong>{{{Recipient.Time_Slots__c}}}</strong></li>
+</ul>
+Please make a note of the updated schedule and reach out if any clarification is needed.<br />
+<br />
+<br />
+Thanks,<br />
+Arelia Living Team</body>
+</html>

@@ -1,0 +1,20 @@
+<html>
+<head>
+	<title></title>
+</head>
+<body style="height: auto; min-height: auto;">Hello {{{Site_Visit_Report__c.Supervisor_User__r.Name}}},<br />
+<br />
+<br />
+The Site Visit Report submitted for the following lead has been marked for <strong>negotiation</strong>&nbsp;by the manager.
+<ul>
+	<li><strong>Lead Name</strong>:{{{Site_Visit_Report__c.Lead__r.Name}}}</li>
+	<li><strong>Site Visit Report Name:</strong>{{{Site_Visit_Report__c.Name}}}</li>
+	<li><strong>Negotiation Reason:</strong>{{{Site_Visit_Report__c.Negotation_Reason__c}}}</li>
+</ul>
+<br />
+Please review the manager's comments and take necessary action.<br />
+<br />
+<br />
+Thanks,<br />
+Arelia Manager</body>
+</html>

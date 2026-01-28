@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
+<labels>
+        <fullName>Residential_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Residential_URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/residential-portfolio</value>
+    </labels>
+    <labels>
+        <fullName>Commercial_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Commercial_URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/commerical-portifolio</value>
+    </labels>
+    <labels>
+        <fullName>Hospitality_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Hospitality_URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/hospitality-portfolio</value>
+    </labels>
+    <labels>
+        <fullName>Instagram_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Instagram_URL</shortDescription>
+        <value>https://www.instagram.com/arelialivin/</value>
+    </labels>
+    <labels>
+        <fullName>Facebook_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Facebook_URL</shortDescription>
+        <value>https://www.facebook.com/profile.php?id=61584344340267</value>
+    </labels>
+    <labels>
+        <fullName>LinkedIn_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>LinkedIn_URL</shortDescription>
+        <value>https://www.linkedin.com/in/arelia-living-363053394/</value>
+    </labels>
+</CustomLabels>

@@ -1,0 +1,865 @@
+:host {
+    display: block;
+}
+
+/* ---------- Shell background (same family as manual) ---------- */
+
+.form-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 3rem 1rem 4rem;
+    background: linear-gradient(180deg, #e9ddbb 0%, #f6ecd0 55%, #f0e4c3 100%);
+}
+
+/* ---------- Card ---------- */
+
+.card-shell {
+    width: 100%;
+    max-width: 1300px;
+    border-radius: 20px;
+    background: #fffaf0;
+    border: 1px solid rgba(120, 96, 60, 0.2);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.23);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header bar like manual quotation */
+
+.card-header {
+    padding: 1.8rem 2.3rem 1.3rem;
+    background: linear-gradient(90deg, #736448, #5e5035);
+    color: #ffffff;
+}
+
+.card-title {
+    margin: 0 0 0.4rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.card-subtitle {
+    margin: 0;
+    font-size: 0.95rem;
+    opacity: 0.92;
+}
+
+/* Body */
+
+.card-body {
+    padding: 1.4rem 2.3rem 1.8rem;
+    background: #fffdf4;
+}
+
+/* Back link row under header */
+
+.back-row {
+    margin-bottom: 0.3rem;
+}
+
+.back-link {
+    border: none;
+    background: transparent;
+    padding: 0;
+    font-size: 0.86rem;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* Back link colour when on light body background */
+.card-body .back-link {
+    color: #5e5035;
+}
+
+.card-body .back-link:hover {
+    color: #3b3020;
+}
+
+/* Divider under steps */
+
+.body-divider {
+    margin: 0.9rem 0 1.1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Footer */
+
+.card-footer {
+    padding: 1.1rem 2.3rem 1.4rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    background: #f3e7c6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.footer-left {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.86rem;
+    flex-wrap: wrap;
+}
+
+.footer-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+/* Quotation type pill */
+
+.quote-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(121, 100, 63, 0.35);
+    color: #5e5035;
+    font-weight: 500;
+}
+
+/* Step info text */
+
+.step-info {
+    font-size: 0.82rem;
+    color: #65543a;
+}
+
+/* ---------- Steps bar (simpler, manual-like) ---------- */
+
+.steps-bar {
+    display: flex;
+    gap: 0.55rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+.steps-bar::-webkit-scrollbar {
+    height: 4px;
+}
+
+.steps-bar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.steps-bar::-webkit-scrollbar-thumb {
+    background: rgba(121, 100, 63, 0.35);
+    border-radius: 999px;
+}
+
+.step-item {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.32rem 0.8rem 0.32rem 0.5rem;
+    border-radius: 999px;
+    background: #faf2dc;
+    border: 1px solid rgba(121, 100, 63, 0.2);
+    font-size: 0.76rem;
+    color: #78613c;
+    white-space: nowrap;
+}
+
+.step-dot {
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 999px;
+    background: #d9c7a0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #3f3422;
+}
+
+.step-name {
+    white-space: nowrap;
+}
+
+/* active / done states from JS (s.cls) */
+
+.step-item.active {
+    background: #5e5035;
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+.step-item.active .step-dot {
+    background: #f3e7c6;
+    color: #3f3422;
+}
+
+.step-item.done {
+    background: #ede0c0;
+    border-color: rgba(121, 100, 63, 0.55);
+}
+
+/* ---------- Section layout ---------- */
+
+.section {
+    margin-bottom: 1.4rem;
+}
+
+.section-title {
+    margin: 0 0 0.25rem;
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: #4a3b24;
+}
+
+.section-subtitle {
+    margin: 0 0 0.9rem;
+    font-size: 0.8rem;
+    color: #7c6945;
+}
+
+/* Inputs spacing & labels */
+
+lightning-input,
+lightning-textarea,
+lightning-combobox {
+    margin-bottom: 1.4rem;
+}
+
+lightning-input label,
+lightning-textarea label,
+lightning-combobox label {
+    font-weight: 600;
+    color: #4a3b24;
+    font-size: 0.93rem;
+}
+
+/* Two-column grid for fields */
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.top-gap {
+    margin-top: 0.7rem;
+}
+
+/* ---------- Choice cards (project type / category / plan) ---------- */
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 0.9rem;
+}
+
+.choice-card {
+    background: #fff6e2;
+    border-radius: 12px;
+    border: 1px solid rgba(121, 100, 63, 0.28);
+    padding: 0.9rem 1rem;
+    cursor: pointer;
+    transition: box-shadow 0.18s ease, transform 0.18s ease,
+        border-color 0.18s ease, background 0.18s ease;
+}
+
+.choice-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(121, 100, 63, 0.6);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
+    background: #fff2d2;
+}
+
+.choice-card.selected {
+    border-width: 2px;
+    border-color: #5e5035;
+    background: #f3e0b8;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+
+.choice-title {
+    margin: 0 0 0.25rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #3f3422;
+}
+
+.choice-text {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #7c6945;
+}
+
+/* ---------- Room quantity list ---------- */
+
+.room-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+}
+
+.room-row {
+    background: #fffef3;
+    border-radius: 16px;
+    border: 1px solid rgba(251, 191, 36, 0.6);
+    padding: 0.7rem 1.1rem;
+    min-width: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 6px 20px rgba(251, 191, 36, 0.25);
+}
+
+.room-name {
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: #3f3422;
+}
+
+.room-qty-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.qty-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    border: 1px solid rgba(121, 100, 63, 0.35);
+    background: #ffffff;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #3f3422;
+}
+
+.qty-value {
+    min-width: 22px;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #3f3422;
+}
+
+/* ---------- Room + design selector ---------- */
+
+.two-column {
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 1rem;
+    margin-top: 0.6rem;
+}
+
+.rooms-panel,
+.designs-panel {
+    background: #fff7e4;
+    border-radius: 12px;
+    border: 1px solid rgba(121, 100, 63, 0.2);
+    padding: 0.7rem 0.8rem;
+}
+
+.panel-title {
+    margin: 0 0 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #3f3422;
+}
+
+/* Left side – rooms */
+
+.room-sel-card {
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid rgba(121, 100, 63, 0.18);
+    padding: 0.5rem 0.6rem;
+    margin-bottom: 0.4rem;
+    cursor: pointer;
+}
+
+.room-sel-card.active {
+    border-color: #5e5035;
+    background: #f4e0b9;
+}
+
+.room-sel-name {
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: #3f3422;
+}
+
+.room-sel-design {
+    margin-top: 0.1rem;
+    font-size: 0.7rem;
+    color: #7c6945;
+}
+
+/* Right side – designs */
+
+.design-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 0.75rem;
+}
+
+.design-item-tile {
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid rgba(121, 100, 63, 0.2);
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.design-item-tile.selected {
+    border-width: 2px;
+    border-color: #5e5035;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+}
+
+.design-img-wrap {
+    width: 100%;
+    height: 120px;
+    background: #e5d7b4;
+    overflow: hidden;
+}
+
+.design-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.design-info {
+    padding: 0.45rem 0.55rem 0.6rem;
+}
+
+.design-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #3f3422;
+    margin-bottom: 0.18rem;
+}
+
+.design-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.68rem;
+}
+
+.pill {
+    background: #fef3c7;
+    color: #7c6540;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+}
+
+.price {
+    font-weight: 600;
+    color: #5e5035;
+}
+
+/* ---------- Step 7 – preview layout (NEW) ---------- */
+
+.preview-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.preview-total-pill {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: baseline;
+    padding: 0.5rem 1.1rem;
+    border-radius: 999px;
+    background: #fff5dd;
+    border: 1px solid rgba(121, 100, 63, 0.45);
+    font-size: 0.9rem;
+    color: #4a3b24;
+}
+
+.preview-total-value {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: #3f3422;
+}
+
+.preview-summary-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+}
+
+.summary-chip {
+    background: #fff7e4;
+    border-radius: 12px;
+    border: 1px solid rgba(121, 100, 63, 0.35);
+    padding: 0.5rem 0.9rem;
+    min-width: 150px;
+}
+
+.chip-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #7c6945;
+}
+
+.chip-value {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #3f3422;
+}
+
+/* Table-style card */
+
+.preview-table-card {
+    background: #fffef6;
+    border-radius: 12px;
+    border: 1px solid rgba(121, 100, 63, 0.3);
+    overflow: hidden;
+}
+
+.preview-table-header {
+    display: grid;
+    grid-template-columns: 1.1fr 2.2fr 0.6fr 0.9fr 0.8fr;
+    padding: 0.55rem 0.9rem;
+    background: #f3e7c6;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #4a3b24;
+    font-weight: 600;
+}
+
+.preview-table-body {
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.preview-table-row {
+    display: grid;
+    grid-template-columns: 1.1fr 2.2fr 0.6fr 0.9fr 0.8fr;
+    padding: 0.55rem 0.9rem;
+    align-items: center;
+    font-size: 0.78rem;
+    color: #4b4b4b;
+    border-top: 1px solid rgba(121, 100, 63, 0.18);
+}
+
+.preview-table-row:nth-child(odd) {
+    background: #fffdf7;
+}
+
+.preview-row-main {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.preview-row-img {
+    width: 72px;
+    height: 52px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #e5d7b4;
+}
+
+.preview-row-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.preview-row-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.row-room-name {
+    font-weight: 600;
+    color: #3f3422;
+}
+
+.row-design-name {
+    font-weight: 600;
+    color: #3f3422;
+}
+
+.row-design-meta {
+    font-size: 0.68rem;
+    color: #7c6945;
+}
+
+.col-qty,
+.col-amount,
+.col-actions {
+    text-align: center;
+}
+
+.preview-remove {
+    border: none;
+    background: transparent;
+    color: #b91c1c;
+    font-size: 0.74rem;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+}
+
+/* ---------- Review cards ---------- */
+
+.review-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 0.9rem;
+}
+
+.review-card {
+    background: #fff7e4;
+    border-radius: 10px;
+    border: 1px solid rgba(121, 100, 63, 0.2);
+    padding: 0.8rem 1rem;
+    font-size: 0.75rem;
+    color: #5a4a31;
+}
+
+.review-wide {
+    grid-column: 1 / -1;
+}
+
+.review-title {
+    margin: 0 0 0.25rem;
+    font-weight: 600;
+    color: #3f3422;
+}
+
+.review-line {
+    margin: 0.18rem 0;
+}
+
+.review-list {
+    margin: 0.25rem 0 0.6rem;
+    padding-left: 1.1rem;
+}
+
+.review-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.25rem;
+    font-weight: 600;
+}
+
+.total-value {
+    font-size: 1.05rem;
+    color: #3f3422;
+}
+
+/* ---------- Modal + image preview ---------- */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(31, 27, 22, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 1rem;
+}
+
+.modal {
+    background: #ffffff;
+    border-radius: 12px;
+    max-width: 900px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: auto;
+    padding: 0.9rem;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #3f3422;
+}
+
+.modal-close {
+    border: none;
+    background: transparent;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: #3f3422;
+}
+
+.modal-body {
+    max-height: calc(90vh - 2.4rem);
+    overflow: auto;
+}
+
+.modal-img {
+    width: 100%;
+    border-radius: 6px;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 980px) {
+
+    .card-header,
+    .card-body,
+    .card-footer {
+        padding-left: 1.3rem;
+        padding-right: 1.3rem;
+    }
+
+    .grid-2 {
+        grid-template-columns: 1fr;
+    }
+
+    .two-column {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .card-title {
+        font-size: 1.35rem;
+    }
+
+    .preview-table-header {
+        display: none;
+    }
+
+    .preview-table-row {
+        grid-template-columns: 1.2fr 2.3fr;
+        row-gap: 0.35rem;
+        align-items: flex-start;
+    }
+
+    .col-qty,
+    .col-amount,
+    .col-actions {
+        text-align: left;
+    }
+}
+
+@media (max-width: 768px) {
+    .form-wrapper {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+    }
+
+    .footer-right {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .steps-bar {
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* header layout placeholder (kept for consistency) */
+.header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.preview-total-bar .total-usd {
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.total-value {
+    font-size: 1.15rem;
+    color: #3f3422;
+    font-weight: 700;
+}
+
+/* ---------- NEW: Hero-style back button only on Step 1 ---------- */
+
+.back-link-hero {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(94, 80, 53, 0.6);
+    background: rgba(255, 255, 255, 0.92);
+    color: #5e5035;
+    font-weight: 600;
+    font-size: 0.86rem;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    cursor: pointer;
+
+    box-shadow: 0 0 0 0 rgba(94, 80, 53, 0.35);
+    animation: back-pulse-zoom 2.4s ease-out infinite;
+}
+
+.back-link-hero::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    border: 1px dashed rgba(94, 80, 53, 0.32);
+    opacity: 0.0;
+    pointer-events: none;
+}
+
+.back-link-hero:hover {
+    transform: scale(1.04);
+    box-shadow: 0 10px 24px rgba(94, 80, 53, 0.35);
+    background: #ffffff;
+}
+
+/* Soft zoom/pulse animation */
+@keyframes back-pulse-zoom {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(94, 80, 53, 0.3);
+    }
+
+    35% {
+        transform: scale(1.03);
+        box-shadow: 0 0 0 10px rgba(94, 80, 53, 0);
+    }
+
+    60% {
+        transform: scale(1.01);
+        box-shadow: 0 0 0 0 rgba(94, 80, 53, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(94, 80, 53, 0);
+    }
+}

@@ -1,0 +1,13 @@
+.slds-is-complete .slds-path__stage {
+    border-color: #f4f7f9;
+}
+
+.slds-is-error .slds-path__stage {
+    background-color: #ea001e;
+    border-color: #ea001e;
+}
+
+.slds-is-current .slds-path__stage {
+    background-color: #ffb75d;
+    border-color: #ffb75d;
+}
