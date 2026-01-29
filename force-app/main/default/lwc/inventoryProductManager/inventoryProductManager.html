@@ -2,33 +2,107 @@
     <div class="catalog-root">
 
         <!-- ================= STEP PROGRESS BAR ================= -->
-        <div class="stepper">
-            <div class={stepClass1}>
-                <span class="step-index">1</span>
-                <span class="step-label">Room</span>
-            </div>
-            <div class="step-line"></div>
+        <template if:false={isStep0}>
+    <div class="stepper">
+        <div class={stepClass1}>
+            <span class="step-index">1</span>
+            <span class="step-label">Spaces</span>
+        </div>
+        <div class="step-line"></div>
 
-            <div class={stepClass2}>
-                <span class="step-index">2</span>
-                <span class="step-label">Category</span>
-            </div>
-            <div class="step-line"></div>
+        <div class={stepClass2}>
+            <span class="step-index">2</span>
+            <span class="step-label">Category</span>
+        </div>
+        <div class="step-line"></div>
 
-            <div class={stepClass3}>
-                <span class="step-index">3</span>
-                <span class="step-label">Products</span>
-            </div>
+        <div class={stepClass3}>
+            <span class="step-index">3</span>
+            <span class="step-label">Products</span>
+        </div>
+    </div>
+</template>
+
+<!-- ================= STEP 0 : OPPORTUNITY SUMMARY ================= -->
+<template if:true={isStep0}>
+
+    <!-- DATA READY -->
+    <template if:true={oppSummary}>
+        <section class="step-screen intro-center summary-hero-flat">
+
+    <h1 class="summary-title-flat">
+        Customer Information Summary
+    </h1>
+
+    <div class="summary-grid-flat">
+
+        <div class="summary-row-flat">
+            <span class="label">Client Name</span>
+            <span class="value">{oppSummary.Lead_Name__c}</span>
         </div>
 
+        <div class="summary-row-flat">
+            <span class="label">Email</span>
+            <span class="value">{oppSummary.Email__c}</span>
+        </div>
 
+        <div class="summary-row-flat">
+            <span class="label">Quotation Type</span>
+            <span class="value highlight">
+                {oppSummary.Project_Request_Quotation_Type__c}
+            </span>
+        </div>
+
+        <template if:true={isManual}>
+            <div class="summary-row-flat">
+                <span class="label">Project Type</span>
+                <span class="value">
+                    {oppSummary.Type_of_Project__c}
+                </span>
+            </div>
+        </template>
+
+        <template if:true={isAutomatic}>
+            <div class="summary-row-flat">
+                <span class="label">Interior Project</span>
+                <span class="value">
+                    {interiorProjectTypeName}
+                </span>
+            </div>
+        </template>
+
+    </div>
+
+    <div class="summary-actions-flat">
+        <button class="uiverse-cart-btn primary-cta"
+                onclick={goToStep1}>
+            Proceed to Catalogue →
+        </button>
+    </div>
+
+</section>
+    </template>
+
+    <!-- LOADING STATE -->
+    <template if:false={oppSummary}>
+        <section class="step-screen intro-center">
+            <lightning-spinner size="medium"></lightning-spinner>
+        </section>
+    </template>
+
+</template>
 
         <!-- ================= STEP 1 ================= -->
 <template if:true={isStep1}>
     <section class="step-screen intro-center">
 
-        <!-- 🔥 ADD THIS HEADER -->
+        <!-- 🔥 HEADER WITH BACK BUTTON -->
         <div class="catalog-header">
+            <button class="uiverse-cart-btn secondary-cta"
+        onclick={handleBackClick}>
+    ← {backButtonLabel}
+</button>
+
             <div class="title-block"></div>
 
             <button class="uiverse-cart-btn" onclick={openCart}>
@@ -42,10 +116,10 @@
                 Browse curated interior solutions and build your quotation effortlessly.
             </p>
 
-            <div class="filter-label">Choose Room Type</div>
+            <div class="filter-label">Choose Below Based on Your Project Type</div>
 
             <div class="chip-row">
-                <template for:each={roomTypes} for:item="room">
+                <template for:each={roomTypesUI} for:item="room">
                     <div key={room.value}
                          class={room.className}
                          data-value={room.value}
@@ -58,13 +132,15 @@
     </section>
 </template>
 
-
         <!-- ================= STEP 2 ================= -->
         <template if:true={isStep2}>
             <section class="step-screen fade-slide">
 
                 <div class="catalog-header">
-                    <button class="back-btn" onclick={goBack}>← Back</button>
+                    <button class="uiverse-cart-btn secondary-cta"
+        onclick={handleBackClick}>
+    ← {backButtonLabel}
+</button>
 
                     <div class="title-block">
                         <h2>Selected Room → <strong>{selectedRoomType}</strong></h2>
@@ -94,7 +170,10 @@
             <section class="step-screen fade-slide">
 
                 <div class="catalog-header">
-                    <button class="back-btn" onclick={goBack}>← Back</button>
+                    <button class="uiverse-cart-btn secondary-cta"
+        onclick={handleBackClick}>
+    ← {backButtonLabel}
+</button>
 
                     <div class="title-block">
                         <h2>
@@ -246,7 +325,7 @@
 
     <div class="modal-actions">
         <lightning-button label="Close" onclick={closeCart}></lightning-button>
-        <lightning-button variant="brand" label="Generate PDF" onclick={handleGenerateClick}></lightning-button>
+        <lightning-button variant="brand" label="Submit" onclick={handleGenerateClick}></lightning-button>
     </div>
 
     <div class="clear-btn-wrap">

@@ -1,13 +1,12 @@
 public class PdfGeneratorAsync implements Queueable {
 
     private Id oppId;
-    private Id attachmentId;
+    private Id contentDocumentId;
 
-    public PdfGeneratorAsync(Id opportunityId, Id attachmentId) {
-        this.oppId = opportunityId;
-        this.attachmentId = attachmentId;
-    }
-
+    public PdfGeneratorAsync(Id opportunityId, Id contentDocumentId) {
+    this.oppId = opportunityId;
+    this.contentDocumentId = contentDocumentId;
+}
     public void execute(QueueableContext context) {
 
         /* ===============================
@@ -29,22 +28,22 @@ public class PdfGeneratorAsync implements Queueable {
         /* ===============================
            FETCH ATTACHMENT (PDF)
         =============================== */
-        Attachment att = [
-            SELECT Id, Name, Body
-            FROM Attachment
-            WHERE Id = :attachmentId
-            LIMIT 1
-        ];
-
+        ContentVersion cv = [
+    SELECT Title, VersionData
+    FROM ContentVersion
+    WHERE ContentDocumentId = :contentDocumentId
+    AND IsLatest = true
+    LIMIT 1
+];
         /* ===============================
            EMAIL TO LEAD
         =============================== */
         sendEmailUsingTemplate(
-            'Opportunity_Catalogue_Quotation_Lead',
-            opp.Email__c,
-            opp,
-            att
-        );
+    'Opportunity_Catalogue_Quotation_Lead',
+    opp.Email__c,
+    opp,
+    cv
+);
 
         /* ===============================
            EMAIL TO SUPERVISOR (OPTIONAL)
@@ -56,7 +55,7 @@ public class PdfGeneratorAsync implements Queueable {
                 'Opportunity_Catalogue_Quotation_Supervisor',
                 opp.Supervisor_User_Email__c,
                 opp,
-                att
+                cv
             );
         }*/
         
@@ -69,7 +68,7 @@ public class PdfGeneratorAsync implements Queueable {
         String developerName,
         String toEmail,
         Opportunity opp,
-        Attachment att
+        ContentVersion cv
     ) {
         if (String.isBlank(toEmail)) return;
 
@@ -94,9 +93,9 @@ public class PdfGeneratorAsync implements Queueable {
 
 
         Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
-        efa.setBody(att.Body);
-        efa.setFileName(att.Name);
-        efa.setContentType('application/pdf');
+efa.setBody(cv.VersionData);
+efa.setFileName(cv.Title + '.pdf');
+efa.setContentType('application/pdf');
 
         Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
         msg.setToAddresses(new List<String>{ toEmail });
