@@ -1,4 +1,5 @@
 @isTest
+@SuppressWarnings('PMD.ExcessivePublicCount, PMD.ExcessiveParameterList')
 public class TestDataUtility {
 
     // 1. Create User
@@ -414,5 +415,37 @@ public class TestDataUtility {
         
         insert ad;
         return ad;
+    }
+
+    // 25. Create Interior Product - CORRECTED
+    public static Interior_Product__c createInteriorProduct(String name, String roomType, String category, Decimal price) {
+        Interior_Product__c prod = new Interior_Product__c(
+            Name = name,
+            Room_Type__c = roomType,
+            Product_Category__c = category,
+            Unit_Price__c = price,
+            Image_File_Name__c = 'test_image.jpg' // Dummy value for field coverage
+        );
+        insert prod;
+        return prod;
+    }
+
+    // ----------------------------
+    // 25. Create WhatsApp Chat  ✅ NEW
+    // ----------------------------
+    public static WhatsApp_Chat__c createWhatsAppChat(Id leadId, Id opportunityId, Id projectId, String lastFrom, String lastTo) {
+        WhatsApp_Chat__c chat = new WhatsApp_Chat__c(
+            Lead__c = leadId,
+            Opportunity__c = opportunityId,
+            Project__c = projectId,
+            Last_From__c = lastFrom,
+            Last_To__c = lastTo,
+            Message_Count__c = 0,
+            Last_Status__c = 'sent',
+            Last_Message_Time__c = System.now(),
+            Transcript_NDJSON__c = ''
+        );
+        insert chat;
+        return chat;
     }
 }
