@@ -190,8 +190,6 @@ getPageRef(pageRef) {
         this.fetchSavedCart();
     }
 }
-    /* ================= PICKLISTS ================= */
-    
 
     
 
