@@ -85,7 +85,7 @@ public without sharing class LeadEmailHandler {
                 }
 
                 // Manual Quotation scenario
-                if (quoteType == 'Manual Quotation') {
+                if (quoteType == 'Manual') {
                     Id managementTemplateId =
                         getTemplateIdByDeveloperName(Label.Arelia_Living_Management_Email_Template);
 
@@ -97,7 +97,7 @@ public without sharing class LeadEmailHandler {
                     }
                 }
                 // Automatic Quotation scenario
-                else if (quoteType == 'Automatic Quotation') {
+                else if (quoteType == 'Automation') {
                     Id automationMgmtTemplateId =
                         getTemplateIdByDeveloperName(Label.Arelia_Living_Automatic_Project_Quote_Management_Email_Template);
 
@@ -157,7 +157,7 @@ public without sharing class LeadEmailHandler {
                     continue; // nothing to do if quotation type is not set
                 }
 
-                if (quoteType == 'Manual Quotation') {
+                if (quoteType == 'Manual') {
                     // Manual: no attachments
                     Id leadTemplateId =
                         getTemplateIdByDeveloperName(Label.Arelia_Living_Lead_Email_Template);
@@ -167,7 +167,7 @@ public without sharing class LeadEmailHandler {
                             prepareLeadEmail(leadRecord, leadTemplateId, false)
                         );
                     }
-                } else if (quoteType == 'Automatic Quotation') {
+                } else if (quoteType == 'Automation') {
                     // Automatic: with attachments
                     Id autoLeadTemplateId =
                         getTemplateIdByDeveloperName(Label.Arelia_Automated_Project_Quote_Submite_Template_DevName);
@@ -238,13 +238,8 @@ public without sharing class LeadEmailHandler {
         List<String> allEmailAddresses = new List<String>();
 
         // Emails from custom label
-        if (!String.isBlank(Label.Arelia_Living_Enrollment_Members)) {
-            // Apex split has only one argument
-            allEmailAddresses.addAll(
-                Label.Arelia_Living_Enrollment_Members.split(',')
-            );
-        }
-
+        allEmailAddresses.addAll(getEnrollmentEmails());
+        
         // Emails from Manager Role
         allEmailAddresses.addAll(getManagerEmailsByRole());
 
@@ -376,5 +371,31 @@ public without sharing class LeadEmailHandler {
             emails.add(u.Email.trim());
         }
         return emails;
+    }
+
+     /**
+     * @description Parses comma-separated enrollment member emails from
+     * custom label Arelia_Living_Enrollment_Members.
+     * @return List of trimmed email addresses.
+     */
+    private static List<String> getEnrollmentEmails() {
+        List<String> result = new List<String>();
+
+        String raw = System.Label.Arelia_Living_Enrollment_Members;
+        if (String.isBlank(raw)) {
+            return result;
+        }
+
+        for (String part : raw.split(',')) {
+            if (String.isNotBlank(part)) {
+                String email = part.trim();
+                // Very light validation – same as other checks
+                if (email.contains('@') && email.contains('.')) {
+                    result.add(email);
+                }
+            }
+        }
+
+        return result;
     }
 }

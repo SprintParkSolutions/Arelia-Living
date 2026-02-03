@@ -10,6 +10,9 @@ import fetchExistingRequest
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import SITE_URL from '@salesforce/label/c.Arelia_Site_Label';
 
+import SUCCESS_IMG from '@salesforce/resourceUrl/Arelia_Projecect_Request_Sucess_Image';
+import ALREADY_SUBMITTED_MSG from '@salesforce/label/c.Arelia_Project_Request_Already_Submitted';
+
 export default class AreliaAutomaticProjectRequestComp extends LightningElement {
     @api leadId;
     @api quotationType;
@@ -36,6 +39,10 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     // selections
     selectedProjectTypeId;
     selectedCategoryId;
+
+    successImgUrl = SUCCESS_IMG;
+    @track isAlreadySubmitted = false;
+    submittedMessage = ALREADY_SUBMITTED_MSG;
 
     /**
      * Room qty per room record (Interior_Room__c)
@@ -209,6 +216,10 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             // eslint-disable-next-line @lwc/lwc/no-api-reassignments
             this.quotationType = leadRec.Project_Request_Quotation_Type__c;
         }
+        // Block wizard on load if already submitted
+        if (leadRec.Project_Request_Submitted__c === true) {
+            this.isAlreadySubmitted = true;
+        }
     }
 
     /**
@@ -295,8 +306,10 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             'Plan',
             'Room Designs',
             'Preview Designs',
-            'Review'
+            'Review',
+            'Success'
         ];
+
         return labels.map((label, index) => {
             const stepNumber = index + 1;
             let cls = 'step-item';
@@ -315,6 +328,10 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     get isStep7() { return this.currentStep === 7; }
     get isStep8() { return this.currentStep === 8; }
     get isFirst() { return this.currentStep === 1; }
+
+    get isStep9() { return this.currentStep === 9; }
+    get displayStep() { return this.currentStep > 9 ? 9 : this.currentStep; }
+
 
     get nextLabel() {
         return this.currentStep === 8 ? (this.isSaving ? 'Saving…' : 'Save') : 'Next';
@@ -563,6 +580,10 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         this[fld] = event.target.value;
     }
 
+    handlePreviousClick() {
+        this.dispatchEvent(new CustomEvent('previous'));
+    }
+
     handleProjectTypeCardClick(event) {
         const id = event.currentTarget.dataset.id;
         this.selectedProjectTypeId = id;
@@ -696,6 +717,7 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     // Next / Prev + Validations
     // -----------------------------
     handleNext() {
+        if (this.isAlreadySubmitted) return;
         if (this.isSaving) return;
 
         if (this.currentStep === 1) {
@@ -757,13 +779,34 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             }
         }
 
-        if (this.currentStep < 8) this.currentStep += 1;
-        else this.saveData();
+        if (this.currentStep < 8) {
+            this.currentStep += 1;
+        } else if (this.currentStep === 8) {
+            this.saveData();
+        }
+
     }
 
+    // handlePrev() {
+    //     if (this.currentStep > 1) this.currentStep -= 1;
+    // }
+
     handlePrev() {
-        if (this.currentStep > 1) this.currentStep -= 1;
+
+        if (this.isAlreadySubmitted) {
+            this.handleAlreadySubmittedClose();
+            return;
+        }
+        // ✅ If user is on Step 1, go back to parent component (Project Type page)
+        if (this.currentStep === 1) {
+            this.dispatchEvent(new CustomEvent('previous'));
+            return;
+        }
+
+        // ✅ Otherwise go to previous step inside this wizard
+        this.currentStep -= 1;
     }
+
 
     recalcTotal() {
         let total = 0;
@@ -778,14 +821,10 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     // Save
     // -----------------------------
     saveData() {
-        if (this.hasExistingRequest) {
-            this.showToast(
-                'Lead already submitted',
-                'Lead details already submitted. If you have any queries contact Arelia Team.',
-                'warning'
-            );
+        if (this.isAlreadySubmitted) {
             return;
         }
+
 
         this.isSaving = true;
 
@@ -836,17 +875,7 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         saveRequest({ req: payload })
             .then(() => {
                 this.isSaving = false;
-                this.showToast(
-                    'Project Request Submitted',
-                    'Your automatic project details have been captured on the Lead. Our team will review and contact you shortly.',
-                    'success'
-                );
-
-                if (this.labels.siteUrl) {
-                    window.setTimeout(() => {
-                        window.location.href = this.labels.siteUrl;
-                    }, 1500);
-                }
+                this.currentStep = 9;
             })
             .catch((err) => {
                 this.isSaving = false;
@@ -864,4 +893,21 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     showToast(title, message, variant) {
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
     }
+
+    handleClose() {
+        // ✅ back to site home
+        if (this.labels.siteUrl) {
+            window.location.href = this.labels.siteUrl;
+            return;
+        }
+    }
+
+    handleAlreadySubmittedClose() {
+        // ✅ back to site home
+        if (this.labels.siteUrl) {
+            window.location.href = this.labels.siteUrl;
+            return;
+        }
+    }
+
 }

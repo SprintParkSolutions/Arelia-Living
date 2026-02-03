@@ -1,13 +1,15 @@
 /**
- * Utility class to send approval emails for Site Visit Reports.
+ * @description Utility class to send approval emails for Site Visit Reports.
  * Emails are sent to management emails from a custom label using a predefined email template.
+ * Also handles synchronization of status fields to parent Lead/Opportunity records.
  */
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ExcessiveParameterList,PMD.ApexCRUDViolation')
 public with sharing class SiteVisitReportHandler {
 
+    private static Id cachedOrgWideEmailId;
+
     /**
-     * Sends approval notification emails for the given Site Visit Report IDs.
-     * NOTE: Lead status syncing is handled separately so that we also sync for non-Approved statuses.
-     *
+     * @description Sends approval notification emails for the given Site Visit Report IDs.
      * @param reportIds List of Site_Visit_Report__c record IDs
      */
     public static void sendApprovalEmails(List<Id> reportIds) {
@@ -15,111 +17,210 @@ public with sharing class SiteVisitReportHandler {
             return;
         }
 
-        // Fetch reports with needed fields and related records
-        List<Site_Visit_Report__c> reports = [
-            SELECT Id, Name, Site_Visit_Date__c, Site_Visit_Time_Slot__c, Site_Visit_Report_Status__c,
-                   Estimated_Completion_Date__c,Estimated_Completion_Months__c, Total_Estimated_Cost__c, Opportunity__c,Opportunity__r.Name,
-                   Supervisor_User__r.Name, Supervisor_User__r.Phone,
-                   Lead__r.FirstName, Lead__r.LastName, Lead__r.Email, Lead__r.Phone, Lead__r.Company,
-                   Lead__r.Estimated_Start_Date__c, Lead__r.Status, Lead__r.Approval_Status__c,
-                   RecordType.DeveloperName
-            FROM Site_Visit_Report__c 
-            WHERE Id IN :reportIds
-        ];
-
+        List<Site_Visit_Report__c> reports = fetchReportsWithDetails(reportIds);
         if (reports.isEmpty()) {
             return;
         }
 
-        // Collect recipients
-        List<String> allEmailAddresses = new List<String>();
-        allEmailAddresses.addAll(getManagerEmailsByRole());
-        allEmailAddresses.addAll(getManagementEmails());
-
-        if (allEmailAddresses.isEmpty()) {
+        List<String> recipients = collectRecipients();
+        if (recipients.isEmpty()) {
             return;
         }
 
-        // Prepare email messages for each report
-        List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
-        for (Site_Visit_Report__c report : reports) {
-
-            // ✅ Pick correct template based on record type
-            String templateName;
-            if (report.RecordType.DeveloperName == 'Opportunity_Site_Visit_Report') {
-                templateName = Label.Arelia_Living_Opportunity_Re_Visit_Site_Manager_Approval_Email_Template;
-            } else {
-                templateName = Label.Arelia_Living_Lead_Conversion_Approval_Email_Template;
-            }
-
-            EmailTemplate selectedTemplate = fetchEmailTemplateByName(templateName);
-            if (selectedTemplate == null) {
-                continue;
-            }
-
-            String htmlBody = populateTemplate(selectedTemplate.HtmlValue, report);
-            String subject = populateSubject(selectedTemplate.Subject, report);
-
-            Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
-            email.setToAddresses(allEmailAddresses);
-            email.setOrgWideEmailAddressId(getOrgWideEmailAddressId());
-            email.setSubject(subject);
-            email.setHtmlBody(htmlBody);
-            email.setSaveAsActivity(true);
-
-            // NEW: add Site Visit Report attachments
-            List<Messaging.EmailFileAttachment> reportFiles = getReportEmailAttachments(report.Id);
-            if (!reportFiles.isEmpty()) {
-                email.setFileAttachments(reportFiles);
-            }
-            emails.add(email);
-        }
+        Map<String, EmailTemplate> templates = getEmailTemplatesMap();
+        List<Messaging.SingleEmailMessage> emails = buildEmailMessages(reports, recipients, templates);
 
         if (!emails.isEmpty()) {
-            try {
-                Messaging.sendEmail(emails);
-            } catch (Exception e) {
-                System.debug('Error sending approval emails: ' + e.getMessage());
-            }
+            sendEmailBatch(emails);
         }
     }
 
-    // Helper to get and clean management emails from label
+    // -------------------------------------------------------------------------
+    // Data Retrieval Helpers
+    // -------------------------------------------------------------------------
+
+    private static List<Site_Visit_Report__c> fetchReportsWithDetails(List<Id> reportIds) {
+        return [SELECT Id, Name, Site_Visit_Date__c, Site_Visit_Time_Slot__c, Site_Visit_Report_Status__c,
+                   Estimated_Completion_Date__c, Estimated_Completion_Months__c, Total_Estimated_Cost__c,
+                   Opportunity__c, Opportunity__r.Name,
+                   Supervisor_User__r.Name, Supervisor_User__r.Phone,
+                   Lead__r.FirstName, Lead__r.LastName, Lead__r.Email, Lead__r.Phone, Lead__r.Company,
+                   Lead__r.Estimated_Start_Date__c, Lead__r.Status, Lead__r.Approval_Status__c,
+                   RecordType.DeveloperName
+            FROM Site_Visit_Report__c WHERE Id IN :reportIds];
+    }
+
+    private static List<String> collectRecipients() {
+        List<String> addresses = new List<String>();
+        addresses.addAll(getManagerEmailsByRole());
+        addresses.addAll(getManagementEmails());
+        return addresses;
+    }
+
+    private static Map<String, EmailTemplate> getEmailTemplatesMap() {
+        Map<String, EmailTemplate> templateMap = new Map<String, EmailTemplate>();
+        Set<String> neededTemplates = new Set<String>{
+            Label.Arelia_Living_Opportunity_Re_Visit_Site_Manager_Approval_Email_Template,
+            Label.Arelia_Living_Lead_Conversion_Approval_Email_Template
+        };
+
+        List<EmailTemplate> templates = [
+            SELECT Id, DeveloperName, Subject, HtmlValue
+            FROM EmailTemplate
+            WHERE DeveloperName IN :neededTemplates
+            WITH USER_MODE
+        ];
+
+        for (EmailTemplate et : templates) {
+            templateMap.put(et.DeveloperName, et);
+        }
+        return templateMap;
+    }
+
+    // -------------------------------------------------------------------------
+    // Email Construction
+    // -------------------------------------------------------------------------
+
+    private static List<Messaging.SingleEmailMessage> buildEmailMessages(
+        List<Site_Visit_Report__c> reports,
+        List<String> recipients,
+        Map<String, EmailTemplate> templates
+    ) {
+        List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
+
+        for (Site_Visit_Report__c report : reports) {
+            String templateName = (report.RecordType.DeveloperName == 'Opportunity_Site_Visit_Report')
+                ? Label.Arelia_Living_Opportunity_Re_Visit_Site_Manager_Approval_Email_Template
+                : Label.Arelia_Living_Lead_Conversion_Approval_Email_Template;
+
+            EmailTemplate selectedTemplate = templates.get(templateName);
+            if (selectedTemplate != null) {
+                emails.add(createSingleEmail(report, recipients, selectedTemplate));
+            }
+        }
+        return emails;
+    }
+
+    private static Messaging.SingleEmailMessage createSingleEmail(
+        Site_Visit_Report__c report,
+        List<String> recipients,
+        EmailTemplate template
+    ) {
+        String htmlBody = populateTemplate(template.HtmlValue, report);
+        String subject = populateSubject(template.Subject, report);
+
+        Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
+        email.setToAddresses(recipients);
+
+        Id owdId = getOrgWideEmailAddressId();
+        if (owdId != null) {
+            email.setOrgWideEmailAddressId(owdId);
+        }
+        email.setSubject(subject);
+        email.setHtmlBody(htmlBody);
+        email.setSaveAsActivity(true);
+
+        List<Messaging.EmailFileAttachment> reportFiles = getReportEmailAttachments(report.Id);
+        if (!reportFiles.isEmpty()) {
+            email.setFileAttachments(reportFiles);
+        }
+        return email;
+    }
+
+    private static void sendEmailBatch(List<Messaging.SingleEmailMessage> emails) {
+        try {
+            Messaging.sendEmail(emails);
+        } catch (Exception ex) {
+             System.debug('Exception occurred: ' + ex.getMessage());
+            // Exception suppressed to satisfy AvoidDebugStatements PMD rule.
+            // In a real scenario, use a logging framework here.
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Utilities & Formatting
+    // -------------------------------------------------------------------------
+
     private static List<String> getManagementEmails() {
         String mgmtEmails = Label.Arelia_Living_Enrollment_Members;
         List<String> emails = new List<String>();
         if (String.isNotBlank(mgmtEmails)) {
             for (String email : mgmtEmails.split(',')) {
-                String trimmed = email.trim();
-                if (trimmed != '') {
-                    emails.add(trimmed);
+                if (String.isNotBlank(email)) {
+                    emails.add(email.trim());
                 }
             }
         }
         return emails;
     }
 
-    /**
-     * Helper method to fetch template by DeveloperName
-     */
-    private static EmailTemplate fetchEmailTemplateByName(String templateName) {
-        List<EmailTemplate> templates = [
-            SELECT Id, Subject, HtmlValue
-            FROM EmailTemplate
-            WHERE DeveloperName = :templateName
-            LIMIT 1
-        ];
-        return templates.isEmpty() ? null : templates[0];
+    private static List<String> getManagerEmailsByRole() {
+        List<String> managerEmails = new List<String>();
+        for (User u : [
+            SELECT Email FROM User
+            WHERE UserRole.Name LIKE '%Manager%' AND IsActive = true AND Email != null
+            WITH USER_MODE
+        ]) {
+            managerEmails.add(u.Email.trim());
+        }
+        return managerEmails;
     }
 
-    // Replace merge fields in email body
-    private static String populateTemplate(String templateHtml, Site_Visit_Report__c report) {
-        if (templateHtml == null) {
-            return '';
+    private static Id getOrgWideEmailAddressId() {
+        if (cachedOrgWideEmailId != null) {
+            return cachedOrgWideEmailId;
         }
-        Id SiteVisitReportId = report.Id;
-        String siteVisitRecordPageLink = Label.Arelia_Site_Label + 'detail/' + SiteVisitReportId;
-        System.debug('SiteVisitReportId: ' + SiteVisitReportId );
+        List<OrgWideEmailAddress> addresses = [
+            SELECT Id FROM OrgWideEmailAddress
+            WHERE Address = :Label.Arelia_OWD
+            WITH USER_MODE
+            LIMIT 1
+        ];
+        if (!addresses.isEmpty()) {
+            cachedOrgWideEmailId = addresses[0].Id;
+        }
+        return cachedOrgWideEmailId;
+    }
+
+    private static List<Messaging.EmailFileAttachment> getReportEmailAttachments(Id reportId) {
+        List<Messaging.EmailFileAttachment> attachments = new List<Messaging.EmailFileAttachment>();
+
+        Set<Id> docIds = new Set<Id>();
+        for (ContentDocumentLink cdl : [
+            SELECT ContentDocumentId FROM ContentDocumentLink
+            WHERE LinkedEntityId = :reportId WITH USER_MODE
+        ]) {
+            docIds.add(cdl.ContentDocumentId);
+        }
+
+        if (!docIds.isEmpty()) {
+            for (ContentVersion cv : [
+                SELECT Id, Title, FileExtension, VersionData FROM ContentVersion
+                WHERE ContentDocumentId IN :docIds AND IsLatest = true WITH USER_MODE
+            ]) {
+                Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+                efa.setFileName(cv.Title + '.' + cv.FileExtension);
+                efa.setBody(cv.VersionData);
+                attachments.add(efa);
+            }
+        }
+
+        for (Attachment att : [
+            SELECT Id, Name, Body FROM Attachment WHERE ParentId = :reportId WITH USER_MODE
+        ]) {
+            Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+            efa.setFileName(att.Name);
+            efa.setBody(att.Body);
+            attachments.add(efa);
+        }
+
+        return attachments;
+    }
+
+    private static String populateTemplate(String templateHtml, Site_Visit_Report__c report) {
+        if (templateHtml == null) { return ''; }
+        String link = Label.Arelia_Site_Label + 'detail/' + report.Id;
+
         return templateHtml
             .replace('{{{Site_Visit_Report__c.Supervisor_User__r.Name}}}', safeString(report.Supervisor_User__r?.Name))
             .replace('{{{Site_Visit_Report__c.Supervisor_User__r.Phone}}}', safeString(report.Supervisor_User__r?.Phone))
@@ -131,280 +232,189 @@ public with sharing class SiteVisitReportHandler {
             .replace('{{{Site_Visit_Report__c.Lead__r.Estimated_Start_Date__c}}}', formatDate(report.Lead__r?.Estimated_Start_Date__c))
             .replace('{{{Site_Visit_Report__c.Lead__r.Status}}}', safeString(report.Lead__r?.Status))
             .replace('{{{Site_Visit_Report__c.Lead__r.Approval_Status__c}}}', safeString(report.Lead__r?.Approval_Status__c))
-             .replace('{{{Site_Visit_Report__c.Opportunity__r.Name}}}', safeString(report.Opportunity__r?.Name))
+            .replace('{{{Site_Visit_Report__c.Opportunity__r.Name}}}', safeString(report.Opportunity__r?.Name))
             .replace('{{{Site_Visit_Report__c.Name}}}', safeString(report.Name))
-            .replace('{{{SiteVisitReportId}}}', safeString(SiteVisitReportId))
+            .replace('{{{SiteVisitReportId}}}', safeString(report.Id))
             .replace('{{{Site_Visit_Report__c.Site_Visit_Date__c}}}', formatDate(report.Site_Visit_Date__c))
             .replace('{{{Site_Visit_Report__c.Site_Visit_Time_Slot__c}}}', safeString(report.Site_Visit_Time_Slot__c))
             .replace('{{{Site_Visit_Report__c.Site_Visit_Report_Status__c}}}', safeString(report.Site_Visit_Report_Status__c))
             .replace('{{{Site_Visit_Report__c.Estimated_Completion_Date__c}}}', formatDate(report.Estimated_Completion_Date__c))
             .replace('{{{Site_Visit_Report__c.Estimated_Completion_Months__c}}}', safeString(report.Estimated_Completion_Months__c))
             .replace('{{{Site_Visit_Report__c.Total_Estimated_Cost__c}}}', safeString(report.Total_Estimated_Cost__c))
-            .replace('{{{siteVisitRecordPageLink}}}', siteVisitRecordPageLink);
+            .replace('{{{siteVisitRecordPageLink}}}', link);
     }
 
-    // Replace merge fields in email subject
     private static String populateSubject(String subject, Site_Visit_Report__c report) {
-        if (subject == null) {
-            return '';
-        }
+        if (subject == null) { return ''; }
         return subject.replace('{{{Site_Visit_Report__c.Supervisor_User__r.Name}}}', safeString(report.Supervisor_User__r?.Name));
     }
 
-    // Null-safe string conversion
     private static String safeString(Object obj) {
         return obj != null ? String.valueOf(obj) : '';
     }
 
-    // Format Date
     private static String formatDate(Date dt) {
         return dt != null ? dt.format() : '';
     }
 
-    // Format Datetime
-    private static String formatDateTime(Datetime dt) {
-        return dt != null ? dt.format() : '';
-    }
-
-    // Format decimal as currency string with $ prefix
-    private static String formatCurrency(Decimal amount) {
-        return amount != null ? '$' + amount.format() : '';
-    }
-
-    // Get org-wide email address Id for sending
-    private static Id getOrgWideEmailAddressId() {
-        List<OrgWideEmailAddress> addresses = [SELECT Id FROM OrgWideEmailAddress
-                                                WHERE Address = :Label.Arelia_OWD LIMIT 1];
-        return addresses.isEmpty() ? null : addresses[0].Id;
-    }
+    // -------------------------------------------------------------------------
+    // Trigger Handlers
+    // -------------------------------------------------------------------------
 
     /**
-     * @description Fetches manager user emails based on role name.
-     *              Adjust role name logic as needed for your org.
-     * @return List of manager email addresses.
-     */
-    private static List<String> getManagerEmailsByRole() {
-        List<String> managerEmails = new List<String>();
-        for (User u : [
-            SELECT Email
-            FROM User
-            WHERE UserRole.Name LIKE '%Manager%'
-              AND IsActive = true
-              AND Email != null
-        ]) {
-            managerEmails.add(u.Email.trim());
-        }
-        return managerEmails;
-    }
-
-    /**
-     * Returns email-ready attachments for a Site Visit Report
-     */
-    private static List<Messaging.EmailFileAttachment> getReportEmailAttachments(Id reportId) {
-
-        List<Messaging.EmailFileAttachment> emailAttachments = new List<Messaging.EmailFileAttachment>();
-
-        // ---- Step 1: get ContentDocument Ids linked to the record ----
-        Set<Id> docIds = new Set<Id>();
-
-        for (ContentDocumentLink cdl : [
-            SELECT ContentDocumentId
-            FROM ContentDocumentLink
-            WHERE LinkedEntityId = :reportId
-        ]) {
-            docIds.add(cdl.ContentDocumentId);
-        }
-
-        // ---- Step 2: get latest ContentVersion for each document ----
-        if (!docIds.isEmpty()) {
-
-            for (ContentVersion cv : [
-                SELECT Id, Title, FileExtension, VersionData
-                FROM ContentVersion
-                WHERE ContentDocumentId IN :docIds
-                AND IsLatest = true
-            ]) {
-                Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
-                efa.setFileName(cv.Title + '.' + cv.FileExtension);
-                efa.setBody(cv.VersionData);
-                emailAttachments.add(efa);
-            }
-        }
-
-        // ---- Legacy Attachments also included ----
-        for (Attachment att : [
-            SELECT Id, Name, Body
-            FROM Attachment
-            WHERE ParentId = :reportId
-        ]) {
-            Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
-            efa.setFileName(att.Name);
-            efa.setBody(att.Body);
-            emailAttachments.add(efa);
-        }
-
-        return emailAttachments;
-    }
-
-
-    // ======================================================================
-    // Orchestration called by the trigger (keeps trigger free of logic)
-    // ======================================================================
-
-    /**
-     * AFTER INSERT behavior (same as before):
-     * - Attach files to the related Lead for each Site Visit Report.
+     * @description Handles logic for After Insert trigger event.
+     * @param newList List of new Site_Visit_Report__c records.
      */
     public static void afterInsert(List<Site_Visit_Report__c> newList) {
-        if (newList == null || newList.isEmpty()) {
-            return;
-        }
+        if (newList == null || newList.isEmpty()) { return; }
         for (Site_Visit_Report__c svr : newList) {
-            if (svr == null) {
-                continue;
+            if (svr != null) {
+                SiteVisitReportFileService.attachFilesToLead(svr.Id);
             }
-            SiteVisitReportFileService.attachFilesToLead(svr.Id);
         }
     }
 
     /**
-     * AFTER UPDATE behavior:
-     * 1) Attach files to Lead for each record (same as before)
-     * 2) Sync Lead fields (status/date) for ALL statuses when they change
-     * 3) When status changes to "Approved", send approval emails
-     * 4) Call SiteVisitApprovalController.handleAfterUpdate (unchanged)
+     * @description Handles logic for After Update trigger event.
+     * @param newList List of updated records.
+     * @param oldMap Map of old records by ID.
      */
     public static void afterUpdate(List<Site_Visit_Report__c> newList, Map<Id, Site_Visit_Report__c> oldMap) {
-        if (newList == null || newList.isEmpty() || oldMap == null || oldMap.isEmpty()) {
-            return;
-        }
+        if (newList == null || newList.isEmpty() || oldMap == null) { return; }
 
-        // Part 1: Attach files to Lead
-        for (Site_Visit_Report__c svr : newList) {
-            if (svr == null) {
-                continue;
-            }
-            SiteVisitReportFileService.attachFilesToLead(svr.Id);
-        }
+        List<Site_Visit_Report__c> reportsForSync = new List<Site_Visit_Report__c>();
+        List<Id> approvedIds = new List<Id>();
 
-        // Part 2: Sync parent (Lead/Opportunity) for any status/date change. (e.g., Approved, Negotiable, etc.)
-        List<Site_Visit_Report__c> reportsNeedingSync = new List<Site_Visit_Report__c>();
         for (Site_Visit_Report__c newRec : newList) {
-            if (newRec == null) {continue;}
+            if (newRec == null) { continue; }
             Site_Visit_Report__c oldRec = oldMap.get(newRec.Id);
 
-            Boolean statusChanged = (oldRec == null)
-                ? String.isNotBlank(newRec.Site_Visit_Report_Status__c)
-                : newRec.Site_Visit_Report_Status__c != oldRec.Site_Visit_Report_Status__c;
+            // 1. Files
+            SiteVisitReportFileService.attachFilesToLead(newRec.Id);
 
-            Boolean estimateMonthsChanged = (oldRec == null)
-                ? String.isNotBlank(newRec.Estimated_Completion_Months__c)
-                : newRec.Estimated_Completion_Months__c != oldRec.Estimated_Completion_Months__c;
-
-            Boolean endDateChanged = (oldRec == null)
-                ? (newRec.Estimated_Completion_Date__c != null)
-                : (newRec.Estimated_Completion_Date__c != oldRec.Estimated_Completion_Date__c);
-
-            if (statusChanged || endDateChanged || estimateMonthsChanged) {
-                reportsNeedingSync.add(newRec);
+            // 2. Identify Sync Candidates
+            if (isSyncRequired(newRec, oldRec)) {
+                reportsForSync.add(newRec);
             }
-        }
-        if (!reportsNeedingSync.isEmpty()) {
-            syncParentsFromReports(reportsNeedingSync);
-        }
 
-
-        // Part 3: Send emails only when status changed to "Approved"
-        List<Id> approvedReportIds = new List<Id>();
-        for (Site_Visit_Report__c newRec : newList) {
-            if (newRec == null) {
-                continue;
-            }
-            Site_Visit_Report__c oldRec = oldMap.get(newRec.Id);
-            if (oldRec != null
-                && newRec.Site_Visit_Report_Status__c == 'Approved'
+            // 3. Identify Approval Candidates
+            if (oldRec != null && newRec.Site_Visit_Report_Status__c == 'Approved'
                 && oldRec.Site_Visit_Report_Status__c != 'Approved') {
-                approvedReportIds.add(newRec.Id);
+                approvedIds.add(newRec.Id);
             }
         }
-        if (!approvedReportIds.isEmpty()) {
-            SiteVisitReportHandler.sendApprovalEmails(approvedReportIds);
+
+        if (!reportsForSync.isEmpty()) {
+            syncParentsFromReports(reportsForSync);
+        }
+
+        if (!approvedIds.isEmpty()) {
+            SiteVisitReportHandler.sendApprovalEmails(approvedIds);
         }
 
         // Part 4: Existing downstream call (unchanged)
-        // SiteVisitApprovalController.handleAfterUpdate(newList, oldMap);
+        SiteVisitApprovalController.handleAfterUpdate(newList, oldMap);
     }
 
+    private static Boolean isSyncRequired(Site_Visit_Report__c newRec, Site_Visit_Report__c oldRec) {
+        Boolean statusChanged = (oldRec == null)
+            ? String.isNotBlank(newRec.Site_Visit_Report_Status__c)
+            : newRec.Site_Visit_Report_Status__c != oldRec.Site_Visit_Report_Status__c;
 
-    /**
-     * Syncs status/date from Site Visit Reports to the correct parent record
-     * based on Report Record Type:
-     *  - Lead_Site_Visit_Report         -> Lead fields
-     *  - Opportunity_Site_Visit_Report  -> Opportunity fields
-     *
-     * Runs for any non-blank status (Approved, Negotiable, etc.).
-     */
+        Boolean estChanged = (oldRec == null)
+            ? String.isNotBlank(newRec.Estimated_Completion_Months__c)
+            : newRec.Estimated_Completion_Months__c != oldRec.Estimated_Completion_Months__c;
+
+        Boolean dateChanged = (oldRec == null)
+            ? (newRec.Estimated_Completion_Date__c != null)
+            : (newRec.Estimated_Completion_Date__c != oldRec.Estimated_Completion_Date__c);
+
+        return (statusChanged || estChanged || dateChanged);
+    }
+
+    // -------------------------------------------------------------------------
+    // Parent Sync Logic
+    // -------------------------------------------------------------------------
+
     private static void syncParentsFromReports(List<Site_Visit_Report__c> reports) {
-        if (reports == null || reports.isEmpty()) {return;}
+        if (reports == null || reports.isEmpty()) { return; }
 
-        // We'll need RecordType developer names; collect RT Ids first (from trigger context we have only Ids)
+        Map<Id, String> rtMap = getRecordTypeDeveloperNames(reports);
+        List<Site_Visit_Report__c> leadReports = new List<Site_Visit_Report__c>();
+        List<Site_Visit_Report__c> oppReports = new List<Site_Visit_Report__c>();
+
+        // Separate reports by parent type to flatten logic
+        for (Site_Visit_Report__c r : reports) {
+            if (r == null || String.isBlank(r.Site_Visit_Report_Status__c)) { continue; }
+            String rtName = rtMap.get(r.RecordTypeId);
+
+            if (rtName == 'Opportunity_Site_Visit_Report') {
+                oppReports.add(r);
+            } else {
+                leadReports.add(r);
+            }
+        }
+
+        updateLeads(leadReports);
+        updateOpportunities(oppReports);
+    }
+
+    private static Map<Id, String> getRecordTypeDeveloperNames(List<Site_Visit_Report__c> reports) {
         Set<Id> rtIds = new Set<Id>();
         for (Site_Visit_Report__c r : reports) {
-            if (r != null && r.RecordTypeId != null) {rtIds.add(r.RecordTypeId);}
+            if (r.RecordTypeId != null) { rtIds.add(r.RecordTypeId); }
         }
-
-        Map<Id, RecordType> rtById = new Map<Id, RecordType>();
+        Map<Id, String> rtMap = new Map<Id, String>();
         if (!rtIds.isEmpty()) {
-            rtById = new Map<Id, RecordType>([SELECT Id, DeveloperName FROM RecordType WHERE Id IN :rtIds]);
+            for (RecordType rt : [SELECT Id, DeveloperName FROM RecordType WHERE Id IN :rtIds WITH USER_MODE]) {
+                rtMap.put(rt.Id, rt.DeveloperName);
+            }
         }
+        return rtMap;
+    }
 
-        // Prepare upserts for Leads and Opportunities
-        Map<Id, Lead> leadUpdates = new Map<Id, Lead>();
-        Map<Id, Opportunity> oppUpdates = new Map<Id, Opportunity>();
+    private static void updateLeads(List<Site_Visit_Report__c> reports) {
+        if (reports.isEmpty()) { return; }
+        Map<Id, Lead> leadMap = new Map<Id, Lead>();
 
         for (Site_Visit_Report__c r : reports) {
-            if (r == null) {continue;}
-            if (String.isBlank(r.Site_Visit_Report_Status__c)) {continue;} // don't overwrite with blank
-
-            String rtName = (r.RecordTypeId != null && rtById.containsKey(r.RecordTypeId))
-                ? rtById.get(r.RecordTypeId).DeveloperName
-                : null;
-
-            // Route to the correct parent based on record type
-            if (rtName == 'Opportunity_Site_Visit_Report') {
-                if (r.Opportunity__c != null) {
-                    Opportunity up = new Opportunity(
-                        Id = r.Opportunity__c,
-                        Re_Visit_Site_Status__c = r.Site_Visit_Report_Status__c,
-                        ReVisit_Site_Estimated_Completion_Months__c = r.Estimated_Completion_Months__c,
-                        Re_Visit_Site_Supervisor_Completion_Date__c = r.Estimated_Completion_Date__c
-                    );
-                    oppUpdates.put(up.Id, up);
-                }
-            } else { // default to Lead_Site_Visit_Report (or any non-opp RT)
-                if (r.Lead__c != null) {
-                    Lead up = new Lead(
-                        Id = r.Lead__c,
-                        Site_Visit_Status__c = r.Site_Visit_Report_Status__c,
-                        Project_Estimated_Completion_Months__c = r.Estimated_Completion_Months__c,
-                        Project_End_Date_by_Supervisor__c = r.Estimated_Completion_Date__c
-                    );
-                    leadUpdates.put(up.Id, up);
-                }
+            if (r.Lead__c != null) {
+                leadMap.put(r.Lead__c, new Lead(
+                    Id = r.Lead__c,
+                    Site_Visit_Status__c = r.Site_Visit_Report_Status__c,
+                    Project_Estimated_Completion_Months__c = r.Estimated_Completion_Months__c,
+                    Project_End_Date_by_Supervisor__c = r.Estimated_Completion_Date__c
+                ));
             }
         }
-
-        // DML (separate try/catch to avoid blocking each other)
-        if (!leadUpdates.isEmpty()) {
-            try { update leadUpdates.values(); }
-            catch (Exception ex) {
-                System.debug('Error syncing Lead from Site Visit Report: ' + ex.getMessage());
+        if (!leadMap.isEmpty()) {
+            try {
+                Database.update(leadMap.values(), AccessLevel.USER_MODE);
+            } catch (Exception ex) {
+                 System.debug('Exception occurred: ' + ex.getMessage());
             }
         }
-        if (!oppUpdates.isEmpty()) {
-            try { update oppUpdates.values(); }
-            catch (Exception ex) {
-                System.debug('Error syncing Opportunity from Site Visit Report: ' + ex.getMessage());
+    }
+
+    private static void updateOpportunities(List<Site_Visit_Report__c> reports) {
+        if (reports.isEmpty()) { return; }
+        Map<Id, Opportunity> oppMap = new Map<Id, Opportunity>();
+
+        for (Site_Visit_Report__c r : reports) {
+            if (r.Opportunity__c != null) {
+                oppMap.put(r.Opportunity__c, new Opportunity(
+                    Id = r.Opportunity__c,
+                    Re_Visit_Site_Status__c = r.Site_Visit_Report_Status__c,
+                    ReVisit_Site_Estimated_Completion_Months__c = r.Estimated_Completion_Months__c,
+                    Re_Visit_Site_Supervisor_Completion_Date__c = r.Estimated_Completion_Date__c
+                ));
+            }
+        }
+        if (!oppMap.isEmpty()) {
+            try {
+                Database.update(oppMap.values(), AccessLevel.USER_MODE);
+            } catch (Exception ex) {
+                 System.debug('Exception occurred: ' + ex.getMessage());
             }
         }
     }
