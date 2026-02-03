@@ -23,6 +23,7 @@
  * Label:
  *  - Arelia_OWD (Org-Wide Email Address)
  */
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ExcessiveParameterList,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public without sharing class AppointmentControllerToOpp {
 
     // ---- Lead reschedule pair (matches your org)
@@ -112,14 +113,14 @@ public without sharing class AppointmentControllerToOpp {
 
         // Pull from Opp reschedule picklist
         List<String> allSlots = getPicklistValues(Opportunity.Re_Visit_Appointm_Rescheduled_Time_Slots__c);
-        if (allSlots.isEmpty()) return allSlots;
+        if (allSlots.isEmpty()) {return allSlots;}
 
         Set<String> taken = collectTakenSlots(currentOpp.Supervisor_User__c, forDate, currentOpportunityId);
 
         List<String> available = new List<String>();
         for (String s : allSlots) {
             String key = s == null ? null : s.trim();
-            if (String.isBlank(key)) continue;
+            if (String.isBlank(key)) {continue;}
             if (!taken.contains(key)) {
                 available.add(s);
             }
@@ -134,7 +135,7 @@ public without sharing class AppointmentControllerToOpp {
 
     // ===== Private: universal availability (Lead + Opp, Pending/Approved/Rescheduled) =====
     private static Boolean isSlotAvailableForSupervisor(Id supervisorUserId, Date onDate, String slotLabel, Id excludeOpportunityId) {
-        if (supervisorUserId == null || onDate == null || String.isBlank(slotLabel)) return false;
+        if (supervisorUserId == null || onDate == null || String.isBlank(slotLabel)) {return false;}
         Set<String> taken = collectTakenSlots(supervisorUserId, onDate, excludeOpportunityId);
         return !taken.contains(slotLabel.trim());
     }
@@ -219,7 +220,7 @@ public without sharing class AppointmentControllerToOpp {
 
     /** Sends email to the Supervisor (User). NOTE: no WhatId allowed for User targets. */
     private static void sendConfirmationEmail(Opportunity opp, String status) {
-        if (opp == null || opp.Supervisor_User__c == null) return;
+        if (opp == null || opp.Supervisor_User__c == null) {return;}
 
         final String templateName = 'Approved'.equalsIgnoreCase(status)
             ? Label.Arelia_Living_Opportunity_Appointment_Approved_Email
@@ -231,7 +232,7 @@ public without sharing class AppointmentControllerToOpp {
             WHERE DeveloperName = :templateName
             LIMIT 1
         ];
-        if (tpl == null || String.isBlank(tpl.HtmlValue) || String.isBlank(tpl.Subject)) return;
+        if (tpl == null || String.isBlank(tpl.HtmlValue) || String.isBlank(tpl.Subject)) {return;}
 
         String subject = tpl.Subject.replace('{{{Recipient.Name}}}',
             toStringOrEmpty(opp.Primary_Contact__r != null ? opp.Primary_Contact__r.Name : null));
@@ -247,14 +248,15 @@ public without sharing class AppointmentControllerToOpp {
             .replace('{{{Re_Visit_Appointment_Rescheduled_Date__c}}}', formatDateMDY(opp.Re_Visit_Appointment_Rescheduled_Date__c))
             .replace('{{{Re_Visit_Appointm_Rescheduled_Time_Slots__c}}}', toStringOrEmpty(opp.Re_Visit_Appointm_Rescheduled_Time_Slots__c));
 
-        if (opp.Supervisor_User__r == null || String.isBlank(opp.Supervisor_User__r.Email)) return;
+        if (opp.Supervisor_User__r == null || String.isBlank(opp.Supervisor_User__r.Email)) {return;}
 
         Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
         msg.setSubject(subject);
         msg.setHtmlBody(html);
         msg.setTargetObjectId(opp.Supervisor_User__c);
+        msg.setCcAddresses(new List<String>{ opp.Primary_Contact__r.Email });
         Id owd = getDefaultOrgWideEmailAddressId();
-        if (owd != null) msg.setOrgWideEmailAddressId(owd);
+        if (owd != null) {msg.setOrgWideEmailAddressId(owd);}
         msg.setSaveAsActivity(false);
 
         Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
@@ -262,13 +264,8 @@ public without sharing class AppointmentControllerToOpp {
 
     /** Fetch Org-Wide Email Address by label from Custom Label Arelia_OWD. */
     private static Id getDefaultOrgWideEmailAddressId() {
-        List<OrgWideEmailAddress> oweaList = [
-            SELECT Id
-            FROM OrgWideEmailAddress
-            WHERE Address = :Label.Arelia_OWD
-              AND IsAllowAllProfiles = true
-            LIMIT 1
-        ];
+        List<OrgWideEmailAddress> oweaList = [SELECT Id FROM OrgWideEmailAddress
+            WHERE Address = :Label.Arelia_OWD AND IsAllowAllProfiles = true LIMIT 1];
         return oweaList.isEmpty() ? null : oweaList[0].Id;
     }
 

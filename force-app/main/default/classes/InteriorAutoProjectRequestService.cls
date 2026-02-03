@@ -157,7 +157,7 @@ public without sharing class InteriorAutoProjectRequestService {
 
         List<Lead> leads = [SELECT  Id,FirstName,LastName,Email,Phone,Company,Site_Location__c,Site_Space__c,
                     Project_Description__c,Estimated_Budget__c,Plan_Level__c,Interior_Project_Type__c,
-                    Interior_Category__c,Project_Request_Quotation_Type__c FROM Lead
+                    Interior_Category__c,Project_Request_Quotation_Type__c,Project_Request_Submitted__c FROM Lead
                     WHERE Id = :leadId LIMIT 1];
 
         return leads.isEmpty() ? null : leads[0];
