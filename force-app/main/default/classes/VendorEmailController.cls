@@ -70,6 +70,7 @@ public with sharing class VendorEmailController {
             WHERE Vendor_Category__c = :category
             AND Email__c != NULL
             AND Vendor_Status__c != 'Abscond'
+            AND Vendor_Status__c != 'Unavailable' 
             WITH SECURITY_ENFORCED
             ORDER BY Average_Efficiency__c DESC
         ];

@@ -1,40 +1,40 @@
 /**
- * @description
- *  Trigger handler for Architecture_Design__c:
- *    • Detects when Status__c changes to 'Approved'
- *    • Sends manager-approval email:
- *        - To addresses from Label.Arelia_Living_Enrollment_Members
- *        - From Org-Wide Email in Label.Arelia_OWD
- *        - Using EmailTemplate DeveloperName 'Architecture_Manager_Approval'
- *        - Replacing custom placeholders in HTML body using String.replace()
- *        - Builds approval link and replaces {{{appointmentApprovalLink}}}
- *        - Attaching latest ContentVersion linked to the design
+ * @description Trigger handler for Architecture_Design__c Manager Approval Emails.
+ * Handles detection of status changes and email dispatching.
+ * * NOTE: This class is 'without sharing' to ensure system emails are sent even if the 
+ * triggering user (e.g., Guest User) lacks direct access to User/Template objects.
+ * PMD CRUD violations are suppressed for this reason.
  */
-@SuppressWarnings('PMD.ApexCRUDViolation, PMD.CognitiveComplexity')
+@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class ArchitectureDesignTriggerHandler {
 
     private static final String STATUS_APPROVED         = 'Approved';
     private static final String TEMPLATE_DEVELOPER_NAME = 'Architecture_Manager_Approval';
 
-    /* =========================================================
-       ENTRY POINT FROM TRIGGER
-    ========================================================== */
-    public static void onAfterUpdate(
-        List<Architecture_Design__c> newList,
-        Map<Id, Architecture_Design__c> oldMap
-    ) {
-        if (newList == null || newList.isEmpty()) {
-            return;
-        }
+    /**
+     * @description Inner class to hold email configuration context, reducing parameter count.
+     */
+    private class EmailContext {
+        public Map<Id, Architecture_Design__c> designMap;
+        public Map<Id, ContentVersion> fileMap;
+        public EmailTemplate template;
+        public List<String> toAddresses;
+        public Id orgWideId;
+        public String siteBase;
+    }
 
+    /**
+     * @description Entry point from Trigger. Checks for status change to Approved.
+     */
+    public static void onAfterUpdate(List<Architecture_Design__c> newList, Map<Id, Architecture_Design__c> oldMap) {
+        System.debug('--- Trigger Started: ArchitectureDesignTriggerHandler ---');
+        
         List<Id> approvedDesignIds = new List<Id>();
 
         for (Architecture_Design__c newRec : newList) {
             Architecture_Design__c oldRec = oldMap.get(newRec.Id);
-
-            if (newRec.Status__c == STATUS_APPROVED &&
-                (oldRec == null || oldRec.Status__c != STATUS_APPROVED)) {
-
+            // Detect status change to 'Approved'
+            if (newRec.Status__c == STATUS_APPROVED && (oldRec == null || oldRec.Status__c != STATUS_APPROVED)) {
                 approvedDesignIds.add(newRec.Id);
             }
         }
@@ -44,62 +44,71 @@ public without sharing class ArchitectureDesignTriggerHandler {
         }
     }
 
-    /* =========================================================
-       EMAIL + ATTACHMENT LOGIC
-    ========================================================== */
+    /**
+     * @description Main orchestration method for sending emails.
+     */
     private static void sendEmailWithAttachment(List<Id> designIds) {
-        if (designIds == null || designIds.isEmpty()) {
+        // 1. Prepare Email Context
+        EmailContext ctx = new EmailContext();
+        
+        ctx.toAddresses = parseEmailsFromLabel(Label.Arelia_Living_Enrollment_Members);
+        if (ctx.toAddresses.isEmpty()) {
+            System.debug('ERROR: Label Arelia_Living_Enrollment_Members is empty.');
             return;
         }
 
-        // 1) Recipients from label
-        List<String> toAddresses = parseEmailsFromLabel(Label.Arelia_Living_Enrollment_Members);
-        if (toAddresses.isEmpty()) {
+        ctx.orgWideId = getDefaultOrgWideEmailAddressId();
+        if (ctx.orgWideId == null) {
+            System.debug('ERROR: Org-Wide Address not found or not accessible.');
             return;
         }
 
-        // 2) Org-Wide Email Address from label
-        Id orgWideId = getDefaultOrgWideEmailAddressId();
-
-        // 3) Base site (remove trailing slash)
-        String siteBase = Label.Arelia_Site_Label;
-        if (siteBase != null && siteBase.endsWith('/')) {
-            siteBase = siteBase.removeEnd('/');
-        }
-
-        // 4) Template lookup
-        List<EmailTemplate> etList = [
-            SELECT Id, Subject, HtmlValue
-            FROM EmailTemplate
-            WHERE DeveloperName = :TEMPLATE_DEVELOPER_NAME
-            LIMIT 1
-        ];
-        if (etList.isEmpty()) {
+        ctx.template = getEmailTemplate();
+        if (ctx.template == null) {
+            System.debug('ERROR: Email Template "' + TEMPLATE_DEVELOPER_NAME + '" not found.');
             return;
         }
-        EmailTemplate template = etList[0];
 
-        // 5) Load Architecture Designs with related Opportunity fields
-        Map<Id, Architecture_Design__c> designMap = new Map<Id, Architecture_Design__c>([
-            SELECT Id,
+        ctx.siteBase = Label.Arelia_Site_Label;
+        if (ctx.siteBase != null && ctx.siteBase.endsWith('/')) {
+            ctx.siteBase = ctx.siteBase.removeEnd('/');
+        }
+
+        // 2. Query Data & Files
+        ctx.designMap = queryDesignData(designIds);
+        ctx.fileMap = mapDesignToLatestFile(designIds);
+
+        // 3. Process Sending
+        processAndSendEmails(designIds, ctx);
+    }
+
+    /**
+     * @description Helper to query Design Data safely.
+     * UPDATED: Now fetches FirstName and LastName explicitly to avoid Nicknames.
+     */
+    private static Map<Id, Architecture_Design__c> queryDesignData(List<Id> designIds) {
+        return new Map<Id, Architecture_Design__c>([
+            SELECT Id, 
                    Opportunity__c,
                    Opportunity__r.Lead_Name__c,
                    Opportunity__r.Email__c,
-                   Opportunity__r.Supervisor_Name__c,
-                   Opportunity__r.Supervisor_User_Email__c
+                   // FIX: Get explicit First and Last name
+                   Opportunity__r.Supervisor_User__r.FirstName, 
+                   Opportunity__r.Supervisor_User__r.LastName,
+                   Opportunity__r.Supervisor_User__r.Email
             FROM Architecture_Design__c
             WHERE Id IN :designIds
         ]);
+    }
 
-        // 6) Preload attachments (CDL + ContentVersion)
+    /**
+     * @description Helper to map Design IDs to their latest ContentVersion file.
+     */
+    private static Map<Id, ContentVersion> mapDesignToLatestFile(List<Id> designIds) {
         Map<Id, Id> designIdToDocId = new Map<Id, Id>();
         Set<Id> docIds = new Set<Id>();
 
-        for (ContentDocumentLink cdl : [
-            SELECT LinkedEntityId, ContentDocumentId
-            FROM ContentDocumentLink
-            WHERE LinkedEntityId IN :designIds
-        ]) {
+        for (ContentDocumentLink cdl : [SELECT LinkedEntityId, ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId IN :designIds]) {
             if (!designIdToDocId.containsKey(cdl.LinkedEntityId)) {
                 designIdToDocId.put(cdl.LinkedEntityId, cdl.ContentDocumentId);
                 docIds.add(cdl.ContentDocumentId);
@@ -108,122 +117,109 @@ public without sharing class ArchitectureDesignTriggerHandler {
 
         Map<Id, ContentVersion> docIdToLatest = new Map<Id, ContentVersion>();
         if (!docIds.isEmpty()) {
-            for (ContentVersion cv : [
-                SELECT ContentDocumentId, VersionData, Title, FileExtension
-                FROM ContentVersion
-                WHERE ContentDocumentId IN :docIds
-                AND IsLatest = true
-            ]) {
+            for (ContentVersion cv : [SELECT ContentDocumentId, VersionData, Title, FileExtension FROM ContentVersion WHERE ContentDocumentId IN :docIds AND IsLatest = true]) {
                 docIdToLatest.put(cv.ContentDocumentId, cv);
             }
         }
 
-        // 7) Build emails
+        Map<Id, ContentVersion> result = new Map<Id, ContentVersion>();
+        for(Id designId : designIds) {
+            if(designIdToDocId.containsKey(designId)) {
+                Id docId = designIdToDocId.get(designId);
+                if(docIdToLatest.containsKey(docId)) {
+                    result.put(designId, docIdToLatest.get(docId));
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * @description Loop through records, build emails, and send.
+     */
+    private static void processAndSendEmails(List<Id> designIds, EmailContext ctx) {
         List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
 
         for (Id designId : designIds) {
-            Architecture_Design__c design = designMap.get(designId);
+            Architecture_Design__c design = ctx.designMap.get(designId);
             if (design == null) {
                 continue;
             }
 
-            try {
-                // Null-safe values
-                String leadName        = (design.Opportunity__r != null) ? design.Opportunity__r.Lead_Name__c : '';
-                String clientEmail     = (design.Opportunity__r != null) ? design.Opportunity__r.Email__c : '';
-                String supervisorName  = (design.Opportunity__r != null) ? design.Opportunity__r.Supervisor_Name__c : '';
-                String supervisorEmail = (design.Opportunity__r != null) ? design.Opportunity__r.Supervisor_User_Email__c : '';
-
-                // ✅ Approval Link (same style as your example)
-                // This passes Opportunity Id in query param. If you want Design Id, replace design.Opportunity__c with design.Id.
-                String approvalLink = buildApprovalLink(siteBase, design.Opportunity__c);
-
-                // ✅ Replace tokens exactly like your Opportunity method
-                String html = template.HtmlValue;
-                html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Lead_Name__c}}}', leadName);
-                html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Email__c}}}', clientEmail);
-                html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Supervisor_Name__c}}}', supervisorName);
-                html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Supervisor_User_Email__c}}}', supervisorEmail);
-
-                // ✅ Link token replacement (keep this token in your template)
-                html = safeReplace(html, '{{{appointmentApprovalLink}}}', approvalLink);
-
-                // (Optional) If your template still contains [SITE_URL], replace it too
-                html = safeReplace(html, '[SITE_URL]', siteBase);
-
-                String subject = template.Subject;
-                // If your subject contains any tokens, replace similarly (optional)
-                subject = safeReplace(subject, '{{{leadName}}}', leadName);
-
-                Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
-                mail.setUseSignature(false);
-                mail.setSaveAsActivity(false);
-                mail.setSubject(subject);
-                mail.setHtmlBody(html);
-                mail.setToAddresses(toAddresses);
-
-                if (orgWideId != null) {
-                    mail.setOrgWideEmailAddressId(orgWideId);
-                }
-
-                // Attach latest file if any
-                Id docId = designIdToDocId.get(designId);
-                if (docId != null) {
-                    ContentVersion cv = docIdToLatest.get(docId);
-                    if (cv != null) {
-                        Messaging.EmailFileAttachment attach = new Messaging.EmailFileAttachment();
-                        attach.setFileName(cv.Title + '.' + cv.FileExtension);
-                        attach.setBody(cv.VersionData);
-                        mail.setFileAttachments(new Messaging.EmailFileAttachment[] { attach });
-                    }
-                }
-
-                emails.add(mail);
-
-            } catch (Exception e) {
-                System.debug('### Email build failed for Architecture Design Id=' + designId + ' => ' + e.getMessage());
-                System.debug(e.getStackTraceString());
+            Messaging.SingleEmailMessage mail = buildSingleEmail(design, ctx);
+            
+            if (ctx.fileMap.containsKey(designId)) {
+                ContentVersion cv = ctx.fileMap.get(designId);
+                Messaging.EmailFileAttachment attach = new Messaging.EmailFileAttachment();
+                attach.setFileName(cv.Title + '.' + cv.FileExtension);
+                attach.setBody(cv.VersionData);
+                mail.setFileAttachments(new Messaging.EmailFileAttachment[] { attach });
             }
+
+            emails.add(mail);
         }
 
-        // 8) Send
         if (!emails.isEmpty()) {
-            Messaging.SendEmailResult[] results = Messaging.sendEmail(emails, false);
-            for (Integer i = 0; i < results.size(); i++) {
-                if (!results[i].isSuccess() && results[i].getErrors() != null && !results[i].getErrors().isEmpty()) {
-                    System.debug('### FAILED email ' + i + ': ' + results[i].getErrors()[0].getMessage());
-                }
-            }
+            Messaging.sendEmail(emails, false);
         }
     }
 
-    /* =========================================================
-       HELPERS
-    ========================================================== */
+    /**
+     * @description Constructs a single email message object.
+     * UPDATED: Concatenates FirstName + LastName to force full name display.
+     */
+    private static Messaging.SingleEmailMessage buildSingleEmail(Architecture_Design__c design, EmailContext ctx) {
+        // Logic to construct Full Name from First/Last to avoid Nicknames
+        String supervisorName = '';
+        if (design.Opportunity__r != null && design.Opportunity__r.Supervisor_User__r != null) {
+            String fname = design.Opportunity__r.Supervisor_User__r.FirstName;
+            String lname = design.Opportunity__r.Supervisor_User__r.LastName;
+            supervisorName = (fname != null ? fname + ' ' : '') + (lname != null ? lname : '');
+            supervisorName = supervisorName.trim(); 
+        }
 
-    // ✅ Same style as you requested: Label.Arelia_Site_Label + Label.Site_Appointment_Opp_Link_Page + '?id=' + id
-    private static String buildApprovalLink(String siteBase, Id oppId) {
-        String pagePath = Label.Arelia_Site_Label + Label.Site_Appointment_Opp_Link_Page;
-        if (String.isBlank(siteBase) || String.isBlank(pagePath) || oppId == null) {
+        String approvalLink = buildApprovalLink(ctx.siteBase, design.Id); 
+
+        String html = ctx.template.HtmlValue;
+        html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Lead_Name__c}}}', design.Opportunity__r?.Lead_Name__c);
+        html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Email__c}}}', design.Opportunity__r?.Email__c);
+        html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Supervisor_Name__c}}}', supervisorName);
+        html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Supervisor_User_Email__c}}}', design.Opportunity__r?.Supervisor_User__r?.Email);
+        html = safeReplace(html, '{{{appointmentApprovalLink}}}', approvalLink);
+
+        Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+        mail.setSubject(safeReplace(ctx.template.Subject, '{{{leadName}}}', design.Opportunity__r?.Lead_Name__c));
+        mail.setHtmlBody(html);
+        mail.setToAddresses(ctx.toAddresses);
+        mail.setOrgWideEmailAddressId(ctx.orgWideId);
+        mail.setSaveAsActivity(false);
+
+        return mail;
+    }
+
+    // --- Helpers ---
+
+    private static EmailTemplate getEmailTemplate() {
+        List<EmailTemplate> templates = [SELECT Id, Subject, HtmlValue FROM EmailTemplate WHERE DeveloperName = :TEMPLATE_DEVELOPER_NAME LIMIT 1];
+        return templates.isEmpty() ? null : templates[0];
+    }
+    
+    private static String buildApprovalLink(String siteBase, Id designId) {
+        String pagePath = Label.Manager_Architecture_Approval;
+        if (String.isBlank(siteBase) || String.isBlank(pagePath)) {
             return '';
         }
         if (!pagePath.startsWith('/')) {
             pagePath = '/' + pagePath;
         }
-        return siteBase + pagePath + '?id=' + String.valueOf(oppId);
+        return siteBase + pagePath + '?id=' + designId;
     }
 
     private static List<String> parseEmailsFromLabel(String labelValue) {
-        List<String> emails = new List<String>();
         if (String.isBlank(labelValue)) {
-            return emails;
+            return new List<String>();
         }
-        for (String email : labelValue.split('[,;]')) {
-            if (String.isNotBlank(email)) {
-                emails.add(email.trim());
-            }
-        }
-        return emails;
+        return labelValue.split('[,;]');
     }
 
     private static String safeReplace(String source, String token, String value) {
@@ -234,13 +230,10 @@ public without sharing class ArchitectureDesignTriggerHandler {
     }
 
     private static Id getDefaultOrgWideEmailAddressId() {
-        List<OrgWideEmailAddress> owd = [
-            SELECT Id
-            FROM OrgWideEmailAddress
-            WHERE Address = :Label.Arelia_OWD
-              AND IsAllowAllProfiles = true
-            LIMIT 1
-        ];
-        return owd.isEmpty() ? null : owd[0].Id;
+        try {
+            return [SELECT Id FROM OrgWideEmailAddress WHERE Address = :Label.Arelia_OWD LIMIT 1].Id;
+        } catch(Exception e) { 
+            return null; 
+        }
     }
 }
