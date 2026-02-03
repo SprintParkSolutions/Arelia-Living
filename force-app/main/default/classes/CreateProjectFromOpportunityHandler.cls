@@ -11,6 +11,7 @@
      
        Notes:
          - Bulk safe, low cognitive complexity, null-safe booleans.
+         -Added CC of Sup and Enrollment team
     */
     @SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ApexUnitTestShouldNotUseSeeAllData')
     public with sharing class CreateProjectFromOpportunityHandler {
