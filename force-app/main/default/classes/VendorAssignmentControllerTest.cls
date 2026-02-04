@@ -3,190 +3,149 @@ public class VendorAssignmentControllerTest {
 
     @testSetup
     static void setup() {
-        // 1. Create User
-        User u = TestDataUtility.createSupervisorUser('vastest');
+        // 1. Create User (Supervisor)
+        User u = TestDataUtility.createSupervisorUser('vasup');
+        u.Phone = '555-123-4567'; // Populate Phone to avoid nulls in template
+        update u;
 
-        // 2. Create Project
-        TestDataUtility.createProject('Test Project VA');
-    }
+        // 2. Create Account
+        Account acc = TestDataUtility.createAccount('Vendor Account');
 
-    // ==========================================
-    // FIELD SET & METADATA TESTS (Improved Coverage)
-    // ==========================================
+        // 3. Create Contact
+        Contact con = TestDataUtility.createContact('Vendor Contact', 'vendor@test.com', 'password123');
+        con.AccountId = acc.Id;
+        update con;
 
-    @isTest
-    static void testGetFieldSetFieldsValidObject() {
-        // Use 'User' as it is a standard object that exists in all orgs.
-        Test.startTest();
-        List<VendorAssignmentController.FieldSetMember> fields = 
-            VendorAssignmentController.getFieldSetFields('User', 'NoFieldSet');
-        Test.stopTest();
+        // 4. Create Vendor (Custom Object)
+        // Ensure Email__c is populated as controller relies on it
+        Vendor__c vendorObj = TestDataUtility.createVendor('Test Vendor', 'Electrical & Networking', 'vendor@test.com');
 
-        // Added Assertion Messages
-        Assert.isNotNull(fields, 'Should return empty list, not null');
-        Assert.areEqual(0, fields.size(), 'Should return 0 fields for missing field set');
-    }
+        // 5. Create Project
+        Project__c proj = TestDataUtility.createProject('Test Project VA', 10000, con.Id);
 
-    @isTest
-    static void testGetFieldSetFieldsInvalidObject() {
-        Test.startTest();
-        try {
-            VendorAssignmentController.getFieldSetFields('InvalidObj', 'FieldSet');
-        } catch (Exception e) {
-            // Log for PMD EmptyCatchBlock rule
-            System.debug('Caught expected exception for invalid object: ' + e.getMessage());
-        }
-        Test.stopTest();
-        
-        // Added assertion to confirm test finished
-        Assert.isTrue(true, 'Test finished without unhandled exception');
-    }
+        // 6. Create Vendor Assignment linked to the Vendor (Custom Object)
+        Vendor_Assignment__c va = TestDataUtility.createVendorAssignment(proj.Id, 50);
+        va.Vendor__c = vendorObj.Id; // Correct Link to Vendor__c Object
+        va.Supervisor_User__c = u.Id;
+        va.Vendor_Work_Start_Date__c = Date.today();
+        va.Vendor_Work_End_Date__c = Date.today().addDays(5);
+        // Note: Vendor_Category__c is a formula field, so we don't write to it. 
+        // It pulls from vendorObj.Vendor_Category__c which we set in step 4.
+        update va;
 
-    // ==========================================
-    // RECORD QUERY & CREATE TESTS
-    // ==========================================
-
-    @isTest
-    static void testHasExistingRecordsLifecycle() {
-        Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
-
-        // 1. Test FALSE (No records yet)
-        Boolean resultFalse = VendorAssignmentController.hasExistingRecords(proj.Id);
-        Assert.isFalse(resultFalse, 'Should be false initially');
-
-        // 2. Create Data
-        TestDataUtility.createVendorAssignment(proj.Id);
-
-        // 3. Test TRUE (Records exist)
-        Boolean resultTrue = VendorAssignmentController.hasExistingRecords(proj.Id);
-        Assert.isTrue(resultTrue, 'Should be true after creation');
-    }
-
-    @isTest
-    static void testCreateVendorAssignmentsSuccess() {
-        Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
-
-        Vendor_Assignment__c va = new Vendor_Assignment__c(
-            Vendor_Work_Start_Date__c = Date.today()
-        );
-        List<Vendor_Assignment__c> inputList = new List<Vendor_Assignment__c>{ va };
-
-        Test.startTest();
-        List<Vendor_Assignment__c> results = VendorAssignmentController.createVendorAssignments(inputList, proj.Id);
-        Test.stopTest();
-
-        Assert.areEqual(1, results.size(), 'Should return 1 record');
-        Assert.areEqual(proj.Id, results[0].Project__c, 'Project Link should be set');
-    }
-
-    @isTest
-    static void testCreateVendorAssignmentsPermissionException() {
-        Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
-        
-        // Pass NULL to force exception handling in the controller loop
-        Test.startTest();
-        try {
-            VendorAssignmentController.createVendorAssignments(null, proj.Id);
-            Assert.fail('Should have thrown AuraHandledException');
-        } catch (AuraHandledException e) {
-            Assert.isNotNull(e, 'Exception should be caught');
-        }
-        Test.stopTest();
-    }
-
-    @isTest
-    static void testGetExistingRecordsSuccess() {
-        Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
-        TestDataUtility.createVendorAssignment(proj.Id);
-
-        Test.startTest();
-        List<String> fields = new List<String>{'Vendor_Work_Start_Date__c', 'Name'};
-        List<Vendor_Assignment__c> results = VendorAssignmentController.getExistingRecords(proj.Id, fields);
-        Test.stopTest();
-
-        Assert.areEqual(1, results.size(), 'Should return 1 record');
-    }
-
-    @isTest
-    static void testGetExistingRecordsEdgeCases() {
-        Test.startTest();
-        // Null inputs
-        List<Vendor_Assignment__c> res1 = VendorAssignmentController.getExistingRecords(null, null);
-        Assert.areEqual(0, res1.size(), 'Should return 0 for null inputs');
-        
-        // Empty fields
-        Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
-        List<Vendor_Assignment__c> res2 = VendorAssignmentController.getExistingRecords(proj.Id, new List<String>());
-        Assert.areEqual(0, res2.size(), 'Should return 0 for empty field list');
-        Test.stopTest();
-    }
-
-    // ==========================================
-    // FILE HANDLING TESTS
-    // ==========================================
-
-    @isTest
-    static void testReparentFilesFullFlow() {
-        Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
-        Vendor_Assignment__c va = TestDataUtility.createVendorAssignment(proj.Id);
-        
-        ContentVersion cv = TestDataUtility.createContentVersion('Assignment Doc', 'Data');
-        Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-
-        Map<String, String> fileMap = new Map<String, String>();
-        fileMap.put(docId, va.Id);
-
-        Test.startTest();
-        VendorAssignmentController.reparentFiles(fileMap);
-        Test.stopTest();
-
-        List<ContentDocumentLink> links = [SELECT Id FROM ContentDocumentLink WHERE LinkedEntityId = :va.Id];
-        Assert.areEqual(1, links.size(), 'File should be linked');
-    }
-
-    @isTest
-    static void testReparentFilesException() {
-        Map<String, String> fileMap = new Map<String, String>();
-        fileMap.put('BadId', 'BadId');
-
-        Test.startTest();
-        try {
-            VendorAssignmentController.reparentFiles(fileMap);
-            Assert.fail('Should have thrown AuraHandledException');
-        } catch (AuraHandledException e) {
-            Assert.isNotNull(e, 'Exception should be caught');
-        }
-        Test.stopTest();
-    }
-
-    @isTest
-    static void testGetAttachedFileNamesSuccess() {
-        Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
-        Vendor_Assignment__c va = TestDataUtility.createVendorAssignment(proj.Id);
-        
-        ContentVersion cv = TestDataUtility.createContentVersion('VA Spec', 'Content');
-        TestDataUtility.linkFileToRecord(cv.Id, va.Id);
-
-        Test.startTest();
-        try {
-            Map<Id, String> result = VendorAssignmentController.getAttachedFileNames(new List<Id>{ va.Id });
-            if (!result.isEmpty()) {
-                Assert.isTrue(result.containsKey(va.Id), 'Map should contain assignment Id');
+        // 7. Create Email Template
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            String devName = Label.Arelia_Living_Vendor_Project_Assignment;
+            if (String.isBlank(devName)) {
+                devName = 'Arelia_Living_Vendor_Project_Assignment_TEST';
             }
-        } catch(Exception e) {
-            System.debug('Controller SOQL likely invalid: ' + e.getMessage());
+
+            // Check if template exists
+            List<EmailTemplate> existing = [SELECT Id FROM EmailTemplate WHERE DeveloperName = :devName LIMIT 1];
+            if (existing.isEmpty()) {
+                EmailTemplate t = new EmailTemplate();
+                t.DeveloperName = devName;
+                t.Name = 'Test Vendor Assignment';
+                t.Subject = 'Assignment for {{{Vendor_Assignment__c.Project__c}}}';
+                // Important: Provide HTML value to prevent NPE in controller's replace methods
+                t.HtmlValue = '<html><body>' +
+                              'Project: {{{Vendor_Assignment__c.Project__c}}}<br/>' +
+                              'Vendor: {{{Vendor_Assignment__c.Vendor__c}}}<br/>' +
+                              'Start: {{{Vendor_Assignment__c.Vendor_Work_Start_Date__c}}}<br/>' +
+                              'End: {{{Vendor_Assignment__c.Vendor_Work_End_Date__c}}}<br/>' +
+                              'Sup Name: {{{Vendor_Assignment__c.Supervisor_User__c}}}<br/>' +
+                              'Sup Email: {{{Vendor_Assignment__c.Supervisor_Email}}}<br/>' +
+                              'Sup Phone: {{{Vendor_Assignment__c.Supervisor_Phone}}}<br/>' +
+                              'Category: {{{Vendor_Assignment__c.Vendor_Category__c}}}' +
+                              '</body></html>';
+                t.TemplateType = 'custom';
+                t.FolderId = UserInfo.getUserId();
+                t.IsActive = true;
+                insert t;
+            }
+        }
+    }
+
+    @isTest
+    static void testGetVendorTasksAsAdmin() {
+        Test.startTest();
+        // As Admin (no ContactId), this should return an empty list without error
+        List<Vendor_Assignment__c> results = VendorAssignmentController.getVendorTasks();
+        Test.stopTest();
+        Assert.isNotNull(results, 'Should return a list (empty for admin)');
+    }
+
+    @isTest
+    static void testSendVendorAssignmentEmailSuccess() {
+        Vendor_Assignment__c va = [SELECT Id FROM Vendor_Assignment__c LIMIT 1];
+        List<Vendor_Assignment__c> input = new List<Vendor_Assignment__c>{ va };
+
+        Test.startTest();
+        Integer startEmails = Limits.getEmailInvocations();
+        
+        VendorAssignmentController.sendVendorAssignmentEmail(input);
+        
+        Integer endEmails = Limits.getEmailInvocations();
+        Test.stopTest();
+
+        // Ensure email was sent (assuming template exists)
+        String devName = Label.Arelia_Living_Vendor_Project_Assignment;
+        if(String.isNotBlank(devName)) {
+             Assert.isTrue((endEmails - startEmails) > 0, 'Email should be sent when template exists');
+        }
+    }
+
+    @isTest
+    static void testSendVendorAssignmentEmailGuardClauses() {
+        Test.startTest();
+        VendorAssignmentController.sendVendorAssignmentEmail(null);
+        VendorAssignmentController.sendVendorAssignmentEmail(new List<Vendor_Assignment__c>());
+        Test.stopTest();
+        Assert.isTrue(true, 'Method should return gracefully');
+    }
+
+    @isTest
+    static void testSendVendorAssignmentEmailMissingVendorEmail() {
+        Vendor_Assignment__c va = [SELECT Id, Vendor__c FROM Vendor_Assignment__c LIMIT 1];
+        
+        // Fetch linked Vendor (Custom Object) and clear Email
+        Vendor__c v = [SELECT Id FROM Vendor__c WHERE Id = :va.Vendor__c];
+        v.put('Email__c', null); 
+        update v;
+        
+        // Update Assignment to refresh relationship
+        update va;
+
+        Test.startTest();
+        Integer startEmails = Limits.getEmailInvocations();
+        VendorAssignmentController.sendVendorAssignmentEmail(new List<Vendor_Assignment__c>{ va });
+        Integer endEmails = Limits.getEmailInvocations();
+        Test.stopTest();
+
+        Assert.areEqual(startEmails, endEmails, 'Should NOT send email if vendor email is missing');
+    }
+
+    @isTest
+    static void testSendVendorAssignmentEmailMissingTemplate() {
+        // Find and delete the template to simulate missing config
+        String devName = Label.Arelia_Living_Vendor_Project_Assignment;
+        if (String.isNotBlank(devName)) {
+            List<EmailTemplate> tpls = [SELECT Id FROM EmailTemplate WHERE DeveloperName = :devName];
+            if (!tpls.isEmpty()) {
+                delete tpls;
+            }
+        }
+
+        Vendor_Assignment__c va = [SELECT Id FROM Vendor_Assignment__c LIMIT 1];
+
+        Test.startTest();
+        try {
+            VendorAssignmentController.sendVendorAssignmentEmail(new List<Vendor_Assignment__c>{ va });
+            // The controller throws AuraHandledException if template is missing
+            Assert.fail('Should throw AuraHandledException due to missing template');
+        } catch (AuraHandledException e) {
+            Assert.isNotNull(e, 'Exception expected when template is missing');
         }
         Test.stopTest();
-        
-        // Added assertion to confirm method execution
-        Assert.isTrue(true, 'Test method completed');
-    }
-    
-    @isTest
-    static void testGetAttachedFileNamesNullInput() {
-        Test.startTest();
-        Map<Id, String> result = VendorAssignmentController.getAttachedFileNames(null);
-        Test.stopTest();
-        Assert.areEqual(0, result.size(), 'Should return empty map for null input');
     }
 }

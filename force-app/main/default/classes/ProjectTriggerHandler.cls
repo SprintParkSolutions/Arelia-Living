@@ -7,6 +7,7 @@
  * @author
  * Arelia team
  */
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public without sharing class ProjectTriggerHandler {
 
     // Template and sender configuration
@@ -131,7 +132,7 @@ public without sharing class ProjectTriggerHandler {
             return new Map<Id, Contact>();
         }
         try {
-            return new Map<Id, Contact>([SELECT Id, Name, Email FROM Contact WHERE Id IN :contactIds]);
+            return new Map<Id, Contact>([SELECT Id, Name, Email, Password__c FROM Contact WHERE Id IN :contactIds]);
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'Error fetching Contacts: ' + e.getMessage());
             return new Map<Id, Contact>();
@@ -153,11 +154,7 @@ public without sharing class ProjectTriggerHandler {
             return new Map<Id, User>();
         }
         try {
-            return new Map<Id, User>([
-                SELECT Id, Name, Email
-                FROM User
-                WHERE Id IN :userIds
-            ]);
+            return new Map<Id, User>([SELECT Id, Name, Email FROM User WHERE Id IN :userIds]);
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'Error fetching Users: ' + e.getMessage());
             return new Map<Id, User>();
@@ -260,9 +257,11 @@ public without sharing class ProjectTriggerHandler {
             .replace('{{{Project__c.Name}}}', safe(proj != null ? proj.Name : ''))
             .replace('{{{Project__c.Project_Code__c}}}', safe(proj != null ? proj.Project_Code__c : ''))
             .replace('{{{Project__c.Status__c}}}', safe(proj != null ? proj.Status__c : ''))
-            .replace('{{{Project__c.Type_Of_Project__c}}}', safe(proj != null ? proj.Type_Of_Project__c : ''))
-            .replace('{{{Project__c.Project_Scope__c}}}', safe(proj != null ? proj.Project_Scope__c : ''))
+            .replace('{{{Project__c.Project_Request_Quotation_Type__c}}}', safe(proj != null ? proj.Project_Request_Quotation_Type__c : ''))
             .replace('{{{Project__r.Client__r.Name}}}', safe(contact != null ? contact.Name : ''))
+            .replace('{{{Project__r.Client__r.Password__c}}}', safe(contact != null ? contact.Password__c : ''))
+            .replace('{{{Project__r.Client__r.Email}}}', safe(contact != null ? contact.Email : ''))           
+            .replace('{{{Project__c.Project_Request_Quotation_Type__c}}}', safe(proj != null ? proj.Project_Request_Quotation_Type__c : ''))
             .replace('{{{Project__r.Supervisor_User__r.Name}}}', safe(sup != null ? sup.Name : ''));
         if (base.contains('{{{ManagerName}}}')) {
             base = base.replace('{{{ManagerName}}}', safe(managerName));

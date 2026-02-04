@@ -8,19 +8,19 @@ import getAllStages from '@salesforce/apex/AreliaPathController.getAllStages';
 import getPathStatus from '@salesforce/apex/AreliaPathController.getPathStatus';
 
 const FIELDS = [
+    // --- NEW FIELDS ---
+    'Opportunity.Architecture_Client_Approval_Sent__c',
+    'Opportunity.Architecture_Manager_Approval__c',
+    'Opportunity.Catalogue_Link_Sent__c',
+    // --- EXISTING FIELDS ---
     'Opportunity.Client_Agreement_Sent__c',
     'Opportunity.Client_Agreement_Signed__c',
     'Opportunity.All_Vendors_Agreement_Completed__c',
     'Opportunity.StageName'
 ];
-
 export default class AreliaPath extends LightningElement {
-    // 1. Standard API property
-    _recordId;
-    @api 
-    get recordId() {
-        return this._recordId;
-    }
+   @api 
+    get recordId() { return this._recordId; }
     set recordId(value) {
         this._recordId = value;
         if (value) {
@@ -28,6 +28,7 @@ export default class AreliaPath extends LightningElement {
             this.checkVisibility();
         }
     }
+    _recordId;
 
     @track effectiveRecordId;
     @track steps = [];
@@ -35,13 +36,10 @@ export default class AreliaPath extends LightningElement {
     @track hasAccess = true;
     @track isVisible = true; 
 
-    // Internal storage for the "Race" data
     _allStages = [];
     _currentPathStatus; 
-    
     wiredPathResult;
 
-    // 3. Resolve ID (Kept your logic as is)
     @wire(CurrentPageReference)
     wiredPageRef(pageRef) {
         if (this._recordId) {
@@ -71,8 +69,9 @@ export default class AreliaPath extends LightningElement {
                 }
             }
             this.checkVisibility();
-        } catch {
-            // ignore
+        } catch (e) {
+            // ESLint requires a comment or logic here
+            console.warn('Could not parse Record ID from URL', e);
         }
     }
 
@@ -84,20 +83,16 @@ export default class AreliaPath extends LightningElement {
         }
     }
 
-    // 4. Load Master List of Stages
-    // FIX: Trigger buildSteps when this finishes
     @wire(getAllStages)
     wiredStages({ error, data }) {
         if (data) {
             this._allStages = data;
-            this.tryBuildSteps(); // <--- TRY TO BUILD NOW
+            this.tryBuildSteps();
         } else if (error) {
             console.error('Error loading stage definitions:', error);
         }
     }
 
-    // 5. Get Current Active Step
-    // FIX: Trigger buildSteps when this finishes
     @wire(getPathStatus, { oppId: '$effectiveRecordId' })
     wiredPathStatus(result) {
         this.wiredPathResult = result;
@@ -108,8 +103,8 @@ export default class AreliaPath extends LightningElement {
         if (data) {
             this.hasAccess = true;
             this.isReady = true;
-            this._currentPathStatus = data; // <--- SAVE DATA
-            this.tryBuildSteps(); // <--- TRY TO BUILD NOW
+            this._currentPathStatus = data;
+            this.tryBuildSteps();
         } else if (error) {
             this.hasAccess = false;
             this.isReady = true;
@@ -124,19 +119,28 @@ export default class AreliaPath extends LightningElement {
         }
     }
 
-    // 6. Centralized Build Logic
-    // Only runs if BOTH pieces of data are present
     tryBuildSteps() {
-        // Guard clause: Do we have stages? Do we have a status?
         if (!this._allStages || this._allStages.length === 0 || !this._currentPathStatus) {
             return;
         }
 
         const currentActiveValue = this._currentPathStatus;
-        const activeIndex = this._allStages.findIndex(s => s.value === currentActiveValue);
+        
+        // --- VISIBILITY FILTER ---
+        const specialStages = ['Negotiation/Review', 'Resumed'];
+        let visibleStages;
+
+        if (specialStages.includes(currentActiveValue)) {
+            visibleStages = this._allStages;
+        } else {
+            // Filter out special stages if we are in normal flow
+            visibleStages = this._allStages.filter(stage => !specialStages.includes(stage.value));
+        }
+
+        const activeIndex = visibleStages.findIndex(s => s.value === currentActiveValue);
         const targetIndex = activeIndex === -1 ? 0 : activeIndex;
 
-        this.steps = this._allStages.map((stage, index) => {
+        this.steps = visibleStages.map((stage, index) => {
             return this.buildStepObject(stage.label, index, targetIndex);
         });
     }

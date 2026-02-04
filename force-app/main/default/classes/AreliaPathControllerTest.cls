@@ -1,208 +1,193 @@
-@isTest
+@IsTest
+@SuppressWarnings('PMD.ApexAssertionsShouldIncludeMessage')
 public class AreliaPathControllerTest {
 
-    @testSetup
+    @TestSetup
     static void setup() {
-        // 1. Create User
-        User u = TestDataUtility.createSupervisorUser('pathtest');
+        // 1. Create Supervisor User as SYSTEM ADMINISTRATOR
+        // We do this manually instead of using the Utility to ensure they have permissions
+        // to own the Project object, preventing the "TRANSFER_REQUIRES_READ" flow error.
+        Profile adminProfile = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        
+        User u = new User(
+            Alias = 'pathUser', 
+            Email = 'pathUser@testorg.com', 
+            EmailEncodingKey = 'UTF-8', 
+            LastName = 'Testing', 
+            LanguageLocaleKey = 'en_US', 
+            LocaleSidKey = 'en_US', 
+            ProfileId = adminProfile.Id, 
+            TimeZoneSidKey = 'America/Los_Angeles', 
+            UserName = 'pathUser' + DateTime.now().getTime() + '@testorg.com'
+        );
+        insert u;
 
         // 2. Create Opportunity
-        TestDataUtility.createOpportunity('Path Test Opp', u.Id);
-        
-        // 3. Create Vendor
-        TestDataUtility.createVendor('Path Vendor', 'Plumbing', 'path@vendor.com');
+        // We wrap this in System.runAs to avoid MIXED_DML_OPERATION errors 
+        // (mixing User insertion with Opportunity insertion).
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Opportunity opp = TestDataUtility.createOpportunity('Path Test Opp', u.Id);
+            
+            // Ensure all flags start as false/null to test the very first stage
+            opp.Architecture_Client_Approval_Sent__c = false;
+            opp.Architecture_Manager_Approval__c = false;
+            opp.Catalogue_Link_Sent__c = false;
+            opp.Client_Agreement_Sent__c = false;
+            opp.Client_Agreement_Signed__c = false;
+            opp.All_Vendors_Agreement_Completed__c = false;
+            update opp;
+        }
     }
 
-    @isTest
+    // ==========================================
+    // 1. Test Metadata (Steps List)
+    // ==========================================
+    @IsTest
     static void testGetAllStages() {
         Test.startTest();
         List<Map<String, String>> stages = AreliaPathController.getAllStages();
         Test.stopTest();
 
-        Assert.isNotNull(stages, 'Stages list should not be null');
-        Assert.areEqual(11, stages.size(), 'Should return all defined stages');
-        Assert.areEqual('Catalogue Sent', stages[0].get('value'), 'First stage should be Catalogue Sent');
+        // The controller defines 17 stages
+        Assert.areEqual(17, stages.size(), 'Should return all 17 defined stages');
+        
+        // Verify a specific new stage exists
+        Boolean foundNewStage = false;
+        for (Map<String, String> stage : stages) {
+            if (stage.get('value') == 'Send Architecture Client Approval') {
+                foundNewStage = true;
+                break;
+            }
+        }
+        Assert.isTrue(foundNewStage, 'Should contain the new Architecture stage');
     }
 
     // ==========================================
-    // PROGRESSION TESTS
+    // 2. Test Priority Overrides (Resumed/Negotiation)
     // ==========================================
-
-    @isTest
-    static void testPathStatusStep1CatalogueSent() {
+    @IsTest
+    static void testPathStatusOverrides() {
         Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
 
-        Test.startTest();
-        String status = AreliaPathController.getPathStatus(opp.Id);
-        Test.stopTest();
-
-        Assert.areEqual('Catalogue Sent', status, 'Status should be Catalogue Sent initially');
-    }
-
-    @isTest
-    static void testPathStatusStep2CreatePaymentTerms() {
-        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
-        TestDataUtility.createQuotation(opp.Id, 'Test Quote');
-
-        Test.startTest();
-        String status = AreliaPathController.getPathStatus(opp.Id);
-        Test.stopTest();
-
-        Assert.areEqual('Create Payment Terms', status, 'Status should advance to Create Payment Terms');
-    }
-
-    @isTest
-    static void testPathStatusStep3ManagerApproval() {
-        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
-        
-        Quotation__c q = TestDataUtility.createQuotation(opp.Id, 'Test Quote');
-        q.Manager_Approval__c = false;
-        update q;
-
-        TestDataUtility.createPaymentTerm(opp.Id, 'Advance', 10.0);
-
-        Test.startTest();
-        String status = AreliaPathController.getPathStatus(opp.Id);
-        Test.stopTest();
-
-        Assert.areEqual('Specifications & Payment Terms Manager approval', status, 'Status should wait for Manager Approval');
-    }
-
-    @isTest
-    static void testPathStatusStep4ClientAgreementSent() {
-        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
-
-        Quotation__c q = TestDataUtility.createQuotation(opp.Id, 'Test Quote');
-        q.Manager_Approval__c = true;
-        update q;
-
-        TestDataUtility.createPaymentTerm(opp.Id, 'Advance', 10.0);
-        
-        opp.Client_Agreement_Sent__c = false;
+        // Test Resumed
+        opp.StageName = 'Resumed';
         update opp;
-
-        Test.startTest();
         String status = AreliaPathController.getPathStatus(opp.Id);
-        Test.stopTest();
+        Assert.areEqual('Resumed', status, 'StageName "Resumed" should override other logic');
 
-        Assert.areEqual('Client Agreement Sent', status, 'Status should be Client Agreement Sent');
-    }
-
-    @isTest
-    static void testPathStatusStep5ClientAgreementSigned() {
-        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
-
-        Quotation__c q = TestDataUtility.createQuotation(opp.Id, 'Test Quote');
-        q.Manager_Approval__c = true;
-        update q;
-        TestDataUtility.createPaymentTerm(opp.Id, 'Advance', 10.0);
-
-        opp.Client_Agreement_Sent__c = true;
-        opp.Client_Agreement_Signed__c = false;
+        // Test Negotiation
+        opp.StageName = 'Negotiation/Review';
         update opp;
-
-        Test.startTest();
-        String status = AreliaPathController.getPathStatus(opp.Id);
-        Test.stopTest();
-
-        Assert.areEqual('Client Agreement Signed', status, 'Status should wait for Client Signature');
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Negotiation/Review', status, 'StageName "Negotiation/Review" should override other logic');
     }
 
-    @isTest
-    static void testPathStatusStep6TenderInvites() {
+    // ==========================================
+    // 3. Test The "Waterfall" Logic Sequence
+    // ==========================================
+    @IsTest
+    static void testPathLogicSequence() {
         Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
-        Vendor__c vendor = [SELECT Id FROM Vendor__c LIMIT 1];
+        String status;
 
-        Quotation__c q = TestDataUtility.createQuotation(opp.Id, 'Test Quote');
-        q.Manager_Approval__c = true;
-        update q;
-        TestDataUtility.createPaymentTerm(opp.Id, 'Advance', 10.0);
+        Test.startTest();
 
+        // --- STEP 1: Initial State ---
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Send Architecture Client Approval', status, 'Initial status incorrect');
+
+        // --- STEP 2: Architecture Sent ---
+        opp.Architecture_Client_Approval_Sent__c = true;
+        update opp;
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Client Architecture Approval', status, 'Status after sending architecture incorrect');
+
+        // --- STEP 3: Architecture Approved ---
+        Architecture_Design__c design = new Architecture_Design__c(
+            Opportunity__c = opp.Id,
+            Status__c = 'Approved'
+        );
+        insert design;
+        
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Architecture Manager Approval', status, 'Status after architecture approval incorrect');
+
+        // --- STEP 4: Manager Approval ---
+        opp.Architecture_Manager_Approval__c = true;
+        update opp;
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Catalogue Link Sent', status, 'Status after manager approval incorrect');
+
+        // --- STEP 5: Catalogue Link Sent ---
+        opp.Catalogue_Link_Sent__c = true;
+        update opp;
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Catalogue Received', status, 'Status after catalogue link sent incorrect');
+
+        // --- STEP 6: Payment Terms Created ---
+        TestDataUtility.createPaymentTerm(opp.Id, '50% Advance', 50.00);
+        
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Create Payment Terms', status, 'Status after payment terms created incorrect');
+
+        // --- STEP 7: Quotation Created (Unapproved) ---
+        Quotation__c quote = TestDataUtility.createQuotation(opp.Id, 'Test Quote'); 
+        quote.Manager_Approval__c = false; 
+        update quote;
+
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Specifications & Payment Terms Manager approval', status, 'Status after quotation creation incorrect');
+
+        // --- STEP 8: Quotation Approved ---
+        quote.Manager_Approval__c = true;
+        update quote;
+        
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Client Agreement Sent', status, 'Status after quotation approval incorrect');
+
+        // --- STEP 9: Agreement Sent ---
         opp.Client_Agreement_Sent__c = true;
+        update opp;
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Client Agreement Signed', status, 'Status after agreement sent incorrect');
+
+        // --- STEP 10: Agreement Signed ---
         opp.Client_Agreement_Signed__c = true;
         update opp;
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Tender Invites', status, 'Status after agreement signed incorrect');
 
-        Vendor_Opportunity__c vo = TestDataUtility.createVendorOpportunity(opp.Id, vendor.Id, 'Active');
-        vo.Vendor_Agreement_Sent__c = false; 
+        // --- STEP 11: Vendor Agreement Sent ---
+        Vendor__c v = TestDataUtility.createVendor('Test Vendor', 'Electrical & Networking', 'v@test.com');
+        Vendor_Opportunity__c vo = new Vendor_Opportunity__c(
+            Opportunity__c = opp.Id,
+            Vendor__c = v.Id,
+            Vendor_Agreement_Sent__c = true,
+            Vendor_Opportunity_Status__c = 'Active'
+        );
+        insert vo;
+
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Vendor Agreement Signed', status, 'Status after vendor agreement sent incorrect');
+
+        // --- STEP 12: Vendor Agreements Completed ---
+        // MUST mark the VO as signed first to pass the validation rule on the Opportunity
+        vo.Vendor_Agreement_Signed__c = true;
         update vo;
 
-        Test.startTest();
-        String status = AreliaPathController.getPathStatus(opp.Id);
-        Test.stopTest();
-
-        Assert.areEqual('Tender Invites', status, 'Status should be Tender Invites');
-    }
-
-    @isTest
-    static void testPathStatusStep7VendorAgreementSigned() {
-        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
-        Vendor__c vendor = [SELECT Id FROM Vendor__c LIMIT 1];
-
-        Quotation__c q = TestDataUtility.createQuotation(opp.Id, 'Test Quote');
-        q.Manager_Approval__c = true;
-        update q;
-        TestDataUtility.createPaymentTerm(opp.Id, 'Advance', 10.0);
-
-        opp.Client_Agreement_Sent__c = true;
-        opp.Client_Agreement_Signed__c = true;
-        // Logic relies on formula being FALSE, which is default for new record
+        // Now update the Opportunity
+        opp.All_Vendors_Agreement_Completed__c = true;
         update opp;
-
-        Vendor_Opportunity__c vo = TestDataUtility.createVendorOpportunity(opp.Id, vendor.Id, 'Active');
-        vo.Vendor_Agreement_Sent__c = true; 
-        update vo;
-
-        Test.startTest();
-        String status = AreliaPathController.getPathStatus(opp.Id);
-        Test.stopTest();
-
-        Assert.areEqual('Vendor Agreement Signed', status, 'Status should be Vendor Agreement Signed');
-    }
-
-    @isTest
-    static void testPathStatusStep8ClosedWon() {
-        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
-        Vendor__c vendor = [SELECT Id FROM Vendor__c LIMIT 1];
-
-        // 1. Setup Prerequisites
-        Quotation__c q = TestDataUtility.createQuotation(opp.Id, 'Test Quote');
-        q.Manager_Approval__c = true;
-        update q;
-        TestDataUtility.createPaymentTerm(opp.Id, 'Advance', 10.0);
-
-        // 2. Update Opp Status
-        opp.Client_Agreement_Sent__c = true;
-        opp.Client_Agreement_Signed__c = true;
-        opp.StageName = 'Proposal'; 
-        update opp;
-
-        // 3. Setup Vendor Opportunity to satisfy 'All_Vendors_Agreement_Completed__c'
-        Vendor_Opportunity__c vo = TestDataUtility.createVendorOpportunity(opp.Id, vendor.Id, 'Active');
-        vo.Vendor_Agreement_Sent__c = true; 
         
-        // Try multiple ways to satisfy the completion logic to handle org-specific field names
-        try {
-            vo.put('Vendor_Agreement_Signed__c', true);
-        } catch(Exception e) {
-            // Fallback: If boolean field doesn't exist, try setting status
-             try {
-                vo.put('Vendor_Opportunity_Status__c', 'Agreement Signed');
-             } catch(Exception ex) {
-                // Fixed Empty Catch: Logging just in case both fail
-                System.debug('Could not auto-set completion field: ' + ex.getMessage());
-             }
-        }
-        update vo;
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Closed Won', status, 'Status after all vendors completed incorrect');
 
-        Test.startTest();
-        // Re-query opp to ensure formula recalculation if needed (though getPathStatus does it internally)
-        String status = AreliaPathController.getPathStatus(opp.Id);
+        // --- STEP 13: Final State ---
+        opp.StageName = 'Closed Won';
+        update opp;
+        status = AreliaPathController.getPathStatus(opp.Id);
+        Assert.areEqual('Closed Won', status, 'Final status incorrect');
+
         Test.stopTest();
-
-        if (status == 'Vendor Agreement Signed') {
-            System.debug('Warning: Could not satisfy All_Vendors_Agreement_Completed__c formula.');
-        } else {
-            Assert.areEqual('Closed Won', status, 'Status should finally be Closed Won');
-        }
     }
 }

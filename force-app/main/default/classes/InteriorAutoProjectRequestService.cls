@@ -155,14 +155,9 @@ public without sharing class InteriorAutoProjectRequestService {
             throw new AuraHandledException('Lead Id is required to load project request details.');
         }
 
-        // PMD-friendly CRUD guard
-        if (!Schema.sObjectType.Lead.isAccessible()) {
-            throw new AuraHandledException('You do not have permission to access Lead records.');
-        }
-
         List<Lead> leads = [SELECT  Id,FirstName,LastName,Email,Phone,Company,Site_Location__c,Site_Space__c,
                     Project_Description__c,Estimated_Budget__c,Plan_Level__c,Interior_Project_Type__c,
-                    Interior_Category__c,Project_Request_Quotation_Type__c FROM Lead
+                    Interior_Category__c,Project_Request_Quotation_Type__c,Project_Request_Submitted__c FROM Lead
                     WHERE Id = :leadId LIMIT 1];
 
         return leads.isEmpty() ? null : leads[0];
@@ -441,15 +436,15 @@ public without sharing class InteriorAutoProjectRequestService {
         return out;
     }
 
-    private static Boolean isEmpty(List<String> lst) {
+    public static Boolean isEmpty(List<String> lst) {
         return (lst == null || lst.isEmpty());
     }
 
-    private static String nvl(String s) {
+    public static String nvl(String s) {
         return (s == null) ? 'Not specified' : s;
     }
 
-    private static String formatAmount(Decimal amt) {
+    public static String formatAmount(Decimal amt) {
         if (amt == null) {
             return '';
         }

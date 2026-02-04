@@ -4,17 +4,17 @@
         <template if:true={showScreen1}>
             <div class="center-card animate-fade-in">
                 <h1 class="title animate-slide-up">
-                    Choose Your Project Quotation Type
+                    Choose Your Project Type
                 </h1>
 
                 <p class="subtitle animate-slide-up">
-                    Select how you’d like us to prepare your quotation. You can share
+                    Select how you’d like us to prepare your Project Type. You can share
                     project details in the next step.
                 </p>
 
                 <template if:true={options}>
                     <fieldset class="slds-form-element animate-slide-up">
-                        <legend class="fieldset-label">Quotation Options</legend>
+                        <legend class="fieldset-label">Project Type Options</legend>
 
                         <div class="options-container">
                             <template for:each={options} for:item="opt">

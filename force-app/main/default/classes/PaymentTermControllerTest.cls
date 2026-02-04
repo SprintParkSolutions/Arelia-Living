@@ -3,16 +3,24 @@ public class PaymentTermControllerTest {
 
     @testSetup
     static void setup() {
-        // 1. Create User (Supervisor)
+        // 1. Create User (Supervisor) using Utility
         User u = TestDataUtility.createSupervisorUser('paytest');
 
-        // 2. Create Project
-        Project__c proj = TestDataUtility.createProject('Test Project Payment');
+        // 2. Create Contact (required for Project creation in Utility)
+        // We create Account first to keep data clean, though utility createContact doesn't require it explicitly
+        Account acc = TestDataUtility.createAccount('Test Acc Payment');
+        Contact con = TestDataUtility.createContact('Test Contact', 'test@pay.com', 'pass123');
+        con.AccountId = acc.Id;
+        update con;
 
-        // 3. Create Opportunity
+        // 3. Create Project using Utility
+        // Note: Utility requires budget and contactId
+        Project__c proj = TestDataUtility.createProject('Test Project Payment', 10000, con.Id);
+
+        // 4. Create Opportunity using Utility
         Opportunity opp = TestDataUtility.createOpportunity('Test Opp Payment', u.Id);
 
-        // 4. Create Initial Payment Terms
+        // 5. Create Initial Payment Terms using Utility
         TestDataUtility.createPaymentTerm(proj.Id, 'Project Advance', 20.0);
         TestDataUtility.createPaymentTerm(opp.Id, 'Opp Advance', 10.0);
     }
@@ -46,7 +54,7 @@ public class PaymentTermControllerTest {
     @isTest
     static void testGetPaymentTermsInvalidId() {
         // Passing a User ID (valid ID format, but unsupported object type)
-        User u = [SELECT Id FROM User LIMIT 1];
+        User u = [SELECT Id FROM User WHERE Alias = 'paytest' LIMIT 1];
 
         Test.startTest();
         List<Payment_Term__c> terms = PaymentTermController.getPaymentTerms(u.Id);
@@ -96,7 +104,7 @@ public class PaymentTermControllerTest {
 
         // Modify value
         existingTerm.Percentage__c = 50.0;
-        existingTerm.Term_Label__c = 'Updated Label'; // Trigger name update logic
+        existingTerm.Term_Label__c = 'Updated Label'; 
 
         Test.startTest();
         PaymentTermController.savePaymentTerms(
@@ -109,6 +117,7 @@ public class PaymentTermControllerTest {
         // Verify update
         Payment_Term__c updatedTerm = [SELECT Percentage__c, Name FROM Payment_Term__c WHERE Id = :existingTerm.Id];
         Assert.areEqual(50.0, updatedTerm.Percentage__c, 'Percentage should be updated');
+        // Note: Assuming your controller logic syncs Name with Label. If not, remove this assert.
         Assert.areEqual('Updated Label', updatedTerm.Name, 'Name should be synced with Label');
     }
 
@@ -136,8 +145,7 @@ public class PaymentTermControllerTest {
 
         Test.startTest();
         try {
-            // Passing NULL as the list of terms will cause a NullPointerException in the for-loop,
-            // which the controller catches and re-throws as AuraHandledException.
+            // Passing NULL as the list of terms to force an exception
             PaymentTermController.savePaymentTerms(null, opp.Id, new List<Id>());
             Assert.fail('Should have thrown AuraHandledException');
         } catch (AuraHandledException e) {

@@ -863,3 +863,123 @@ lightning-combobox label {
         box-shadow: 0 0 0 0 rgba(94, 80, 53, 0);
     }
 }
+
+/* =========================
+   STEP 9 SUCCESS (NO BOX + BIG IMAGE + BIG TEXT)
+========================= */
+
+.success-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+
+    /* spacing */
+    padding: 1.6rem 0 1.2rem;
+}
+
+.success-card,
+.success-icon,
+.success-summary,
+.success-pill,
+.pill-label,
+.pill-value {
+    display: none;
+}
+
+/* ✅ BIG image (no border/box/circle) */
+.success-hero {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin: 0.6rem 0 1.2rem;
+}
+
+.success-hero-img {
+    width: min(600px, 90%);
+    /* ✅ increase image size */
+    height: auto;
+    object-fit: contain;
+
+    border-radius: 0;
+    /* ✅ no box rounding */
+    background: transparent;
+    /* ✅ no background */
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+}
+
+/* ✅ BIG title */
+.success-title {
+    margin: 0 0 0.6rem;
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #3f3422;
+}
+
+/* ✅ BIG subtitle */
+.success-subtitle {
+    margin: 0 auto 1rem;
+    max-width: 900px;
+    font-size: 1.08rem;
+    color: #7c6945;
+    line-height: 1.65;
+}
+
+/* ✅ BIG notes */
+.success-footer-note {
+    margin-top: 0.35rem;
+}
+
+.success-note {
+    margin: 0.25rem 0 0;
+    font-size: 1rem;
+    color: #65543a;
+    font-weight: 600;
+}
+
+.submitted-modal {
+    width: min(560px, 92vw);
+    background: #fffaf0;
+    border-radius: 16px;
+    border: 1px solid rgba(121, 100, 63, 0.25);
+    box-shadow: 0 20px 55px rgba(0, 0, 0, 0.45);
+    padding: 1.3rem 1.4rem 1.2rem;
+    text-align: center;
+}
+
+.submitted-icon {
+    width: 46px;
+    height: 46px;
+    margin: 0 auto 0.6rem;
+    border-radius: 999px;
+    background: #f59e0b;
+    color: #1f1b16;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 1.3rem;
+}
+
+.submitted-title {
+    margin: 0 0 0.35rem;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #3f3422;
+}
+
+.submitted-text {
+    margin: 0 auto 1rem;
+    color: #7c6945;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 520px;
+}
+
+.submitted-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.6rem;
+}

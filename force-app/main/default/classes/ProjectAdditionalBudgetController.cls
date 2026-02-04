@@ -1,4 +1,4 @@
-@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList,PMD.ExcessiveClassLength')
 public without sharing class ProjectAdditionalBudgetController {
 
     /* ===============================
@@ -17,7 +17,7 @@ public without sharing class ProjectAdditionalBudgetController {
     private static final String TPL_APPROVED_NOTIFY  = System.Label.AdditionalBudget_Approved_Template;
     private static final String TPL_REJECTED_NOTIFY  = System.Label.AdditionalBudget_Rejected_Template;
 
-    // Attachment safeguards (Email attachment limits apply)
+    // Attachment safeguards
     private static final Integer MAX_ATTACHMENTS = 10;
     private static final Integer MAX_TOTAL_BYTES = 7000000; // ~7MB safe buffer
 
@@ -47,14 +47,27 @@ public without sharing class ProjectAdditionalBudgetController {
         @AuraEnabled public Decimal pendingAmount;
         @AuraEnabled public String pendingReason;
 
+        // ✅ NEW FIELD (stored rejection reason)
+        @AuraEnabled public String additionalBudgetRejectionReason;
+
         @AuraEnabled public Boolean hasPending;
 
         @AuraEnabled public String historyRaw;
         @AuraEnabled public List<String> historyPretty;
     }
 
+    private class TokenContext {
+        public Project__c project;
+        public Decimal pendingAmount;
+        public String pendingReason;
+        public String requestStatus;
+        public String approvalLink;
+        public String rejectionReason;
+    }
+
     /* ===============================
        FIELD SET (labels)
+       - Returns configured field-set fields for UI rendering.
     =============================== */
     @AuraEnabled(cacheable=true)
     public static List<FieldDTO> getFieldSetFields() {
@@ -72,6 +85,7 @@ public without sharing class ProjectAdditionalBudgetController {
 
     /* ===============================
        READ (Approval Page)
+       - Loads current project + pending request details for the approval UI.
     =============================== */
     @AuraEnabled(cacheable=true)
     public static ProjectDTO getProject(Id projectId) {
@@ -79,25 +93,8 @@ public without sharing class ProjectAdditionalBudgetController {
             throw new AuraHandledException('Project Id is required.');
         }
 
-        List<Project__c> rows = [
-            SELECT Id, Name,
-                   Additional_Budget__c,
-                   Supervisor_Estimated_Budget__c,
-                   Additional_Budget_History__c,
-                   Additional_Request_Status__c,
-                   Pending_Additional_Amount__c,
-                   Pending_Additional_Reason__c,
-                   Client_Email__c,
-                   Supervisor_Email_Text_c__c
-            FROM Project__c
-            WHERE Id = :projectId
-            LIMIT 1
-        ];
-        if (rows.isEmpty()) {
-            throw new AuraHandledException('No Project record found for Id: ' + String.valueOf(projectId));
-        }
-
-        Project__c p = rows[0];
+        // ✅ FIX for your error: include budget fields because DTO reads them
+        Project__c p = fetchProject(projectId, false, true);
 
         ProjectDTO dto = new ProjectDTO();
         dto.id = p.Id;
@@ -109,6 +106,9 @@ public without sharing class ProjectAdditionalBudgetController {
         dto.requestStatus = safeString(p.Additional_Request_Status__c);
         dto.pendingAmount = p.Pending_Additional_Amount__c;
         dto.pendingReason = p.Pending_Additional_Reason__c;
+
+        // ✅ New stored rejection reason
+        dto.additionalBudgetRejectionReason = p.Additional_Budget_Rejection_Reason__c;
 
         dto.hasPending =
             (dto.requestStatus == STATUS_PENDING) &&
@@ -127,23 +127,11 @@ public without sharing class ProjectAdditionalBudgetController {
     =============================== */
     @AuraEnabled
     public static void submitRequest(Id projectId, Decimal amount, String reason, List<Id> contentDocumentIds) {
-        if (projectId == null) {throw new AuraHandledException('Project Id is required.');}
-        if (amount == null || amount <= 0) {throw new AuraHandledException('Amount must be greater than 0.');}
-        if (String.isBlank(reason)) {throw new AuraHandledException('Reason is required.');}
+        if (projectId == null) { throw new AuraHandledException('Project Id is required.'); }
+        if (amount == null || amount <= 0) { throw new AuraHandledException('Amount must be greater than 0.'); }
+        if (String.isBlank(reason)) { throw new AuraHandledException('Reason is required.'); }
 
-        Project__c p = [
-            SELECT Id, Name,
-                   Additional_Budget_History__c,
-                   Additional_Request_Status__c,
-                   Pending_Additional_Amount__c,
-                   Pending_Additional_Reason__c,
-                   Client_Email__c,
-                   Supervisor_Email_Text_c__c
-            FROM Project__c
-            WHERE Id = :projectId
-            LIMIT 1
-            FOR UPDATE
-        ];
+        Project__c p = fetchProject(projectId, true, false);
 
         // Block multiple pending requests
         if (safeString(p.Additional_Request_Status__c) == STATUS_PENDING &&
@@ -154,6 +142,10 @@ public without sharing class ProjectAdditionalBudgetController {
         p.Pending_Additional_Amount__c = amount;
         p.Pending_Additional_Reason__c = oneLine(reason);
         p.Additional_Request_Status__c = STATUS_PENDING;
+
+        // ✅ Store uploaded ContentDocumentIds (comma separated) for approve email
+        List<Id> ids = normalizeIds(contentDocumentIds);
+        p.Additional_Budget_ContentDocumentIds__c = joinIds(ids);
 
         String history = safeTrim(p.Additional_Budget_History__c);
         Integer seq = nextSequence(history);
@@ -175,35 +167,20 @@ public without sharing class ProjectAdditionalBudgetController {
 
     /* ===============================
        APPROVE
-       ✅ Adds to Additional_Budget__c + Supervisor_Estimated_Budget__c
-       ✅ Clears pending fields
-       ✅ Sends emails to Client + Supervisor
+       ✅ Adds to budgets, clears pending, sends emails
     =============================== */
     @AuraEnabled
     public static void approveRequest(Id projectId) {
-        if (projectId == null) {throw new AuraHandledException('Project Id is required.');}
+        if (projectId == null) { throw new AuraHandledException('Project Id is required.'); }
 
-        Project__c p = [
-            SELECT Id, Name,
-                   Additional_Budget__c,
-                   Supervisor_Estimated_Budget__c,
-                   Additional_Budget_History__c,
-                   Additional_Request_Status__c,
-                   Pending_Additional_Amount__c,
-                   Pending_Additional_Reason__c,
-                   Client_Email__c,
-                   Supervisor_Email_Text_c__c
-            FROM Project__c
-            WHERE Id = :projectId
-            LIMIT 1
-            FOR UPDATE
-        ];
-
+        Project__c p = fetchProject(projectId, true, true);
         validatePending(p);
 
-        // capture before clearing (needed for email merge)
         Decimal amt = p.Pending_Additional_Amount__c;
         String rsn = p.Pending_Additional_Reason__c;
+
+        // ✅ Pull stored document ids and attach
+        List<Id> contentDocIds = parseIds(p.Additional_Budget_ContentDocumentIds__c);
 
         p.Additional_Budget__c = (p.Additional_Budget__c == null ? 0 : p.Additional_Budget__c) + amt;
         p.Supervisor_Estimated_Budget__c =
@@ -216,58 +193,61 @@ public without sharing class ProjectAdditionalBudgetController {
             'Status=APPROVED | AppBy=' + UserInfo.getName() + ' | AppOn=' + String.valueOf(System.today())
         );
 
-        // clear pending fields AFTER we captured values
         p.Pending_Additional_Amount__c = null;
         p.Pending_Additional_Reason__c = null;
 
+        // ✅ Optional (recommended): clear stored ids once used
+        p.Additional_Budget_ContentDocumentIds__c = null;
+
         update p;
 
-        sendApprovedEmail(p, amt, rsn);
+        sendApprovedEmail(p, amt, rsn, contentDocIds);
     }
 
     /* ===============================
-       REJECT
-       ✅ Clears pending fields
-       ✅ Sends email to Supervisor only
+       REJECT (UPDATED)
+       ✅ Requires rejection reason
+       ✅ Stores into new field Additional_Budget_Rejection_Reason__c
+       ✅ Updates status/history, clears pending, sends email with token
     =============================== */
     @AuraEnabled
-    public static void rejectRequest(Id projectId) {
-        if (projectId == null) {throw new AuraHandledException('Project Id is required.');}
+    public static void rejectRequest(Id projectId, String rejectionReason) {
+        if (projectId == null) { throw new AuraHandledException('Project Id is required.'); }
+        if (String.isBlank(rejectionReason)) { throw new AuraHandledException('Rejection reason is required.'); }
 
-        Project__c p = [
-            SELECT Id, Name,
-                   Additional_Budget_History__c,
-                   Additional_Request_Status__c,
-                   Pending_Additional_Amount__c,
-                   Pending_Additional_Reason__c,
-                   Client_Email__c,
-                   Supervisor_Email_Text_c__c
-            FROM Project__c
-            WHERE Id = :projectId
-            LIMIT 1
-            FOR UPDATE
-        ];
-
+        Project__c p = fetchProject(projectId, true, true);
         validatePending(p);
 
+        // ✅ Pull stored document ids and attach
+        List<Id> contentDocIds = parseIds(p.Additional_Budget_ContentDocumentIds__c);
+
         Decimal amt = p.Pending_Additional_Amount__c;
-        String rsn = p.Pending_Additional_Reason__c;
+        String reqReason = p.Pending_Additional_Reason__c;
+        String rejReason = oneLine(rejectionReason);
 
         p.Additional_Request_Status__c = STATUS_REJECTED;
 
+        // ✅ Store in new field
+        p.Additional_Budget_Rejection_Reason__c = rejReason;
+
         p.Additional_Budget_History__c = replaceLastPendingLine(
             p.Additional_Budget_History__c,
-            'Status=REJECTED | RejBy=' + UserInfo.getName() + ' | RejOn=' + String.valueOf(System.today())
+            'Status=REJECTED | RejBy=' + UserInfo.getName() + ' | RejOn=' + String.valueOf(System.today()) +
+            ' | RejReason=' + rejReason
         );
 
         p.Pending_Additional_Amount__c = null;
         p.Pending_Additional_Reason__c = null;
-
+        // ✅ Optional (recommended): clear stored ids once used
+        p.Additional_Budget_ContentDocumentIds__c = null;
         update p;
 
-        sendRejectedEmail(p, amt, rsn);
+        sendRejectedEmail(p, amt, reqReason, rejReason, contentDocIds);
     }
 
+    /* ===============================
+       VALIDATION
+    =============================== */
     private static void validatePending(Project__c p) {
         if (safeString(p.Additional_Request_Status__c) != STATUS_PENDING ||
             p.Pending_Additional_Amount__c == null || p.Pending_Additional_Amount__c <= 0 ||
@@ -277,85 +257,149 @@ public without sharing class ProjectAdditionalBudgetController {
     }
 
     /* ===============================
-       EMAILS (Replace variables + approvalLink)
+       SINGLE SOQL (avoid repeated queries)
+       - includeBudgetFields: include Additional_Budget__c fields when needed
+    =============================== */
+    private static Project__c fetchProject(Id projectId, Boolean forUpdate, Boolean includeBudgetFields) {
+        String soql =
+            'SELECT Id, Name, ' +
+            'Client__r.Name, ' +
+            'Supervisor_User__r.FirstName, Supervisor_User__r.LastName, Supervisor_User__r.Name, Supervisor_User__c, ' +
+            'Client_Email__c, Supervisor_Email_Text_c__c, ' +
+            'Additional_Budget_History__c, Additional_Request_Status__c, ' +
+            'Pending_Additional_Amount__c, Pending_Additional_Reason__c, ' +
+            'Additional_Budget_Rejection_Reason__c,Additional_Budget_ContentDocumentIds__c';
+
+        if (includeBudgetFields) {
+            soql += ', Additional_Budget__c, Supervisor_Estimated_Budget__c';
+        }
+
+        soql += ' FROM Project__c WHERE Id = :projectId LIMIT 1';
+        if (forUpdate) {
+            soql += ' FOR UPDATE';
+        }
+
+        List<Project__c> rows = Database.query(soql);
+        if (rows.isEmpty()) {
+            throw new AuraHandledException('No Project record found for Id: ' + String.valueOf(projectId));
+        }
+        return rows[0];
+    }
+
+    /* ===============================
+       EMAILS
     =============================== */
     private static void sendManagerApprovalEmail(Project__c project, Decimal amt, String rsn, List<Id> contentDocumentIds) {
         List<String> toEmails = parseEmails(System.Label.Arelia_Living_Enrollment_Members);
-        if (toEmails.isEmpty()) {return;}
+        if (toEmails.isEmpty()) { return; }
 
         EmailTemplate t = getTemplateByDevName(TPL_MANAGER_APPROVAL);
 
-        // your link format:
-        // System.Label.Arelia_Site_Label + System.Label.AdditionalBudget_Approval_BaseUrl + '?id=' + project.Id
-        String approvalLink =
-            System.Label.Arelia_Site_Label +
-            System.Label.AdditionalBudget_Approval_BaseUrl +
-            '?id=' + project.Id;
+        String approvalLink = System.Label.Arelia_Site_Label + System.Label.AdditionalBudget_Approval_BaseUrl + '?id=' + project.Id;
 
-        String subject = applyProjectTokens(t.Subject, project, amt, rsn, STATUS_PENDING, approvalLink);
-        String bodyHtml = applyProjectTokens(t.HtmlValue, project, amt, rsn, STATUS_PENDING, approvalLink);
+        TokenContext ctx = new TokenContext();
+        ctx.project = project;
+        ctx.pendingAmount = amt;
+        ctx.pendingReason = rsn;
+        ctx.requestStatus = STATUS_PENDING;
+        ctx.approvalLink = approvalLink;
+        ctx.rejectionReason = null;
+
+        String subject = applyProjectTokens(t.Subject, ctx);
+        String bodyHtml = applyProjectTokens(t.HtmlValue, ctx);
 
         List<Messaging.EmailFileAttachment> atts = buildEmailAttachments(contentDocumentIds);
         sendEmailStrict(toEmails, subject, bodyHtml, atts);
     }
 
-    private static void sendApprovedEmail(Project__c project, Decimal amt, String rsn) {
+    /**
+     * @description
+     *  Sends approved notification email to Client + Supervisor + Enrollment Members.
+     *  Also attaches files uploaded during the request (stored in Additional_Budget_ContentDocumentIds__c).
+     */
+    private static void sendApprovedEmail(Project__c project, Decimal amt, String rsn, List<Id> contentDocumentIds) {
         List<String> toEmails = new List<String>();
         toEmails.addAll(parseEmails(project.Client_Email__c));
         toEmails.addAll(parseEmails(project.Supervisor_Email_Text_c__c));
+        toEmails.addAll(parseEmails(Label.Arelia_Living_Enrollment_Members));
         toEmails = dedupe(toEmails);
-        if (toEmails.isEmpty()) {return;}
+        if (toEmails.isEmpty()) { return; }
 
         EmailTemplate t = getTemplateByDevName(TPL_APPROVED_NOTIFY);
 
-        String subject = applyProjectTokens(t.Subject, project, amt, rsn, STATUS_APPROVED, null);
-        String bodyHtml = applyProjectTokens(t.HtmlValue, project, amt, rsn, STATUS_APPROVED, null);
+        TokenContext ctx = new TokenContext();
+        ctx.project = project;
+        ctx.pendingAmount = amt;
+        ctx.pendingReason = rsn;
+        ctx.requestStatus = STATUS_APPROVED;
+        ctx.approvalLink = null;
+        ctx.rejectionReason = null;
 
-        sendEmailStrict(toEmails, subject, bodyHtml, null);
+        String subject = applyProjectTokens(t.Subject, ctx);
+        String bodyHtml = applyProjectTokens(t.HtmlValue, ctx);
+
+        List<Messaging.EmailFileAttachment> atts = buildEmailAttachments(contentDocumentIds);
+        sendEmailStrict(toEmails, subject, bodyHtml, atts);
     }
 
-    private static void sendRejectedEmail(Project__c project, Decimal amt, String rsn) {
-        List<String> toEmails = parseEmails(project.Supervisor_Email_Text_c__c);
-        if (toEmails.isEmpty()) {return;}
+
+    /**
+     * @description
+     *  Sends rejected notification email to Supervisor + Enrollment Members.
+     *  Includes rejection reason token and attaches the original uploaded files.
+     */
+    private static void sendRejectedEmail(Project__c project, Decimal amt, String reqReason, String rejReason, List<Id> contentDocumentIds) {
+        List<String> toEmails = new List<String>();
+        toEmails.addAll(parseEmails(project.Supervisor_Email_Text_c__c));
+        toEmails.addAll(parseEmails(Label.Arelia_Living_Enrollment_Members));
+        toEmails = dedupe(toEmails);
+        if (toEmails.isEmpty()) { return; }
 
         EmailTemplate t = getTemplateByDevName(TPL_REJECTED_NOTIFY);
 
-        String subject = applyProjectTokens(t.Subject, project, amt, rsn, STATUS_REJECTED, null);
-        String bodyHtml = applyProjectTokens(t.HtmlValue, project, amt, rsn, STATUS_REJECTED, null);
+        TokenContext ctx = new TokenContext();
+        ctx.project = project;
+        ctx.pendingAmount = amt;
+        ctx.pendingReason = reqReason;
+        ctx.requestStatus = STATUS_REJECTED;
+        ctx.approvalLink = null;
+        ctx.rejectionReason = rejReason;
 
-        sendEmailStrict(toEmails, subject, bodyHtml, null);
+        String subject = applyProjectTokens(t.Subject, ctx);
+        String bodyHtml = applyProjectTokens(t.HtmlValue, ctx);
+
+        List<Messaging.EmailFileAttachment> atts = buildEmailAttachments(contentDocumentIds);
+        sendEmailStrict(toEmails, subject, bodyHtml, atts);
     }
 
     private static EmailTemplate getTemplateByDevName(String developerName) {
-        List<EmailTemplate> ts = [
-            SELECT Id, DeveloperName, Subject, HtmlValue
-            FROM EmailTemplate
-            WHERE DeveloperName = :developerName
-            LIMIT 1
-        ];
+        List<EmailTemplate> ts = [SELECT Id, DeveloperName, Subject, HtmlValue
+                        FROM EmailTemplate WHERE DeveloperName = :developerName LIMIT 1];
         if (ts.isEmpty()) {
             throw new AuraHandledException('Email Template not found: ' + developerName);
         }
         return ts[0];
     }
 
-    // ✅ Token Replace (your {{{ }}} style) + approvalLink
-    private static String applyProjectTokens(
-        String templateHtml,
-        Project__c project,
-        Decimal pendingAmount,
-        String pendingReason,
-        String requestStatus,
-        String approvalLink
-    ) {
+    /**
+     * Token replacement (your {{{ }}} style)
+     * Supports {{{rejectionReason}}} token for rejected template
+     */
+    private static String applyProjectTokens(String templateHtml, TokenContext ctx) {
         String out = (templateHtml == null) ? '' : templateHtml;
 
+        String supervisorName = ctx.project.Supervisor_User__r.FirstName +''+ctx.project.Supervisor_User__r.LastName;
+
         out = out
-            .replace('{{{Project__c.Name}}}', safeString(project.Name))
-            .replace('{{{Project__c.Pending_Additional_Amount__c}}}', safeString(pendingAmount))
-            .replace('{{{Project__c.Pending_Additional_Reason__c}}}', safeString(pendingReason))
-            .replace('{{{Project__c.Additional_Request_Status__c}}}', safeString(requestStatus))
-            .replace('{{{approvalLink}}}', safeString(approvalLink));
+            .replace('{{{Project__c.Name}}}', safeString(ctx.project.Name))
+            .replace('{{{Project__c.Client__r.Name}}}', (ctx.project.Client__r == null ? '' : safeString(ctx.project.Client__r.Name)))
+            .replace('{{{Project__c.Supervisor__r.Name}}}', safeString(supervisorName))
+            .replace('{{{Project__c.Supervisor_User__r.Name}}}', safeString(supervisorName))
+            .replace('{{{Project__c.Pending_Additional_Amount__c}}}', safeString(ctx.pendingAmount))
+            .replace('{{{Project__c.Pending_Additional_Reason__c}}}', safeString(ctx.pendingReason))
+            .replace('{{{Project__c.Additional_Request_Status__c}}}', safeString(ctx.requestStatus))
+            .replace('{{{approvalLink}}}', safeString(ctx.approvalLink))
+            .replace('{{{rejectionReason}}}', safeString(ctx.rejectionReason));
 
         return out;
     }
@@ -389,33 +433,30 @@ public without sharing class ProjectAdditionalBudgetController {
     }
 
     /* ===============================
-       EMAIL ATTACHMENTS (ContentDocument -> ContentVersion)
+       EMAIL ATTACHMENTS
     =============================== */
     private static List<Messaging.EmailFileAttachment> buildEmailAttachments(List<Id> contentDocumentIds) {
         List<Messaging.EmailFileAttachment> outList = new List<Messaging.EmailFileAttachment>();
-        if (contentDocumentIds == null || contentDocumentIds.isEmpty()) {return outList;}
+        if (contentDocumentIds == null || contentDocumentIds.isEmpty()) { return outList; }
 
-        // ✅ Avoid subList (signature issues). Take first N ids safely.
         List<Id> ids = new List<Id>();
         Integer limitCount = Math.min(MAX_ATTACHMENTS, contentDocumentIds.size());
         for (Integer i = 0; i < limitCount; i++) {
-            if (contentDocumentIds[i] != null) {ids.add(contentDocumentIds[i]);}
+            if (contentDocumentIds[i] != null) { ids.add(contentDocumentIds[i]); }
         }
-        if (ids.isEmpty()) {return outList;}
+        if (ids.isEmpty()) { return outList; }
 
-        List<ContentVersion> vers = [
-            SELECT ContentDocumentId, Title, FileExtension, VersionData, ContentSize
-            FROM ContentVersion
-            WHERE IsLatest = true AND ContentDocumentId IN :ids
-        ];
+        List<ContentVersion> vers = [SELECT ContentDocumentId, Title, FileExtension, VersionData, 
+                                ContentSize FROM ContentVersion 
+                                WHERE IsLatest = true AND ContentDocumentId IN :ids];
 
         Integer totalBytes = 0;
         for (ContentVersion cv : vers) {
-            if (cv.VersionData == null) {continue;}
+            if (cv.VersionData == null) { continue; }
 
             Integer sizeBytes = (cv.ContentSize == null) ? 0 : Integer.valueOf(cv.ContentSize);
             if ((totalBytes + sizeBytes) > MAX_TOTAL_BYTES) {
-                break; // stop adding more to avoid email send failure
+                break;
             }
             totalBytes += sizeBytes;
 
@@ -429,14 +470,14 @@ public without sharing class ProjectAdditionalBudgetController {
     }
 
     /* ===============================
-       PRETTY HISTORY (Meaningful messages)
+       PRETTY HISTORY
     =============================== */
     private static List<String> buildPrettyHistory(String historyRaw) {
         List<String> pretty = new List<String>();
-        if (String.isBlank(historyRaw)) {return pretty;}
+        if (String.isBlank(historyRaw)) { return pretty; }
 
         for (String ln : historyRaw.split('\n')) {
-            if (String.isBlank(ln)) {continue;}
+            if (String.isBlank(ln)) { continue; }
             pretty.add(prettyHistoryLine(ln.trim()));
         }
         return pretty;
@@ -456,9 +497,9 @@ public without sharing class ProjectAdditionalBudgetController {
 
         String rejBy = extractTokenValue(line, 'RejBy');
         String rejOn = extractTokenValue(line, 'RejOn');
+        String rejReason = extractTokenValue(line, 'RejReason');
 
         String amountText = (amt == null) ? '' : ('₹' + String.valueOf(amt.setScale(2)));
-
         String prefix = String.isBlank(reqNo) ? 'Request' : ('Request #' + reqNo);
 
         if (status == 'PENDING') {
@@ -473,19 +514,21 @@ public without sharing class ProjectAdditionalBudgetController {
                 ' on ' + safeString(reqOn) + '.)';
         }
         if (status == 'REJECTED') {
+            String extra = String.isBlank(rejReason) ? '' : (' Rejection Reason: "' + safeString(rejReason) + '".');
             return prefix + ': Additional budget request of ' + amountText +
                 ' for "' + safeString(reason) + '" was rejected by ' + safeString(rejBy) +
-                ' on ' + safeString(rejOn) + '. (Originally requested by ' + safeString(reqBy) +
+                ' on ' + safeString(rejOn) + '.' + extra +
+                ' (Originally requested by ' + safeString(reqBy) +
                 ' on ' + safeString(reqOn) + '.)';
         }
         return line;
     }
 
     /* ===============================
-       HISTORY RAW HELPERS
+       HISTORY HELPERS
     =============================== */
     private static String replaceLastPendingLine(String history, String statusReplacement) {
-        if (String.isBlank(history)) {return history;}
+        if (String.isBlank(history)) { return history; }
 
         List<String> lines = new List<String>(history.split('\n'));
         for (Integer i = lines.size() - 1; i >= 0; i--) {
@@ -501,16 +544,16 @@ public without sharing class ProjectAdditionalBudgetController {
     }
 
     private static Integer nextSequence(String history) {
-        if (String.isBlank(history)) {return 1;}
+        if (String.isBlank(history)) { return 1; }
 
         Integer maxN = 0;
         for (String ln : history.split('\n')) {
-            if (String.isBlank(ln)) {continue;}
+            if (String.isBlank(ln)) { continue; }
             String s = ln.trim();
             Integer idx = s.indexOf(')');
             if (idx > 0) {
                 String left = s.substring(0, idx).trim();
-                if (left.isNumeric()) {maxN = Math.max(maxN, Integer.valueOf(left));}
+                if (left.isNumeric()) { maxN = Math.max(maxN, Integer.valueOf(left)); }
             }
         }
         return maxN + 1;
@@ -520,22 +563,22 @@ public without sharing class ProjectAdditionalBudgetController {
         Integer idx = (line == null) ? -1 : line.indexOf(')');
         if (idx > 0) {
             String left = line.substring(0, idx).trim();
-            if (left.isNumeric()) {return left;}
+            if (left.isNumeric()) { return left; }
         }
         return '';
     }
 
     private static Decimal extractAmountFromLine(String line) {
-        if (String.isBlank(line)) {return null;}
+        if (String.isBlank(line)) { return null; }
 
         Integer plusIdx = line.indexOf('+');
-        if (plusIdx < 0) {return null;}
+        if (plusIdx < 0) { return null; }
 
         Integer pipeIdx = line.indexOf('|', plusIdx);
-        if (pipeIdx < 0) {return null;}
+        if (pipeIdx < 0) { return null; }
 
         String amtStr = line.substring(plusIdx + 1, pipeIdx).trim();
-        if (String.isBlank(amtStr)) {return null;}
+        if (String.isBlank(amtStr)) { return null; }
 
         try {
             return Decimal.valueOf(amtStr);
@@ -545,19 +588,18 @@ public without sharing class ProjectAdditionalBudgetController {
     }
 
     private static String extractPipeValue(String line, Integer pipeIndex) {
-        if (String.isBlank(line) || pipeIndex == null || pipeIndex < 0) {return '';}
+        if (String.isBlank(line) || pipeIndex == null || pipeIndex < 0) { return ''; }
 
         List<String> parts = new List<String>();
-        for (String p : line.split('\\|')) {parts.add((p == null) ? '' : p.trim());}
-
+        for (String p : line.split('\\|')) { parts.add((p == null) ? '' : p.trim()); }
         return (parts.size() > pipeIndex) ? safeString(parts[pipeIndex]) : '';
     }
 
     private static String extractTokenValue(String line, String tokenKey) {
-        if (String.isBlank(line) || String.isBlank(tokenKey)) {return '';}
+        if (String.isBlank(line) || String.isBlank(tokenKey)) { return ''; }
         String key = tokenKey + '=';
         Integer idx = line.indexOf(key);
-        if (idx < 0) {return '';}
+        if (idx < 0) { return ''; }
 
         Integer startPos = idx + key.length();
         Integer pipePos = line.indexOf('|', startPos);
@@ -566,7 +608,7 @@ public without sharing class ProjectAdditionalBudgetController {
     }
 
     private static String oneLine(String txt) {
-        if (String.isBlank(txt)) {return '';}
+        if (String.isBlank(txt)) { return ''; }
         String t = txt.replace('\n', ' ').replace('\r', ' ').trim();
         return (t.length() > 240) ? (t.substring(0, 240) + '...') : t;
     }
@@ -579,12 +621,12 @@ public without sharing class ProjectAdditionalBudgetController {
     =============================== */
     private static List<String> parseEmails(String raw) {
         List<String> outList = new List<String>();
-        if (String.isBlank(raw)) {return outList;}
+        if (String.isBlank(raw)) { return outList; }
 
         for (String e : raw.split('[,;\\s]+')) {
-            if (String.isBlank(e)) {continue;}
+            if (String.isBlank(e)) { continue; }
             String x = e.trim();
-            if (x.contains('@')) {outList.add(x);}
+            if (x.contains('@')) { outList.add(x); }
         }
         return outList;
     }
@@ -592,28 +634,59 @@ public without sharing class ProjectAdditionalBudgetController {
     private static List<String> dedupe(List<String> emails) {
         Set<String> uniq = new Set<String>();
         for (String e : emails) {
-            if (!String.isBlank(e)) {uniq.add(e.trim().toLowerCase());}
+            if (!String.isBlank(e)) { uniq.add(e.trim().toLowerCase()); }
         }
         return new List<String>(uniq);
     }
 
     private static List<Id> normalizeIds(List<Id> ids) {
         List<Id> outList = new List<Id>();
-        if (ids == null) {return outList;}
+        if (ids == null) { return outList; }
         for (Id x : ids) {
-            if (x != null) {outList.add(x);}
+            if (x != null) { outList.add(x); }
         }
         return outList;
     }
+
     /** Resolve Org-Wide Email Address by label value. */
     private static Id getDefaultOrgWideEmailAddressId() {
-        List<OrgWideEmailAddress> owd = [
-            SELECT Id
-            FROM OrgWideEmailAddress
-            WHERE Address = :Label.Arelia_OWD
-              AND IsAllowAllProfiles = true
-            LIMIT 1
-        ];
+        List<OrgWideEmailAddress> owd = [SELECT Id FROM OrgWideEmailAddress
+            WHERE Address = :Label.Arelia_OWD AND IsAllowAllProfiles = true LIMIT 1];
         return owd.isEmpty() ? null : owd[0].Id;
     }
+
+    /**
+     * @description
+     *  Converts Id list to comma-separated string for storage.
+     */
+    private static String joinIds(List<Id> ids) {
+        if (ids == null || ids.isEmpty()) { return null; }
+
+        List<String> parts = new List<String>();
+        for (Id x : ids) {
+            if (x != null) { parts.add(String.valueOf(x)); }
+        }
+        return parts.isEmpty() ? null : String.join(parts, ',');
+    }
+
+    /**
+     * @description
+     *  Parses comma/semicolon/space separated ids string into List<Id>.
+     */
+    private static List<Id> parseIds(String raw) {
+        List<Id> outList = new List<Id>();
+        if (String.isBlank(raw)) { return outList; }
+
+        for (String token : raw.split('[,;\\s]+')) {
+            if (String.isBlank(token)) { continue; }
+            String t = token.trim();
+            try {
+                outList.add((Id)t);
+            } catch (Exception ex) {
+                throw new AuraHandledException('Error::'+ex);
+            }
+        }
+        return outList;
+    }
+
 }

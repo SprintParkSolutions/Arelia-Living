@@ -6,20 +6,27 @@ public class VendorEmailControllerTest {
         // 1. Create User
         User u = TestDataUtility.createSupervisorUser('standt');
 
-        // 2. Create Project
-        TestDataUtility.createProject('Makela Infra Pvt Ltd-Srikanth-Makela');
+        // 2. Create Prerequisites (Account & Contact) for Project
+        Account acc = TestDataUtility.createAccount('Test Account');
+        
+        Contact con = TestDataUtility.createContact('Test Contact', 'test@vendor.com', 'pass123');
+        con.AccountId = acc.Id;
+        update con;
 
-        // 3. Create Opportunity
+        // 3. Create Project
+        TestDataUtility.createProject('Makela Infra Pvt Ltd-Srikanth-Makela', 10000, con.Id);
+
+        // 4. Create Opportunity
         Opportunity opp = TestDataUtility.createOpportunity('Test Opportunity', u.Id);
 
-        // 4. Create Vendor
-        TestDataUtility.createVendor('Test Vendor', 'Plumbing', 'vendor@test.com');
+        // 5. Create Vendor (Using 'Plumbing & Sanitary' as requested)
+        TestDataUtility.createVendor('Test Vendor', 'Plumbing & Sanitary', 'vendor@test.com');
 
-        // 5. Create File and Link to Opportunity
+        // 6. Create File and Link to Opportunity
         ContentVersion cv = TestDataUtility.createContentVersion('Test Document', 'Test Content');
         TestDataUtility.linkFileToRecord(cv.Id, opp.Id);
 
-        // 6. Create Email Templates
+        // 7. Create Email Templates
         TestDataUtility.createEmailTemplates();
     }
     
@@ -66,7 +73,7 @@ public class VendorEmailControllerTest {
     @isTest
     static void testGetVendorsByCategorySuccess() {
         Test.startTest();
-        List<Vendor__c> vendors = VendorEmailController.getVendorsByCategory('Plumbing');
+        List<Vendor__c> vendors = VendorEmailController.getVendorsByCategory('Plumbing & Sanitary');
         Test.stopTest();
         
         Assert.isNotNull(vendors, 'Vendors list should not be null');
@@ -109,11 +116,8 @@ public class VendorEmailControllerTest {
     @isTest
     static void testGetEmailTemplatesFallback() {
         Test.startTest();
-        // The controller returns 1 record even for invalid input (likely a default or fallback behavior)
         List<EmailTemplate> templates = VendorEmailController.getEmailTemplatesByType('ValidButDeleted'); 
         Test.stopTest();
-        
-        // Updated assertion to expect 1 record, which matches your current system behavior
         Assert.areEqual(1, templates.size(), 'Should return a default template even for invalid types');
     }
     
@@ -121,7 +125,7 @@ public class VendorEmailControllerTest {
     static void testGetSpecificationsByOpportunityAndCategorySuccess() {
         Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
         Test.startTest();
-        List<SObject> specs = VendorEmailController.getSpecificationsByOpportunityAndCategory(opp.Id, 'Plumbing');
+        List<SObject> specs = VendorEmailController.getSpecificationsByOpportunityAndCategory(opp.Id, 'Plumbing & Sanitary');
         Test.stopTest();
         Assert.isNotNull(specs, 'Specs list should not be null');
     }
@@ -130,7 +134,7 @@ public class VendorEmailControllerTest {
     static void testGetAbscondedVendorTasksEmptyResult() {
         Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
         Test.startTest();
-        VendorEmailController.AbscondedVendorDetails details = VendorEmailController.getAbscondedVendorTasks(opp.Id, 'Plumbing');
+        VendorEmailController.AbscondedVendorDetails details = VendorEmailController.getAbscondedVendorTasks(opp.Id, 'Plumbing & Sanitary');
         Test.stopTest();
         Assert.areEqual(0, details.tasks.size(), 'Tasks list should be empty');
     }
@@ -143,7 +147,7 @@ public class VendorEmailControllerTest {
     static void testSendEmailToVendorsMissingRequired() {
         Test.startTest();
         try {
-            VendorEmailController.sendEmailToVendors('', new List<String>(), new List<String>(), 'Plumbing', 'New');
+            VendorEmailController.sendEmailToVendors('', new List<String>(), new List<String>(), 'Plumbing & Sanitary', 'New');
             Assert.fail('Should throw AuraHandledException');
         } catch (AuraHandledException e) {
             Assert.isNotNull(e, 'Exception should not be null');
@@ -156,7 +160,7 @@ public class VendorEmailControllerTest {
         Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
         Test.startTest();
         try {
-            VendorEmailController.sendEmailToVendors(opp.Id, new List<String>(), null, 'Plumbing', 'New');
+            VendorEmailController.sendEmailToVendors(opp.Id, new List<String>(), null, 'Plumbing & Sanitary', 'New');
             Assert.fail('Should throw AuraHandledException');
         } catch (AuraHandledException e) {
             Assert.isNotNull(e, 'Exception should not be null');
@@ -169,7 +173,7 @@ public class VendorEmailControllerTest {
         Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
         Test.startTest();
         try {
-            VendorEmailController.sendEmailToVendors(opp.Id, new List<String>(), new List<String>(), 'Plumbing', 'New');
+            VendorEmailController.sendEmailToVendors(opp.Id, new List<String>(), new List<String>(), 'Plumbing & Sanitary', 'New');
             Assert.fail('Should throw AuraHandledException');
         } catch (AuraHandledException e) {
             Assert.isNotNull(e, 'Exception should not be null');
@@ -192,10 +196,10 @@ public class VendorEmailControllerTest {
 
         Test.startTest();
         // Test sending a 'New' tender email
-        VendorEmailController.sendEmailToVendors(opp.Id, fileIds, vendorIds, 'Plumbing', 'New');
+        VendorEmailController.sendEmailToVendors(opp.Id, fileIds, vendorIds, 'Plumbing & Sanitary', 'New');
         
         // Also test 'Backup' tender email to cover that branch
-        VendorEmailController.sendEmailToVendors(opp.Id, fileIds, vendorIds, 'Plumbing', 'Backup');
+        VendorEmailController.sendEmailToVendors(opp.Id, fileIds, vendorIds, 'Plumbing & Sanitary', 'Backup');
         
         Integer invocations = Limits.getEmailInvocations();
         Test.stopTest();
@@ -210,16 +214,25 @@ public class VendorEmailControllerTest {
         User supervisor = [SELECT Id FROM User WHERE Alias = 'standt' LIMIT 1];
         Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
 
-        // FIXED: Instantiating wrapper without constructor arguments
-        TestDataUtility.AbscondDataParams params = new TestDataUtility.AbscondDataParams();
-        params.oppId = opp.Id;
-        params.vendorId = vendor.Id;
-        params.supervisorId = supervisor.Id;
-        params.projId = proj.Id;
-        params.voStatus = 'Abscond';
-        params.completion = 60;
+        // MANUAL DATA CREATION to avoid Validation Exception on Task Insert
         
-        TestDataUtility.createAbscondData(params);
+        // 1. Create VO
+        Vendor_Opportunity__c vo = TestDataUtility.createVendorOpportunity(opp.Id, vendor.Id, 'Abscond');
+        
+        // 2. Create VA (Utility sets Status='In-Progress', which allows Task creation)
+        Vendor_Assignment__c va = TestDataUtility.createVendorAssignment(proj.Id, 60);
+        va.Opportunity__c = opp.Id;
+        va.Vendor_Opportunity__c = vo.Id;
+        va.Vendor__c = vendor.Id;
+        va.Supervisor_User__c = supervisor.Id;
+        update va;
+
+        // 3. Create Task (Allowed because VA is In-Progress)
+        TestDataUtility.createTask('Not Started', va.Id, 0);
+
+        // 4. Update VA to 'Abscond' for test scenario
+        va.Status__c = 'Abscond';
+        update va;
 
         Test.startTest();
         VendorEmailController.AbscondedVendorDetails details =
@@ -235,12 +248,12 @@ public class VendorEmailControllerTest {
     static void testQuerySpecsWithFieldSetAndFiles() {
         Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
 
-        TestDataUtility.createSpecData(opp.Id, 'Electrical and Lighting', 'Test Interior Product');
+        TestDataUtility.createSpecData(opp.Id, 'Plumbing & Sanitary', 'Test Interior Product');
 
         Test.startTest();
         List<SObject> specs = VendorEmailController.getSpecificationsByOpportunityAndCategory(
             opp.Id, 
-            'Electrical and Lighting'
+            'Plumbing & Sanitary'
         );
         Test.stopTest();
 
@@ -254,16 +267,21 @@ public class VendorEmailControllerTest {
         User supervisor = [SELECT Id FROM User WHERE Alias = 'standt' LIMIT 1];
         Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
 
-        // FIXED: Instantiating wrapper without constructor arguments
-        TestDataUtility.AbscondDataParams params = new TestDataUtility.AbscondDataParams();
-        params.oppId = opp.Id;
-        params.vendorId = vendor.Id;
-        params.supervisorId = supervisor.Id;
-        params.projId = proj.Id;
-        params.voStatus = 'Active';
-        params.completion = 100;
+        // MANUAL DATA CREATION
+        
+        // 1. Create VO
+        Vendor_Opportunity__c vo = TestDataUtility.createVendorOpportunity(opp.Id, vendor.Id, 'Active');
+        
+        // 2. Create VA (Status='In-Progress')
+        Vendor_Assignment__c va = TestDataUtility.createVendorAssignment(proj.Id, 100);
+        va.Opportunity__c = opp.Id;
+        va.Vendor_Opportunity__c = vo.Id;
+        va.Vendor__c = vendor.Id;
+        va.Supervisor_User__c = supervisor.Id;
+        update va;
 
-        TestDataUtility.createAbscondData(params);
+        // 3. Create Task
+        TestDataUtility.createTask('Not Started', va.Id, 0);
 
         Test.startTest();
         VendorEmailController.AbscondedVendorDetails details =

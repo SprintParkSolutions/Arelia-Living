@@ -75,29 +75,29 @@
                 <label>1 Year 1 Month</label>
             </value>
             <value>
-                <fullName>1 Year 2 Month</fullName>
+                <fullName>1 Year 2 Months</fullName>
                 <default>false</default>
-                <label>1 Year 2 Month</label>
+                <label>1 Year 2 Months</label>
             </value>
             <value>
-                <fullName>1 Year 3 Month</fullName>
+                <fullName>1 Year 3 Months</fullName>
                 <default>false</default>
-                <label>1 Year 3 Month</label>
+                <label>1 Year 3 Months</label>
             </value>
             <value>
-                <fullName>1 Year 4 Month</fullName>
+                <fullName>1 Year 4 Months</fullName>
                 <default>false</default>
-                <label>1 Year 4 Month</label>
+                <label>1 Year 4 Months</label>
             </value>
             <value>
-                <fullName>1 Year 5 Month</fullName>
+                <fullName>1 Year 5 Months</fullName>
                 <default>false</default>
-                <label>1 Year 5 Month</label>
+                <label>1 Year 5 Months</label>
             </value>
             <value>
-                <fullName>1 Year 6 Month</fullName>
+                <fullName>1 Year 6 Months</fullName>
                 <default>false</default>
-                <label>1 Year 6 Month</label>
+                <label>1 Year 6 Months</label>
             </value>
         </valueSetDefinition>
     </valueSet>

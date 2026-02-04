@@ -5,11 +5,11 @@
             <header class="card-header">
                 <div class="header-left">
                     <h1 class="card-title">
-                        Interior Project Request – Automatic Quotation
+                        Interior Project Request Type – Automation
                     </h1>
                     <p class="card-subtitle">
                         Please verify your details and share more information about your project
-                        so that we can automatically prepare a customised quotation.
+                        so that we can automatically prepare a customised Project Type.
                     </p>
                 </div>
             </header>
@@ -17,15 +17,6 @@
             <!-- BODY -->
             <div class="card-body">
                 <!-- Back to quotation page (under header, like manual screen) -->
-                <!-- NEW: show only on Step 1 -->
-                <template if:true={isStep1}>
-                    <div class="back-row">
-                        <button class="back-link back-link-hero" type="button" onclick={handlePreviousClick}>
-                            ← Back to Quotation Page
-                        </button>
-                    </div>
-                </template>
-
                 <!-- Step chips -->
                 <div class="steps-bar">
                     <template for:each={steps} for:item="s">
@@ -215,12 +206,14 @@
                             <!-- Left: room list -->
                             <div class="rooms-panel">
                                 <h3 class="panel-title">Rooms</h3>
-                                <template if:true={selectedRoomList.length}>
-                                    <template for:each={selectedRoomList} for:item="r">
-                                        <div key={r.id} class={r.cardClass} data-id={r.id}
+
+                                <!-- ✅ UPDATED: roomInstances instead of selectedRoomList -->
+                                <template if:true={roomInstances.length}>
+                                    <template for:each={roomInstances} for:item="r">
+                                        <div key={r.instanceKey} class={r.cardClass} data-id={r.instanceKey}
                                             onclick={handleRoomSelectForDesign}>
                                             <div class="room-sel-name">
-                                                {r.name} (x{r.quantity})
+                                                {r.displayName}
                                             </div>
                                             <div class="room-sel-design">
                                                 {r.selectedDesignName}
@@ -228,7 +221,8 @@
                                         </div>
                                     </template>
                                 </template>
-                                <template if:false={selectedRoomList.length}>
+
+                                <template if:false={roomInstances.length}>
                                     <p class="hint-text">
                                         Add at least one room in the previous step.
                                     </p>
@@ -246,8 +240,7 @@
                                                 onclick={handleRoomDesignPick}>
                                                 <div class="design-img-wrap">
                                                     <img src={d.thumbUrl} alt={d.name} data-img={d.fullImageUrl}
-                                                        data-title={d.name} onclick={openImageModal}
-                                                        onerror={handleImgError} />
+                                                        data-title={d.name} onclick={openImageModal} />
                                                 </div>
                                                 <div class="design-info">
                                                     <div class="design-name">
@@ -257,9 +250,6 @@
                                                         <span class="pill">
                                                             {d.designLevel}
                                                         </span>
-                                                        <!-- <span class="price">
-                                                            {d.basePrice}
-                                                        </span> -->
                                                         <span class="price">
                                                             <lightning-formatted-number value={d.basePrice}
                                                                 format-style="currency">
@@ -282,7 +272,7 @@
                     </div>
                 </template>
 
-                <!-- STEP 7: PREVIEW DESIGNS (NEW LAYOUT) -->
+                <!-- STEP 7: PREVIEW DESIGNS -->
                 <template if:true={isStep7}>
                     <div class="section">
                         <div class="preview-header">
@@ -326,9 +316,11 @@
                                     <span class="col-amount">Line Amount</span>
                                     <span class="col-actions">Action</span>
                                 </div>
+
                                 <div class="preview-table-body">
                                     <template for:each={selectedDesignTiles} for:item="t">
-                                        <div key={t.roomId} class="preview-table-row">
+                                        <!-- ✅ UPDATED: key uses instanceKey -->
+                                        <div key={t.instanceKey} class="preview-table-row">
                                             <div class="col-room">
                                                 <div class="row-room-name">{t.roomName}</div>
                                             </div>
@@ -349,8 +341,9 @@
                                                 </div>
                                             </div>
 
+                                            <!-- ✅ each line is one instance -->
                                             <div class="col-qty">
-                                                x{t.quantity}
+                                                x1
                                             </div>
 
                                             <div class="col-amount">
@@ -360,8 +353,9 @@
                                             </div>
 
                                             <div class="col-actions">
-                                                <button type="button" class="preview-remove" data-roomid={t.roomId}
-                                                    onclick={handleRemoveSelected}>
+                                                <!-- ✅ UPDATED: remove by instanceKey -->
+                                                <button type="button" class="preview-remove"
+                                                    data-instancekey={t.instanceKey} onclick={handleRemoveSelected}>
                                                     Remove
                                                 </button>
                                             </div>
@@ -422,7 +416,7 @@
                                     <strong>Plan / Level:</strong> {selectedPlan}
                                 </p>
                                 <p class="review-line">
-                                    <strong>Quotation Type:</strong> {quotationType}
+                                    <strong>Project Type:</strong> {quotationType}
                                 </p>
                             </div>
 
@@ -452,28 +446,51 @@
                         </div>
                     </div>
                 </template>
+
+
+                <!-- STEP 9: SUCCESS -->
+                <template if:true={isStep9}>
+                    <div class="section success-wrap">
+                        <div class="success-hero">
+                            <img class="success-hero-img" src={successImgUrl} alt="Submitted Successfully" />
+                        </div>
+
+                        <h2 class="success-title">Submitted Successfully!</h2>
+
+                        <p class="success-subtitle">
+                            Thank you! Your project request has been submitted successfully.
+                            Our Arelia team will review the details and contact you shortly.
+                        </p>
+                    </div>
+                </template>
             </div>
 
             <!-- FOOTER -->
             <footer class="card-footer">
                 <div class="footer-left">
                     <div class="quote-pill">
-                        <span>Quotation Type:</span>
+                        <span>Project Type:</span>
                         <span>{quotationType}</span>
                     </div>
 
                     <span class="step-info">
-                        Step {currentStep} of 8
+                        Step {displayStep} of 9
                     </span>
                 </div>
 
                 <div class="footer-right">
-                    <lightning-button variant="neutral" label="Previous" onclick={handlePrev} disabled={isFirst}>
-                    </lightning-button>
+                    <template if:false={isStep9}>
+                        <lightning-button variant="neutral" label="Previous" onclick={handlePrev}></lightning-button>
 
-                    <lightning-button variant="brand" label={nextLabel} onclick={handleNext} disabled={isSaving}>
-                    </lightning-button>
+                        <lightning-button variant="brand" label={nextLabel} onclick={handleNext} disabled={isSaving}>
+                        </lightning-button>
+                    </template>
+
+                    <template if:true={isStep9}>
+                        <lightning-button variant="brand" label="Close" onclick={handleClose}></lightning-button>
+                    </template>
                 </div>
+
             </footer>
         </div>
 
@@ -501,6 +518,27 @@
                 </div>
             </section>
         </template>
+
+        <!-- ✅ Already Submitted Overlay (shows on LOAD) -->
+        <template if:true={isAlreadySubmitted}>
+            <section class="modal-backdrop">
+                <div class="submitted-modal">
+                    <div class="submitted-icon">!</div>
+
+                    <h2 class="submitted-title">Project Request Submitted</h2>
+
+                    <p class="submitted-text">
+                        {submittedMessage}
+                    </p>
+
+                    <div class="submitted-actions">
+                        <lightning-button variant="brand" label="Close" onclick={handleAlreadySubmittedClose}>
+                        </lightning-button>
+                    </div>
+                </div>
+            </section>
+        </template>
+
         <!-- NOTE: success overlay removed – we now use a toast instead -->
     </section>
 </template>

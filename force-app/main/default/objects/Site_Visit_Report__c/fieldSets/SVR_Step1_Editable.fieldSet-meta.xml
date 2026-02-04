@@ -8,11 +8,6 @@
         <isRequired>false</isRequired>
     </displayedFields>
     <displayedFields>
-        <field>Estimated_Completion_Date__c</field>
-        <isFieldManaged>false</isFieldManaged>
-        <isRequired>false</isRequired>
-    </displayedFields>
-    <displayedFields>
         <field>Total_Estimated_Cost__c</field>
         <isFieldManaged>false</isFieldManaged>
         <isRequired>false</isRequired>

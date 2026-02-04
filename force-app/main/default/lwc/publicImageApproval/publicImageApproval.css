@@ -1,0 +1,41 @@
+.main-container {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.file-card {
+    background: white;
+    width: 100%;
+    max-width: 600px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.img-preview {
+    max-height: 400px;
+    max-width: 100%;
+    border-radius: 6px;
+    border: 1px solid #eee;
+}
+
+.pdf-icon {
+    transform: scale(2.0);
+    margin: 30px;
+    display: block;
+}
+
+.pdf-link {
+    text-decoration: none;
+    color: #0070d2;
+}
+
+.pdf-link:hover {
+    color: #005fb2;
+}
+
+.action-btn {
+    min-width: 140px;
+}
