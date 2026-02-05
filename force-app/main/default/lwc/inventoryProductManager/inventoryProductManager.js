@@ -21,7 +21,7 @@ export default class InventoryProductManager extends LightningElement {
    @track roomTypes = [];
 @track categoriesByRoom = {};
     
-
+showScrollTop = false;
 
 @track oppSummary;
 
@@ -590,6 +590,17 @@ Product_Category__c: this.selectedCategory || prod?.Product_Category__c || 'Othe
         .finally(() => {
             this.isLoading = false;
         });
+}
+handleCartScroll(event) {
+    const shouldShow = event.target.scrollTop > 150;
+    if (shouldShow !== this.showScrollTop) {
+        this.showScrollTop = shouldShow;
+    }
+}
+
+scrollCartToTop() {
+    const el = this.template.querySelector('.cart-body');
+    el?.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
     /* ================= GENERATE QUOTE ================= */
