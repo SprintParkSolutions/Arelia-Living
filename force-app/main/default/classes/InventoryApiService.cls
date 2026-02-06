@@ -30,7 +30,7 @@ public without sharing class InventoryApiService {
         List<Interior_Product__c> products = [
             SELECT Room_Type__c, Product_Category__c
             FROM Interior_Product__c
-            WHERE Type_of_Project__c = :projectTypeValue
+            WHERE Type_of_Project__c = :projectTypeValue ORDER BY Room_Type__c ASC
         ];
         System.debug('products List::'+products);
 
