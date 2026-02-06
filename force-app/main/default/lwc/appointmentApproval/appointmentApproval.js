@@ -48,6 +48,7 @@ export default class AppointmentApproval extends LightningElement {
     handleApprove() {
         this.actionType = 'Approved';
         this.showConfirmPrompt = true;
+        this.showReschedule = false;
     }
 
     showRescheduleForm() {
@@ -60,6 +61,7 @@ export default class AppointmentApproval extends LightningElement {
 
         if (this.actionType === 'Approved') {
             this.submit('Approved');
+            this.showReschedule = false;
             return;
         }
 
@@ -110,17 +112,57 @@ export default class AppointmentApproval extends LightningElement {
             return;
         }
 
-        // Prevent past dates
+        // ---- Date validation (no past date) ----
         const selected = new Date(this.selectedDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        selected.setHours(0, 0, 0, 0);
+
         if (selected < today) {
-            this.showToast('Invalid Date', 'Please select a future date.', 'error');
+            this.showToast('Invalid Date', 'Please select today or a future date.', 'error');
             return;
         }
 
+        // ---- Time validation for TODAY (no past time slot) ----
+        // Works with: "9 AM", "9:30 AM", "9 AM - 10 AM", "9:30 AM - 10:30 AM"
+        const isToday =
+            new Date(this.selectedDate).toISOString().slice(0, 10) ===
+            new Date().toISOString().slice(0, 10);
+
+        if (isToday) {
+            const now = new Date();
+
+            // take start time before "-"
+            const startTimeRaw = (this.selectedTimeSlot.split('-')[0] || '').trim();
+
+            // match: hour (:minute)? AM/PM
+            const timeParts = startTimeRaw.match(/(\d+)(?::(\d+))?\s*(AM|PM)/i);
+
+            if (!timeParts) {
+                this.showToast('Invalid Time Slot', 'Unable to parse selected time slot format.', 'error');
+                return;
+            }
+
+            let hour = parseInt(timeParts[1], 10);
+            const minute = parseInt(timeParts[2] || '0', 10);
+            const ampm = (timeParts[3] || '').toUpperCase();
+
+            if (ampm === 'PM' && hour !== 12) hour += 12;
+            if (ampm === 'AM' && hour === 12) hour = 0;
+
+            const slotDateTime = new Date();
+            slotDateTime.setHours(hour, minute, 0, 0);
+
+            if (slotDateTime <= now) {
+                this.showToast('Invalid Time Slot', 'Selected time slot has already passed for today.', 'error');
+                return;
+            }
+        }
+
+        // ✅ proceed
         this.submit('Rescheduled', '', this.selectedDate, this.selectedTimeSlot);
     }
+
 
     submit(status, rejectionReason = '', rescheduleDate = null, timeSlot = '') {
         updateAppointmentStatus({

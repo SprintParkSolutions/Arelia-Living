@@ -802,3 +802,184 @@ lightning-combobox label {
     color: #3f3422;
     font-weight: 700;
 }
+
+/* ---------- NEW: Hero-style back button only on Step 1 ---------- */
+
+.back-link-hero {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(94, 80, 53, 0.6);
+    background: rgba(255, 255, 255, 0.92);
+    color: #5e5035;
+    font-weight: 600;
+    font-size: 0.86rem;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    cursor: pointer;
+
+    box-shadow: 0 0 0 0 rgba(94, 80, 53, 0.35);
+    animation: back-pulse-zoom 2.4s ease-out infinite;
+}
+
+.back-link-hero::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    border: 1px dashed rgba(94, 80, 53, 0.32);
+    opacity: 0.0;
+    pointer-events: none;
+}
+
+.back-link-hero:hover {
+    transform: scale(1.04);
+    box-shadow: 0 10px 24px rgba(94, 80, 53, 0.35);
+    background: #ffffff;
+}
+
+/* Soft zoom/pulse animation */
+@keyframes back-pulse-zoom {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(94, 80, 53, 0.3);
+    }
+
+    35% {
+        transform: scale(1.03);
+        box-shadow: 0 0 0 10px rgba(94, 80, 53, 0);
+    }
+
+    60% {
+        transform: scale(1.01);
+        box-shadow: 0 0 0 0 rgba(94, 80, 53, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(94, 80, 53, 0);
+    }
+}
+
+/* =========================
+   STEP 9 SUCCESS (NO BOX + BIG IMAGE + BIG TEXT)
+========================= */
+
+.success-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+
+    /* spacing */
+    padding: 1.6rem 0 1.2rem;
+}
+
+.success-card,
+.success-icon,
+.success-summary,
+.success-pill,
+.pill-label,
+.pill-value {
+    display: none;
+}
+
+/* ✅ BIG image (no border/box/circle) */
+.success-hero {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin: 0.6rem 0 1.2rem;
+}
+
+.success-hero-img {
+    width: min(600px, 90%);
+    /* ✅ increase image size */
+    height: auto;
+    object-fit: contain;
+
+    border-radius: 0;
+    /* ✅ no box rounding */
+    background: transparent;
+    /* ✅ no background */
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+}
+
+/* ✅ BIG title */
+.success-title {
+    margin: 0 0 0.6rem;
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #3f3422;
+}
+
+/* ✅ BIG subtitle */
+.success-subtitle {
+    margin: 0 auto 1rem;
+    max-width: 900px;
+    font-size: 1.08rem;
+    color: #7c6945;
+    line-height: 1.65;
+}
+
+/* ✅ BIG notes */
+.success-footer-note {
+    margin-top: 0.35rem;
+}
+
+.success-note {
+    margin: 0.25rem 0 0;
+    font-size: 1rem;
+    color: #65543a;
+    font-weight: 600;
+}
+
+.submitted-modal {
+    width: min(560px, 92vw);
+    background: #fffaf0;
+    border-radius: 16px;
+    border: 1px solid rgba(121, 100, 63, 0.25);
+    box-shadow: 0 20px 55px rgba(0, 0, 0, 0.45);
+    padding: 1.3rem 1.4rem 1.2rem;
+    text-align: center;
+}
+
+.submitted-icon {
+    width: 46px;
+    height: 46px;
+    margin: 0 auto 0.6rem;
+    border-radius: 999px;
+    background: #f59e0b;
+    color: #1f1b16;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 1.3rem;
+}
+
+.submitted-title {
+    margin: 0 0 0.35rem;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #3f3422;
+}
+
+.submitted-text {
+    margin: 0 auto 1rem;
+    color: #7c6945;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 520px;
+}
+
+.submitted-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.6rem;
+}

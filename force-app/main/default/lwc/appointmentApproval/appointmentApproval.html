@@ -1,6 +1,18 @@
 <template>
     <div class="container">
         <lightning-card title="Confirm Appointment" icon-name="custom:custom63">
+
+            <div class="slds-p-horizontal_medium slds-m-bottom_medium">
+                <p class="slds-text-body_regular">Please select an action:</p>
+                <ul class="slds-list_dotted slds-m-top_xx-small slds-text-color_weak">
+                    <li>
+                        To confirm the site visit, click <strong>Approve</strong>.
+                    </li>
+                    <li>
+                        To choose a different date and time, click <strong>Reschedule</strong>.
+                    </li>
+                </ul>
+            </div>
             <div class="button-group">
                 <lightning-button label="✅ Approve" variant="brand" onclick={handleApprove} disabled={buttonsDisabled}>
                 </lightning-button>

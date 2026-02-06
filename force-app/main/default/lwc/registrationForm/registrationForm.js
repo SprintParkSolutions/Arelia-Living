@@ -14,6 +14,9 @@ export default class RegistrationForm extends LightningElement {
     @track email = '';
     @track phone = '';
 
+    @track companyName = '';
+
+
     @track otpInput = '';
     @track emailVerified = false;
     @track isSendingCode = false;
@@ -89,6 +92,10 @@ export default class RegistrationForm extends LightningElement {
             this.phone = value;
             this.validatePhoneField();
         }
+        else if (name === 'companyName') {
+            this.companyName = value;
+        }
+
     }
 
     handleCountryChange(event) {
@@ -185,12 +192,28 @@ export default class RegistrationForm extends LightningElement {
             ? `${this.countryCode} ${this.phone}`
             : this.phone;
 
+        const firstName = (this.firstName || '').trim();
+        const lastName  = (this.lastName || '').trim();
+
         const payload = {
-            firstName: this.firstName,
-            lastName: this.lastName,
+            firstName: firstName,
+            lastName: lastName,
             email: this.email,
-            phone: fullPhone
+            phone: fullPhone,
+
+            companyName:
+                (this.companyName && this.companyName.trim())
+                ? this.companyName.trim()
+                : `Self-${firstName} ${lastName}`.trim(),
+
+            companySize: '1-10',
+            companyIndustry: 'Other',
+            companyWebsite: 'https://www.arelialiving.com',
+            companyDescription: 'Arelia Living',
+            companyAddress: '123 Main St',
+            companyCity: this.companyCity || 'N/A'
         };
+
 
         registerLead({ payload })
             .then(() => {
@@ -296,6 +319,7 @@ export default class RegistrationForm extends LightningElement {
         this.emailVerified = false;
         this.clearResendTimer();
         this.countryCode = '+91';
+        this.companyName = '';
     }
 
     handleApexError(error, fallbackMessage) {

@@ -1,0 +1,96 @@
+<template>
+    <div class="main-container">
+        
+        <div class="header-section">
+            <h2 class="header-title">Manager Approval Center</h2>
+            <p class="header-subtitle">Review client-approved designs for final sign-off</p>
+        </div>
+
+        <template if:true={error}>
+            <div class="slds-notify slds-notify_alert slds-theme_error slds-m-bottom_medium" role="alert" style="max-width: 750px;">
+                <h2>{error}</h2>
+            </div>
+        </template>
+
+        <template if:false={designData}>
+            <template if:false={error}>
+                <div class="slds-is-relative" style="height: 200px;">
+                    <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                </div>
+            </template>
+        </template>
+
+        <template if:true={designData}>
+            <div class="file-card slds-p-around_xx-large">
+                <div class="slds-text-align_center">
+                    
+                    <div class="slds-m-bottom_large">
+                        <lightning-icon icon-name="doctype:attachment" size="large" class="slds-m-bottom_small"></lightning-icon>
+                        <h3 class="slds-text-heading_medium slds-m-top_small"><strong>{designData.title}</strong></h3>
+                        <p class="slds-text-color_weak slds-m-top_xx-small">Project: {designData.projectName}</p>
+                    </div>
+
+                    <template if:true={isFinalized}>
+                        <div class="slds-m-top_large slds-p-top_medium slds-border_top">
+                            <span class={statusBadgeClass} style="font-size: 1rem; padding: 0.5rem 1rem;">
+                                Manager Status: {designData.status}
+                            </span>
+                            
+                            <template if:true={designData.comments}>
+                                <div class="slds-box slds-box_small slds-theme_shade slds-m-top_medium slds-text-align_left">
+                                    <p><strong>Comments:</strong> <br/> {designData.comments}</p>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template if:false={isFinalized}>
+                        <div class="slds-m-top_large slds-p-top_medium slds-border_top">
+                            <div class="slds-grid slds-wrap slds-grid_align-center slds-gutters_small">
+                                <div class="slds-col slds-m-bottom_small">
+                                    <lightning-button 
+                                        variant="success" 
+                                        label="Approve Design" 
+                                        icon-name="utility:check" 
+                                        onclick={handleApprove} 
+                                        class="action-btn">
+                                    </lightning-button>
+                                </div>
+                                <div class="slds-col slds-m-bottom_small">
+                                    <lightning-button 
+                                        variant="destructive" 
+                                        label="Reject / Changes" 
+                                        icon-name="utility:close" 
+                                        onclick={toggleComments} 
+                                        class="action-btn">
+                                    </lightning-button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <template if:true={showCommentBox}>
+                            <div class="slds-m-top_large slds-text-align_left animate-fade-in">
+                                <lightning-textarea 
+                                    label="Reason for rejection / Required changes:" 
+                                    value={comments} 
+                                    onchange={handleCommentChange}
+                                    variant="label-stacked"
+                                    required>
+                                </lightning-textarea>
+                                <div class="slds-clearfix slds-m-top_small">
+                                    <lightning-button 
+                                        variant="brand" 
+                                        label="Submit Decision" 
+                                        onclick={handleSubmitRejection} 
+                                        class="slds-float_right">
+                                    </lightning-button>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+
+                </div>
+            </div>
+        </template>
+    </div>
+</template>

@@ -4,6 +4,7 @@
     <label>Rejection Reason</label>
     <required>false</required>
     <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
     <type>Picklist</type>
     <valueSet>
         <controllingField>Approval_Status__c</controllingField>

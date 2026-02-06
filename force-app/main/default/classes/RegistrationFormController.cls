@@ -125,27 +125,50 @@ public without sharing class RegistrationFormController {
      * @param payload Map containing firstName, lastName, email, phone.
      * @return Id of the created Lead.
      */
+    
     @AuraEnabled
     public static Id registerLead(Map<String, Object> payload) {
         validatePayload(payload);
 
-        String firstName = (String)payload.get('firstName');
-        String lastName  = (String)payload.get('lastName');
-        String email     = (String)payload.get('email');
-        String phone     = (String)payload.get('phone');
+        String firstName   = (String)payload.get('firstName');
+        String lastName    = (String)payload.get('lastName');
+        String email       = (String)payload.get('email');
+        String phone       = (String)payload.get('phone');
+        String companyName = (String)payload.get('companyName');
 
         validateNameFields(firstName, lastName);
         validateEmail(email);
 
-        Lead leadToInsert = buildLead(firstName, lastName, email, phone);
+        Lead leadToInsert = buildLead(firstName, lastName, email, phone, companyName);
 
         assertCanCreateLead();
-        // Insert in system mode so guest can create Lead (with explicit CRUD check above)
-        Database.insert(leadToInsert, AccessLevel.SYSTEM_MODE);
 
+        // ✅ DMLOptions to allow duplicates (same as UI "Similar Records Exist" warning)
+        Database.DMLOptions dmo = new Database.DMLOptions();
+        dmo.DuplicateRuleHeader.allowSave = true;           // do not block on duplicates
+        dmo.DuplicateRuleHeader.runAsCurrentUser = true;    // evaluate like UI/current user
+
+        // ✅ Most reliable insert signature: Database.insert(list, dmlOptions, accessLevel)
+        Database.SaveResult[] srList = Database.insert(new List<Lead>{ leadToInsert }, dmo,AccessLevel.SYSTEM_MODE);
+
+        if (srList == null || srList.isEmpty() || !srList[0].isSuccess()) {
+            // surface the real error message back to LWC
+            String msg = 'Failed to register. Please try again.';
+            if (srList != null && !srList.isEmpty() && srList[0].getErrors() != null && srList[0].getErrors().size() > 0) {
+                msg = srList[0].getErrors()[0].getMessage();
+            }
+            throw new AuraHandledException(msg);
+        }
+
+        Id leadId = srList[0].getId();
+
+        // keep your existing email logic
+        leadToInsert.Id = leadId;
         sendWelcomeEmailSafely(leadToInsert);
-        return leadToInsert.Id;
+
+        return leadId;
     }
+
 
     /**
      * @description Validates that payload is not null or empty.
@@ -177,13 +200,15 @@ public without sharing class RegistrationFormController {
      * @return Lead record (not yet inserted).
      */
     @SuppressWarnings('PMD.ExcessiveParameterList')
-    private static Lead buildLead(String firstName,String lastName,String email,String phone)
+    private static Lead buildLead(String firstName,String lastName,String email,String phone, String companyName)
     {
+        String finalCompany = String.isBlank(companyName) ? 'Self-'+firstName+' '+lastName : companyName.trim();
         return new Lead(
             FirstName = firstName != null ? firstName.trim() : null,
             LastName  = lastName != null ? lastName.trim() : null,
             Email     = email != null ? email.trim() : null,
-            Phone     = phone
+            Phone     = phone,
+            Company   = finalCompany
         );
     }
 
@@ -297,9 +322,7 @@ public without sharing class RegistrationFormController {
             return;
         }
 
-        // Build project request link: label + ?id=<leadId>
-        String projectRequestLink =
-            System.Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
+        String projectRequestLink = Label.Arelia_Site_Label + Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
 
         // Build customer name
         String leadName = ((leadRecord.FirstName != null ? leadRecord.FirstName + ' ' : '')

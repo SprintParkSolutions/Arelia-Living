@@ -1,0 +1,202 @@
+<template>
+  <lightning-card title="Payment Terms Manager" icon-name="standard:currency">
+
+    <div slot="actions">
+      <template if:false={isLoading}>
+        <template if:false={showResumeBtn}>
+          <template if:false={isEditMode}>
+            <lightning-button label="Edit Terms" icon-name="utility:edit" onclick={handleEditMode}>
+            </lightning-button>
+          </template>
+        </template>
+      </template>
+    </div>
+
+    <div class="slds-p-around_medium slds-is-relative">
+
+      <template if:true={isLoading}>
+        <lightning-spinner size="medium"></lightning-spinner>
+      </template>
+
+      <template if:false={isLoading}>
+
+        <template if:true={showResumeBtn}>
+          <div class="slds-text-align_center slds-m-vertical_large">
+            <lightning-icon icon-name="action:approval" size="medium" class="slds-m-bottom_small">
+            </lightning-icon>
+
+            <h2 class="slds-text-heading_medium slds-m-bottom_medium">
+              Existing Payment Terms Found
+            </h2>
+
+            <lightning-button label="View Details" variant="brand" onclick={handleResume}>
+            </lightning-button>
+          </div>
+        </template>
+
+        <template if:false={showResumeBtn}>
+
+          <template if:false={isEditMode}>
+
+            <div class="responsive-table-container">
+
+              <div class="slds-grid slds-border_bottom slds-text-title_caps table-header desktop-only">
+                <div class="slds-col slds-size_1-of-12">S.No</div>
+                <div class="slds-col slds-size_4-of-12">Term Name</div>
+                <div class="slds-col slds-size_2-of-12">Percentage</div>
+                <div class="slds-col slds-size_3-of-12">Due Date</div>
+                <div class="slds-col slds-size_2-of-12">Paid</div>
+              </div>
+
+              <template for:each={terms} for:item="term">
+                <div key={term.TempId}
+                     class="slds-grid slds-wrap slds-border_bottom slds-p-vertical_small table-row mobile-card">
+
+                  <div class="mobile-card-title mobile-only">
+                    Term #{term.serialNumber}
+                  </div>
+
+                  <div class="slds-col slds-size_1-of-12 desktop-only">
+                    {term.serialNumber}
+                  </div>
+
+                  <div class="slds-col slds-size_12-of-12 slds-medium-size_4-of-12 slds-p-bottom_xx-small">
+                    <span class="slds-text-title_caps mobile-only mobile-label">Term Name</span>
+                    <div class="slds-truncate" title={term.Term_Label__c}>{term.Term_Label__c}</div>
+                  </div>
+
+                  <div class="slds-col slds-size_6-of-12 slds-medium-size_2-of-12 slds-p-bottom_xx-small">
+                    <span class="slds-text-title_caps mobile-only mobile-label">Percentage</span>
+                    {term.Percentage__c}%
+                  </div>
+
+                  <div class="slds-col slds-size_6-of-12 slds-medium-size_3-of-12 slds-p-bottom_xx-small">
+                    <span class="slds-text-title_caps mobile-only mobile-label">Due Date</span>
+                    <lightning-formatted-date-time value={term.Due_Date__c}>
+                    </lightning-formatted-date-time>
+                  </div>
+
+                  <div class="slds-col slds-size_12-of-12 slds-medium-size_2-of-12">
+                    <span class="slds-text-title_caps mobile-only mobile-label">Paid? </span>
+                    <template if:true={term.Payment_Received__c}>
+                      <lightning-icon icon-name="utility:check" size="xx-small" class="slds-icon-text-success"></lightning-icon> Paid
+                    </template>
+                  </div>
+
+                </div>
+              </template>
+
+            </div>
+
+            <p class="slds-m-top_small slds-text-align_right slds-medium-text-align_left">
+              Total:
+              <strong class={totalStatusClass}>{currentTotal}%</strong>
+            </p>
+
+          </template>
+
+          <template if:true={isEditMode}>
+
+            <div class="responsive-table-container">
+
+              <div class="slds-grid slds-border_bottom slds-text-title_caps table-header desktop-only">
+                <div class="slds-col slds-size_1-of-12">S.No</div>
+                <div class="slds-col slds-size_4-of-12">Term Name</div>
+                <div class="slds-col slds-size_2-of-12">Percentage</div>
+                <div class="slds-col slds-size_3-of-12">Due Date</div>
+                <div class="slds-col slds-size_1-of-12">Paid</div>
+                <div class="slds-col slds-size_1-of-12"></div>
+              </div>
+
+              <template for:each={terms} for:item="term" for:index="index">
+                <div key={term.TempId}
+                     class="slds-grid slds-wrap slds-border_bottom slds-p-vertical_small slds-grid_vertical-align-center table-row mobile-card">
+
+                  <div class="mobile-card-title mobile-only">
+                    Installment #{term.serialNumber}
+                  </div>
+
+                  <div class="slds-col slds-size_1-of-12 desktop-only">
+                    {term.serialNumber}
+                  </div>
+
+                  <div class="slds-col slds-size_12-of-12 slds-medium-size_4-of-12 slds-p-right_small mobile-field">
+                    <label class="slds-form-element__label mobile-only">Term Name</label>
+                    <lightning-input variant="label-hidden" data-index={index} data-field="Term_Label__c"
+                      value={term.Term_Label__c} onchange={handleChange}>
+                    </lightning-input>
+                  </div>
+
+                  <div class="slds-col slds-size_6-of-12 slds-medium-size_2-of-12 slds-p-right_small mobile-field">
+                    <label class="slds-form-element__label mobile-only">Percentage</label>
+                    <lightning-input type="number" variant="label-hidden" data-index={index} data-field="Percentage__c"
+                      value={term.Percentage__c} onchange={handleChange}>
+                    </lightning-input>
+                  </div>
+
+                  <div class="slds-col slds-size_6-of-12 slds-medium-size_3-of-12 slds-p-right_small mobile-field">
+                    <label class="slds-form-element__label mobile-only">Due Date</label>
+                    <lightning-input type="date" variant="label-hidden" min={minDueDate} data-index={index}
+                      data-field="Due_Date__c" value={term.Due_Date__c} onchange={handleChange}>
+                    </lightning-input>
+                  </div>
+
+                  <div class="slds-col slds-size_12-of-12 slds-medium-size_2-of-12 mobile-card-footer">
+                    <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center" style="width:100%">
+                        
+                        <div class="slds-col">
+                            <lightning-input type="checkbox" label="Paid?" data-index={index}
+                            data-field="Payment_Received__c" checked={term.Payment_Received__c}
+                            onchange={handleChange}>
+                            </lightning-input>
+                        </div>
+
+                        <div class="slds-col">
+                            <lightning-button-icon icon-name="utility:delete" variant="bare" class="slds-text-color_error"
+                            data-index={index} onclick={handleDeleteRow}>
+                            </lightning-button-icon>
+                        </div>
+                    </div>
+                  </div>
+
+                </div>
+              </template>
+
+            </div>
+
+            <div class="slds-m-top_medium slds-grid slds-wrap slds-grid_vertical-align-center">
+
+              <div class="slds-col slds-size_1-of-1 slds-medium-size_6-of-12">
+                <lightning-button label="Add Installment" icon-name="utility:add" onclick={handleAddRow}
+                  class="slds-button_stretch slds-medium-button_neutral">
+                </lightning-button>
+              </div>
+
+              <div class="slds-col slds-size_1-of-1 slds-medium-size_6-of-12 slds-text-align_right slds-m-top_small slds-medium-m-top_none">
+                Total:
+                <strong class={totalStatusClass}>{currentTotal}%</strong>
+                <template if:true={isInvalid}>
+                  <div class="slds-text-color_error slds-text-body_small">
+                    (must be 100%)
+                  </div>
+                </template>
+              </div>
+
+            </div>
+
+            <div class="slds-align_absolute-center slds-m-top_large">
+              <lightning-button label="Cancel" onclick={handleCancel} class="slds-m-right_small">
+              </lightning-button>
+
+              <lightning-button variant="brand" label="Save Terms" onclick={handleSave} disabled={isInvalid}>
+              </lightning-button>
+            </div>
+
+          </template>
+
+        </template>
+      </template>
+
+    </div>
+  </lightning-card>
+</template>

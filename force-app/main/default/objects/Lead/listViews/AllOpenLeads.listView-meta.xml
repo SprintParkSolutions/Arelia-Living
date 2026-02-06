@@ -5,9 +5,11 @@
     <columns>LEAD.EMAIL</columns>
     <columns>LEAD.PHONE</columns>
     <columns>LEAD.COMPANY</columns>
+    <columns>Project_Request_Quotation_Type__c</columns>
     <columns>LEAD.STATUS</columns>
     <columns>CORE.USERS.FIRST_NAME</columns>
     <columns>LEAD.CREATED_DATE</columns>
+    <columns>Site_Visit_Status__c</columns>
     <filterScope>Everything</filterScope>
     <filters>
         <field>LEAD.STATUS</field>
