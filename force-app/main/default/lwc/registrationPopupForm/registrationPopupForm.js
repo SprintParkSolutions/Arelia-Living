@@ -81,12 +81,17 @@ export default class RegistrationPopupForm extends LightningElement {
         return this.resendTimer > 0;
     }
 
+    // get sendCodeButtonLabel() {
+    //     if (!this.generatedOtp) {
+    //         return 'Send Code';
+    //     }
+    //     return this.resendTimerActive ? `Resend in ${this.resendTimer}s` : 'Resend Code';
+    // }
+
     get sendCodeButtonLabel() {
-        if (!this.generatedOtp) {
-            return 'Send Code';
-        }
         return this.resendTimerActive ? `Resend in ${this.resendTimer}s` : 'Resend Code';
     }
+
 
     get isEmailFormatValid() {
         const value = (this.email || '').trim();
@@ -98,8 +103,13 @@ export default class RegistrationPopupForm extends LightningElement {
         return digits.length === 10;
     }
 
+    // get isSendCodeDisabled() {
+    //     return this.isSendingCode || this.resendTimerActive || !this.isEmailFormatValid;
+    // }
+
+
     get isSendCodeDisabled() {
-        return this.isSendingCode || this.resendTimerActive || !this.isEmailFormatValid;
+        return this.isSendingCode || this.resendTimerActive || this.emailVerified || !this.isEmailFormatValid;
     }
 
     get isRegisterDisabled() {
@@ -119,7 +129,6 @@ export default class RegistrationPopupForm extends LightningElement {
         this.currentStep = STEP_DETAILS;
     }
 
-    // ---------- Step navigation ----------
     handleNextFromDetails() {
         const emailOk = this.validateEmailField();
         const phoneOk = this.validatePhoneField();
@@ -133,12 +142,31 @@ export default class RegistrationPopupForm extends LightningElement {
             return;
         }
 
+        // ✅ Go to Step 2
         this.currentStep = STEP_VERIFY;
+
+        // ✅ Auto-send OTP immediately when Step 2 opens
+        Promise.resolve().then(() => {
+            this.handleSendCode(true); // auto = true
+        });
     }
+
+
+    // handleBackToDetails() {
+    //     this.currentStep = STEP_DETAILS;
+    // }
 
     handleBackToDetails() {
         this.currentStep = STEP_DETAILS;
+
+        // ✅ Reset verification state when going back
+        this.generatedOtp = null;
+        this.otpExpiresAt = null;
+        this.otpInput = '';
+        this.emailVerified = false;
+        this.clearResendTimer();
     }
+
 
     // ---------- Input handlers ----------
     handleInputChange(event) {
@@ -169,13 +197,61 @@ export default class RegistrationPopupForm extends LightningElement {
     }
 
     // ---------- OTP logic ----------
-    handleSendCode() {
+    // handleSendCode() {
+    //     if (!this.validateEmailField()) {
+    //         return;
+    //     }
+
+    //     this.isSendingCode = true;
+    //     this.emailVerified = false;
+
+    //     this.generatedOtp = this.generateOtp();
+    //     this.otpExpiresAt = Date.now() + OTP_VALIDITY_MS;
+
+    //     sendVerificationEmail({
+    //         email: this.email,
+    //         verificationCode: this.generatedOtp
+    //     })
+    //         .then(() => {
+    //             this.showToast('Success', 'Verification code sent to your email.', 'success');
+    //             this.startResendCountdown();
+    //         })
+    //         .catch((error) => {
+    //             this.generatedOtp = null;
+    //             this.otpExpiresAt = null;
+    //             this.clearResendTimer();
+    //             this.handleApexError(error, 'Failed to send verification code.');
+    //         })
+    //         .finally(() => {
+    //             this.isSendingCode = false;
+    //         });
+    // }
+
+    handleSendCode(auto = false) {
         if (!this.validateEmailField()) {
             return;
         }
 
+        // ✅ If already verified, do nothing
+        if (this.emailVerified) {
+            return;
+        }
+
+        // ✅ Manual resend blocked during cooldown
+        if (!auto && this.resendTimerActive) {
+            return;
+        }
+
+        // ✅ Prevent double clicks / duplicate calls
+        if (this.isSendingCode) {
+            return;
+        }
+
         this.isSendingCode = true;
+
+        // reset for new OTP
         this.emailVerified = false;
+        this.otpInput = '';
 
         this.generatedOtp = this.generateOtp();
         this.otpExpiresAt = Date.now() + OTP_VALIDITY_MS;
@@ -199,6 +275,7 @@ export default class RegistrationPopupForm extends LightningElement {
             });
     }
 
+
     handleVerifyCode() {
         if (!this.generatedOtp) {
             this.showToast('Error', 'Please click "Send Code" first.', 'error');
@@ -221,8 +298,13 @@ export default class RegistrationPopupForm extends LightningElement {
 
         if (this.otpInput === this.generatedOtp) {
             this.emailVerified = true;
+
+            // ✅ Stop timer immediately after verification
+            this.clearResendTimer();
+
             this.showToast('Success', 'Email verified successfully.', 'success');
         } else {
+
             this.emailVerified = false;
             this.showToast('Error', 'Invalid verification code. Please try again.', 'error');
         }
@@ -254,17 +336,17 @@ export default class RegistrationPopupForm extends LightningElement {
             : this.phone;
 
         const firstName = (this.firstName || '').trim();
-        const lastName  = (this.lastName || '').trim();
+        const lastName = (this.lastName || '').trim();
 
         const payload = {
             firstName: firstName,
             lastName: lastName,
             email: this.email,
             phone: fullPhone,
-             companyName:
+            companyName:
                 (this.companyName && this.companyName.trim())
-                ? this.companyName.trim()
-                : `Self-${firstName} ${lastName}`.trim(),
+                    ? this.companyName.trim()
+                    : `Self-${firstName} ${lastName}`.trim(),
         };
 
         registerLead({ payload })
