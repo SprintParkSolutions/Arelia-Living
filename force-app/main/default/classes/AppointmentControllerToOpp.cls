@@ -50,13 +50,23 @@ public without sharing class AppointmentControllerToOpp {
             throw new AuraHandledException('Status is required.');
         }
 
+// Locate this block in AppointmentControllerToOpp.cls
         Opportunity opp = [
             SELECT Id, Name,
-                   Re_Visit_Site_Appointment_Status__c,
-                   Primary_Contact__c, Primary_Contact__r.Name, Primary_Contact__r.Phone,
-                   Re_Visit_Appointment_Date__c, Re_Visit_Appointment_Time_Slots__c,
-                   Re_Visit_Appointment_Rescheduled_Date__c, Re_Visit_Appointm_Rescheduled_Time_Slots__c,
-                   Supervisor_User__c, Supervisor_User__r.Name, Supervisor_User__r.Phone, Supervisor_User__r.Email
+                Re_Visit_Site_Appointment_Status__c,
+                Primary_Contact__c, 
+                Primary_Contact__r.Name, 
+                Primary_Contact__r.Phone, 
+                Primary_Contact__r.Email,
+                Re_Visit_Appointment_Date__c, 
+                Re_Visit_Appointment_Time_Slots__c,
+                Re_Visit_Appointment_Rescheduled_Date__c, 
+                Re_Visit_Appointm_Rescheduled_Time_Slots__c,
+                Supervisor_User__c, 
+                Supervisor_User__r.FirstName,
+                Supervisor_User__r.LastName,
+                Supervisor_User__r.Phone, 
+                Supervisor_User__r.Email
             FROM Opportunity
             WHERE Id = :opportunityId
             LIMIT 1
@@ -234,13 +244,24 @@ public without sharing class AppointmentControllerToOpp {
         ];
         if (tpl == null || String.isBlank(tpl.HtmlValue) || String.isBlank(tpl.Subject)) {return;}
 
+        // 🔹 Supervisor Full Name (First + Last)
+        String supervisorFullName = '';
+        if (opp.Supervisor_User__r != null) {
+            supervisorFullName =
+                toStringOrEmpty(opp.Supervisor_User__r.FirstName) +
+                (String.isNotBlank(opp.Supervisor_User__r.FirstName) &&
+                 String.isNotBlank(opp.Supervisor_User__r.LastName) ? ' ' : '') +
+                toStringOrEmpty(opp.Supervisor_User__r.LastName);
+        }
+
         String subject = tpl.Subject.replace('{{{Recipient.Name}}}',
             toStringOrEmpty(opp.Primary_Contact__r != null ? opp.Primary_Contact__r.Name : null));
 
         String html = tpl.HtmlValue
             .replace('{{{Recipient.Name}}}', toStringOrEmpty(opp.Primary_Contact__r != null ? opp.Primary_Contact__r.Name : null))
             .replace('{{{Recipient.Phone}}}', toStringOrEmpty(opp.Primary_Contact__r != null ? opp.Primary_Contact__r.Phone : null))
-            .replace('{{{Supervisor_User__c.Name}}}',  toStringOrEmpty(opp.Supervisor_User__r != null ? opp.Supervisor_User__r.Name  : null))
+        //    .replace('{{{Supervisor_User__c.Name}}}',  toStringOrEmpty(opp.Supervisor_User__r != null ? opp.Supervisor_User__r.Name  : null))
+            .replace('{{{Supervisor_User__c.Name}}}', supervisorFullName)
             .replace('{{{Supervisor_User__c.Phone}}}', toStringOrEmpty(opp.Supervisor_User__r != null ? opp.Supervisor_User__r.Phone : null))
             .replace('{{{Supervisor_User__c.Email}}}', toStringOrEmpty(opp.Supervisor_User__r != null ? opp.Supervisor_User__r.Email : null))
             .replace('{{{Re_Visit_Appointment_Date__c}}}',             formatDateMDY(opp.Re_Visit_Appointment_Date__c))

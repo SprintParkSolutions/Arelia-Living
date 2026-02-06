@@ -105,7 +105,7 @@ public without sharing class SiteVisitApprovalController {
             SELECT Id, Name,
                    Management_Approval__c, Negotiate__c, Negotation_Reason__c,
                    Supervisor_User__c, Supervisor_User__r.Name, Supervisor_User__r.Email,
-                   Lead__r.Name
+                   Lead__r.Name, Opportunity__r.Name, Opportunity__r.Lead_Name__c
             FROM Site_Visit_Report__c
             WHERE Id IN :reportIds
         ];
@@ -197,10 +197,12 @@ public without sharing class SiteVisitApprovalController {
             // IMPORTANT: Use safeString to avoid null strings and PMD-safe style.
             String supervisorName = (report.Supervisor_User__r != null) ? report.Supervisor_User__r.Name : null;
             String leadName       = (report.Lead__r != null) ? report.Lead__r.Name : null;
+            String oppLeadName = (report.Opportunity__r != null) ? report.Opportunity__r.Lead_Name__c : null;
+            String finalName = leadName != null ? leadName : oppLeadName;
 
             htmlBody = htmlBody
                 .replace('{{{Site_Visit_Report__c.Supervisor_User__r.Name}}}', safeString(supervisorName))
-                .replace('{{{Site_Visit_Report__c.Lead__r.Name}}}', safeString(leadName))
+                .replace('{{{Site_Visit_Report__c.Lead__r.Name}}}', safeString(finalName))
                 .replace('{{{Site_Visit_Report__c.Name}}}', safeString(report.Name))
                 .replace('{{{Site_Visit_Report__c.Negotation_Reason__c}}}', safeString(report.Negotation_Reason__c));
 
