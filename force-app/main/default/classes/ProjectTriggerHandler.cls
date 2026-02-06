@@ -55,7 +55,6 @@ public without sharing class ProjectTriggerHandler {
         if (projects == null || projects.isEmpty()) {
             return;
         }
-
         try {
             Map<Id, Contact> contactMap = getClientContacts(projects);
             Map<Id, User> userMap = getSupervisorUsers(projects);

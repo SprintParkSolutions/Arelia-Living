@@ -41,9 +41,8 @@ public without sharing class AppointmentController {
     private static final String TEMPLATE_APPROVED    = Label.Arelia_Living_Appointment_Approved_Email;
     private static final String TEMPLATE_RESCHEDULED = Label.Arelia_Living_Appointment_Rescheduled_Email;
 
-    // ---------------------------
-    // Public API
-    // ---------------------------
+    private static final String TEMPLATE_CUSTOMER_APPROVED    = Label.Customer_Appointment_Approved_Email;
+    private static final String TEMPLATE_CUSTOMER_RESCHEDULED = Label.Customer_Appointment_Rescheduled_Email;
 
     /**
      * Updates appointment status:
@@ -62,12 +61,9 @@ public without sharing class AppointmentController {
         enforceNotBlankId(leadId, 'Lead ID is missing.');
         enforceNotBlank(status, 'Status is required.');
 
-        Lead leadRecord = [SELECT Id, FirstName, LastName, Email,
-                   Appointment_Status__c,Appointment_Completed__c,
-                   Appointment_Date__c, Appointment_Time_Slots__c,
-                   Appointment_Rescheduled_Time__c, Time_Slots__c,
-                   Supervisor_User__c, Supervisor_User__r.Email
-            FROM Lead WHERE Id = :leadId LIMIT 1];
+        Lead leadRecord = [SELECT Id, FirstName, LastName, Email, Appointment_Status__c,Appointment_Completed__c,
+            Appointment_Date__c, Appointment_Time_Slots__c, Appointment_Rescheduled_Time__c, Time_Slots__c,
+            Supervisor_User__c, Supervisor_User__r.Email FROM Lead WHERE Id = :leadId LIMIT 1];
 
         final String existing = leadRecord.Appointment_Status__c;
         if (String.isNotBlank(existing)
@@ -106,10 +102,7 @@ public without sharing class AppointmentController {
 
         update leadRecord;
 
-        // Notify Supervisor
-        if (leadRecord.Supervisor_User__r != null && !String.isBlank(leadRecord.Supervisor_User__r.Email)) {
-            sendConfirmationEmail(leadRecord, leadRecord.Appointment_Status__c);
-        }
+        sendNotifications(leadRecord, leadRecord.Appointment_Status__c);
     }
 
     /**
@@ -179,10 +172,6 @@ public without sharing class AppointmentController {
         return getPicklistValues(Lead.Time_Slots__c);
     }
 
-    // ---------------------------
-    // Private helpers
-    // ---------------------------
-
     /**
      * True only if destination (Supervisor + onDate + slot) has NO conflicts across:
      *  - Approved initial pair
@@ -228,28 +217,94 @@ public without sharing class AppointmentController {
         return values;
     }
 
-    /** Send confirmation email to Supervisor using OWD/email template. */
-    private static void sendConfirmationEmail(Lead ld, String finalStatus) {
-        final String templateDevName = (finalStatus == STATUS_APPROVED)
-            ? TEMPLATE_APPROVED
-            : TEMPLATE_RESCHEDULED;
+    private static void sendNotifications(Lead ld, String finalStatus) {
+        // ---------------------------
+        // 1) Supervisor email (internal template)
+        //    - Use TO address = Supervisor email
+        //    - Use TargetObjectId = Lead.Id (for Lead merge fields)
+        //    - TreatTargetObjectAsRecipient = false
+        //    - NO WhatId (avoid error)
+        // ---------------------------
+        if (ld.Supervisor_User__r != null && !String.isBlank(ld.Supervisor_User__r.Email)) {
+            String supervisorTpl = (finalStatus == STATUS_APPROVED)
+                ? TEMPLATE_APPROVED
+                : TEMPLATE_RESCHEDULED;
 
-        List<EmailTemplate> tpls = [SELECT Id FROM EmailTemplate
-                WHERE DeveloperName = :templateDevName LIMIT 1];
-        if (tpls.isEmpty()) {
-            return; // defensive: skip silently if template missing
+            sendToEmailWithLeadTemplate(ld,ld.Supervisor_User__r.Email,supervisorTpl);
+        }
+
+        // ---------------------------
+        // 2) Customer email (customer template)
+        //    - TargetObjectId = Lead.Id (Lead recipient)
+        //    - TreatTargetObjectAsRecipient = true
+        // ---------------------------
+        if (!String.isBlank(ld.Email)) {
+            String customerTpl = (finalStatus == STATUS_APPROVED)
+                ? TEMPLATE_CUSTOMER_APPROVED
+                : TEMPLATE_CUSTOMER_RESCHEDULED;
+
+            sendToLeadRecipientWithTemplate(ld, customerTpl);
+        }
+    }
+
+    /**
+     * Supervisor email:
+     * - Sends using a template
+     * - Recipient is a plain email address (Supervisor email)
+     * - Template merges from Lead because TargetObjectId = Lead.Id
+     */
+    private static void sendToEmailWithLeadTemplate(Lead ld, String toEmail, String templateDevName) {
+        if (ld == null || String.isBlank(toEmail) || String.isBlank(templateDevName)) {
+            return;
+        }
+
+        Id tplId = getTemplateIdByDevName(templateDevName);
+        if (tplId == null) {
+            return;
         }
 
         Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
-        msg.setToAddresses(new List<String>{ ld.Supervisor_User__r.Email });
-        msg.setCcAddresses(new List<String>{ ld.Email });
-        msg.setTreatTargetObjectAsRecipient(false);
+        msg.setToAddresses(new List<String>{ toEmail });
+
+        // Lead merge fields work because target is Lead
         msg.setTargetObjectId(ld.Id);
-        msg.setTemplateId(tpls[0].Id);
+        msg.setTreatTargetObjectAsRecipient(false);
+
+        // Do NOT set WhatId here (causes error for UserId scenarios)
+        msg.setTemplateId(tplId);
         msg.setSaveAsActivity(true);
         msg.setOrgWideEmailAddressId(getDefaultOrgWideEmailAddressId());
 
         Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
+    }
+
+    /**
+     * Customer email:
+     * - Recipient is the Lead itself
+     * - Works perfectly with Lead email templates
+     */
+    private static void sendToLeadRecipientWithTemplate(Lead ld, String templateDevName) {
+        if (ld == null || String.isBlank(ld.Email) || String.isBlank(templateDevName)) {
+            return;
+        }
+
+        Id tplId = getTemplateIdByDevName(templateDevName);
+        if (tplId == null) { return;}
+
+        Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
+        msg.setTargetObjectId(ld.Id);
+        msg.setTreatTargetObjectAsRecipient(true);
+
+        msg.setTemplateId(tplId);
+        msg.setSaveAsActivity(true);
+        msg.setOrgWideEmailAddressId(getDefaultOrgWideEmailAddressId());
+
+        Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
+    }
+
+    private static Id getTemplateIdByDevName(String devName) {
+        List<EmailTemplate> tpls = [SELECT Id FROM EmailTemplate WHERE DeveloperName = :devName LIMIT 1];
+        return tpls.isEmpty() ? null : tpls[0].Id;
     }
 
     /** Resolve Org-Wide Email Address by label value. */

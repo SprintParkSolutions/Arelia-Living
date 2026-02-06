@@ -47,12 +47,17 @@ export default class RegistrationForm extends LightningElement {
         return this.resendTimer > 0;
     }
 
+    // get sendCodeButtonLabel() {
+    //     if (!this.generatedOtp) {
+    //         return 'Send Code';
+    //     }
+    //     return this.resendTimerActive ? `Resend in ${this.resendTimer}s` : 'Resend Code';
+    // }
+
     get sendCodeButtonLabel() {
-        if (!this.generatedOtp) {
-            return 'Send Code';
-        }
-        return this.resendTimerActive ? `Resend in ${this.resendTimer}s` : 'Resend Code';
+        return this.resendTimerActive ? `Resend in ${this.resendTimer}s` : (this.generatedOtp ? 'Resend Code' : 'Send Code');
     }
+
 
     get isEmailFormatValid() {
         const value = (this.email || '').trim();
@@ -64,9 +69,14 @@ export default class RegistrationForm extends LightningElement {
         return digits.length === 10;
     }
 
+    // get isSendCodeDisabled() {
+    //     return this.isSendingCode || this.resendTimerActive || !this.isEmailFormatValid;
+    // }
+
     get isSendCodeDisabled() {
-        return this.isSendingCode || this.resendTimerActive || !this.isEmailFormatValid;
+        return this.isSendingCode || this.resendTimerActive || this.emailVerified || !this.isEmailFormatValid;
     }
+
 
     get isRegisterDisabled() {
         return this.isSubmitting || !this.emailVerified || !this.isPhoneValid;
@@ -106,15 +116,31 @@ export default class RegistrationForm extends LightningElement {
         this.otpInput = event.target.value;
     }
 
-    // ----- OTP logic -----
-
     handleSendCode() {
-        if (!this.validateEmailField()) {
+        // ✅ Must have required fields before sending OTP
+        const emailOk = this.validateEmailField();
+        const phoneOk = this.validatePhoneField();
+
+        if (!this.firstName || !this.lastName) {
+            this.showToast('Error', 'First Name and Last Name are required.', 'error');
             return;
+        }
+
+        if (!emailOk || !phoneOk) {
+            return;
+        }
+
+        if (this.emailVerified) {
+            return; // already verified
+        }
+
+        if (this.resendTimerActive) {
+            return; // cooldown running
         }
 
         this.isSendingCode = true;
         this.emailVerified = false;
+        this.otpInput = '';
 
         this.generatedOtp = this.generateOtp();
         this.otpExpiresAt = Date.now() + OTP_VALIDITY_MS;
@@ -138,6 +164,7 @@ export default class RegistrationForm extends LightningElement {
             });
     }
 
+
     handleVerifyCode() {
         if (!this.generatedOtp) {
             this.showToast('Error', 'Please click "Send Code" first.', 'error');
@@ -160,8 +187,13 @@ export default class RegistrationForm extends LightningElement {
 
         if (this.otpInput === this.generatedOtp) {
             this.emailVerified = true;
+
+            // ✅ STOP timer immediately after verification
+            this.clearResendTimer();
+
             this.showToast('Success', 'Email verified successfully.', 'success');
         } else {
+
             this.emailVerified = false;
             this.showToast('Error', 'Invalid verification code. Please try again.', 'error');
         }
@@ -193,7 +225,7 @@ export default class RegistrationForm extends LightningElement {
             : this.phone;
 
         const firstName = (this.firstName || '').trim();
-        const lastName  = (this.lastName || '').trim();
+        const lastName = (this.lastName || '').trim();
 
         const payload = {
             firstName: firstName,
@@ -203,8 +235,8 @@ export default class RegistrationForm extends LightningElement {
 
             companyName:
                 (this.companyName && this.companyName.trim())
-                ? this.companyName.trim()
-                : `Self-${firstName} ${lastName}`.trim(),
+                    ? this.companyName.trim()
+                    : `Self-${firstName} ${lastName}`.trim(),
 
             companySize: '1-10',
             companyIndustry: 'Other',
