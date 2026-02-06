@@ -17,7 +17,7 @@ import getSavedCart from '@salesforce/apex/OpportunityQuotePDFController.getSave
 export default class InventoryProductManager extends LightningElement {
     @api recordId;
 
-    /* ================= OBJECT INFO ================= */
+  
    @track roomTypes = [];
 @track categoriesByRoom = {};
     
@@ -50,7 +50,7 @@ goToStep1() {
     this.loadCatalogConfig();
 }
 
-    /* ================= MAIN STATE ================= */
+   
     @track _products = [];
     @track visibleProducts = [];
     @track cartItems = [];
@@ -64,7 +64,7 @@ goToStep1() {
     @track isCartOpen = false;
 
     /* ================= STEP UX ================= */
-    @track currentStep = 0; // 👈 START FROM STEP 0
+    @track currentStep = 0; 
 
 get isStep0() { 
     return this.currentStep === 0; 
