@@ -429,4 +429,23 @@ public class TestDataUtility {
         insert prod;
         return prod;
     }
+
+    // ----------------------------
+    // 25. Create WhatsApp Chat  ✅ NEW
+    // ----------------------------
+    public static WhatsApp_Chat__c createWhatsAppChat(Id leadId, Id opportunityId, Id projectId, String lastFrom, String lastTo) {
+        WhatsApp_Chat__c chat = new WhatsApp_Chat__c(
+            Lead__c = leadId,
+            Opportunity__c = opportunityId,
+            Project__c = projectId,
+            Last_From__c = lastFrom,
+            Last_To__c = lastTo,
+            Message_Count__c = 0,
+            Last_Status__c = 'sent',
+            Last_Message_Time__c = System.now(),
+            Transcript_NDJSON__c = ''
+        );
+        insert chat;
+        return chat;
+    }
 }

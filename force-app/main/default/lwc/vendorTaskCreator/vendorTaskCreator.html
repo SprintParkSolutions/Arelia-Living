@@ -118,7 +118,6 @@
                                 </template>
                             </div>
                         </div>
-
                     </div>
                 </template>
             </div>
@@ -127,7 +126,9 @@
         <div slot="footer">
             <template if:true={showCreation}>
                 <lightning-button variant="brand" label="Create & Attach" onclick={handleCreateAndProceed}></lightning-button>
-                <lightning-button label="View Existing" onclick={goToPreview} class="slds-m-left_small"></lightning-button>
+                <template if:true={showExistingButton}>
+                    <lightning-button label="View Existing" onclick={goToPreview} class="slds-m-left_small"></lightning-button>
+                </template>
             </template>
             <template if:true={showPreview}>
                 <lightning-button variant="brand" label="Save All Changes" onclick={handleFinalSave}></lightning-button>

@@ -6,9 +6,14 @@ public without sharing class AreliaPathController {
         
         // --- 1. NEW STEPS ---
         steps.add(new Map<String, String>{ 'label' => 'Opportunity Created', 'value' => 'Opportunity Created' });
+        steps.add(new Map<String, String>{ 'label' => 'Enter Architect Data', 'value' => 'Enter Architect Data' });
         steps.add(new Map<String, String>{ 'label' => 'Send Architecture Client Approval', 'value' => 'Send Architecture Client Approval' });
         steps.add(new Map<String, String>{ 'label' => 'Client Architecture Approval', 'value' => 'Client Architecture Approval' });
         steps.add(new Map<String, String>{ 'label' => 'Architecture Manager Approval', 'value' => 'Architecture Manager Approval' });
+        
+        // NEW STEP ADDED HERE
+        steps.add(new Map<String, String>{ 'label' => 'Upload Proforma Invoice', 'value' => 'Upload Proforma Invoice' });
+
         steps.add(new Map<String, String>{ 'label' => 'Catalogue Link Sent', 'value' => 'Catalogue Link Sent' });
         
         // --- 2. EXISTING STEPS ---
@@ -32,9 +37,9 @@ public without sharing class AreliaPathController {
 
     @AuraEnabled(cacheable=true)
     public static String getPathStatus(Id oppId) {
-        // FIX: ApexCRUDViolation - Added 'WITH USER_MODE' to enforce security checks
         Opportunity opp = [
             SELECT Id, StageName, 
+                   Architect_Name__c, 
                    Architecture_Client_Approval_Sent__c,
                    Architecture_Manager_Approval__c,
                    Catalogue_Link_Sent__c,
@@ -44,14 +49,15 @@ public without sharing class AreliaPathController {
                    (SELECT Id, Manager_Approval__c FROM Quotations__r ORDER BY CreatedDate DESC LIMIT 1),
                    (SELECT Id FROM Payment_Terms__r LIMIT 1),
                    (SELECT Id, Vendor_Agreement_Sent__c FROM Vendor_Opportunities__r),
-                   (SELECT Id FROM Architecture_Designs__r WHERE Status__c = 'Approved' LIMIT 1)
+                   (SELECT Id FROM Architecture_Designs__r WHERE Status__c = 'Approved' LIMIT 1),
+                   // NEW: Query using the relationship name from your image
+                   (SELECT Id FROM Proforma_Invoices__r LIMIT 1)
             FROM Opportunity WHERE Id = :oppId 
             WITH USER_MODE 
             LIMIT 1
         ];
 
-        // 1. Priority Checks (Overrides)
-        // FIX: Added braces {}
+        // 1. Priority Checks
         if (opp.StageName == 'Resumed') {
             return 'Resumed';
         }
@@ -59,7 +65,7 @@ public without sharing class AreliaPathController {
             return 'Negotiation/Review';
         }
 
-        // 2. Logic Waterfall using Helper Methods (Reduces Cognitive Complexity)
+        // 2. Logic Waterfall
         String status = checkInitialStages(opp);
         if (status != null) {
             return status;
@@ -86,19 +92,38 @@ public without sharing class AreliaPathController {
     // --- HELPER METHODS ---
 
     private static String checkInitialStages(Opportunity opp) {
+        // 1. Enter Architect Data
+        if (String.isBlank(opp.Architect_Name__c)) {
+            return 'Enter Architect Data';
+        }
+
+        // 2. Send Architecture Client Approval
         if (opp.Architecture_Client_Approval_Sent__c == false) {
             return 'Send Architecture Client Approval';
         }
+
+        // 3. Client Architecture Approval
         if (opp.Architecture_Designs__r == null || opp.Architecture_Designs__r.isEmpty()) {
             return 'Client Architecture Approval';
         }
+
+        // 4. Architecture Manager Approval
         if (opp.Architecture_Manager_Approval__c == false) {
             return 'Architecture Manager Approval';
         }
+
+        // 5. Upload Proforma Invoice (NEW)
+        // Logic: If NO child invoices exist, we stop here.
+        if (opp.Proforma_Invoices__r == null || opp.Proforma_Invoices__r.isEmpty()) {
+            return 'Upload Proforma Invoice';
+        }
+
+        // 6. Catalogue Link Sent
         if (opp.Catalogue_Link_Sent__c == false) {
             return 'Catalogue Link Sent';
         }
-        return null; // Logic continues to next block
+
+        return null; 
     }
 
     private static String checkCatalogueAndPaymentStages(Opportunity opp) {
@@ -106,7 +131,6 @@ public without sharing class AreliaPathController {
             return 'Catalogue Received'; 
         }
         
-        // Check Manager Approval on Quotations
         if (opp.Quotations__r != null && !opp.Quotations__r.isEmpty()) {
              if (opp.Quotations__r[0].Manager_Approval__c == false) {
                  return 'Specifications & Payment Terms Manager approval'; 

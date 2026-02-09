@@ -2,14 +2,11 @@
  * @description Controller for managing vendor email communications.
  * Handles retrieval of specifications, tasks, and email dispatching.
  */
-@SuppressWarnings('PMD.CognitiveComplexity') 
+@SuppressWarnings('PMD.CognitiveComplexity')
 public with sharing class VendorEmailController {
 
-    /**
-     * @description Retrieving content versions associated with an opportunity.
-     * @param opportunityId The ID of the Opportunity.
-     * @return List of ContentVersion records.
-     */
+    // --- 1. UTILITIES ---
+
     @AuraEnabled(cacheable=true)
     public static List<ContentVersion> getFilesByOpportunityId(String opportunityId) {
         if (String.isBlank(opportunityId)) {
@@ -39,10 +36,6 @@ public with sharing class VendorEmailController {
         ];
     }
 
-    /**
-     * @description Gets all vendor categories from the Vendor__c object.
-     * @return List of active picklist values.
-     */
     @AuraEnabled(cacheable=true)
     public static List<String> getVendorCategories() {
         List<String> categories = new List<String>();
@@ -54,11 +47,6 @@ public with sharing class VendorEmailController {
         return categories;
     }
 
-    /**
-     * @description Retrieves vendors filtered by category.
-     * @param category The vendor category to filter by.
-     * @return List of Vendor__c records.
-     */
     @AuraEnabled(cacheable=true)
     public static List<Vendor__c> getVendorsByCategory(String category) {
         if (String.isBlank(category)) {
@@ -70,17 +58,12 @@ public with sharing class VendorEmailController {
             WHERE Vendor_Category__c = :category
             AND Email__c != NULL
             AND Vendor_Status__c != 'Abscond'
-            AND Vendor_Status__c != 'Unavailable' 
+            AND Vendor_Status__c != 'Unavailable'
             WITH SECURITY_ENFORCED
             ORDER BY Average_Efficiency__c DESC
         ];
     }
 
-    /**
-     * @description Retrieves email templates based on tender type.
-     * @param tenderType The type of tender ('Backup' or other).
-     * @return List containing the specific EmailTemplate.
-     */
     @AuraEnabled(cacheable=true)
     public static List<EmailTemplate> getEmailTemplatesByType(String tenderType) {
         String devName = (tenderType == 'Backup') ? 'Backup_Tendor_Invitation' : 'Quatation_Email_Template';
@@ -98,28 +81,19 @@ public with sharing class VendorEmailController {
         return templates;
     }
 
-    /**
-     * @description Retrieves specifications for an opportunity and vendor category.
-     * @param opportunityId The Opportunity ID.
-     * @param category The Vendor Category.
-     * @return List of Project_Specification__c objects.
-     */
+    // --- 2. DYNAMIC SPECIFICATIONS ---
+
     @AuraEnabled(cacheable=true)
     public static List<SObject> getSpecificationsByOpportunityAndCategory(String opportunityId, String category) {
         try {
-           
             return new SpecQueryHelper().querySpecs(opportunityId, category);
         } catch (Exception e) {
             return new List<Project_Specification__c>();
         }
     }
 
-    /**
-     * @description Retrieves abscond vendor tasks and assignment details.
-     * @param opportunityId The Opportunity ID.
-     * @param category The Vendor Category.
-     * @return AbscondedVendorDetails wrapper object.
-     */
+    // --- 3. ABSCONDED VENDOR LOGIC ---
+
     @AuraEnabled(cacheable=true)
     public static AbscondedVendorDetails getAbscondedVendorTasks(String opportunityId, String category) {
         AbscondedVendorDetails details = new AbscondedVendorDetails();
@@ -152,15 +126,8 @@ public with sharing class VendorEmailController {
         }
     }
 
-    /**
-     * @description Sends email to vendors with specifications or abscond details.
-     * Suppressing ExcessiveParameterList because this signature is required by the LWC.
-     * @param opportunityId The Opportunity ID.
-     * @param fileIds List of ContentVersion IDs to attach.
-     * @param vendorIds List of Vendor IDs to email.
-     * @param category The Vendor Category.
-     * @param tenderType The type of tender ('Backup' or 'New').
-     */
+    // --- 4. EMAIL SENDING & FILE HANDLING ---
+
     @AuraEnabled
     @SuppressWarnings('PMD.ExcessiveParameterList')
     public static void sendEmailToVendors(String opportunityId, List<String> fileIds, List<String> vendorIds, String category, String tenderType) {
@@ -175,7 +142,6 @@ public with sharing class VendorEmailController {
         context.category = category;
         context.tenderType = tenderType;
 
-        
         new EmailServiceHelper().processAndSendEmails(context);
     }
 
@@ -183,34 +149,23 @@ public with sharing class VendorEmailController {
     // WRAPPER CLASSES
     // ============================================================================
 
-    /** @description Wrapper class for Abscond Vendor Details. */
     public class AbscondedVendorDetails {
-        /** @description List of tasks associated with the vendor */
         @AuraEnabled public List<AbscondedTaskWrapper> tasks { get; set; }
-        /** @description Overall completion percentage */
         @AuraEnabled public Decimal overallCompletion { get; set; }
-        /** @description Assignment start date */
         @AuraEnabled public Date overallAssignmentStartDate { get; set; }
-        /** @description Assignment end date */
         @AuraEnabled public Date overallAssignmentEndDate { get; set; }
 
-        /** @description Default constructor */
         public AbscondedVendorDetails() {
             this.tasks = new List<AbscondedTaskWrapper>();
             this.overallCompletion = 0;
         }
     }
 
-    /** @description Wrapper class for Abscond Task details. */
     public class AbscondedTaskWrapper {
-        /** @description The Task ID */
         @AuraEnabled public Id taskId { get; set; }
-        /** @description The Task Subject */
         @AuraEnabled public String taskSubject { get; set; }
-        /** @description The Task Status */
         @AuraEnabled public String taskStatus { get; set; }
 
-        /** @description Constructor from Task SObject. */
         public AbscondedTaskWrapper(Task t) {
             this.taskId = t.Id;
             this.taskSubject = t.Subject;
@@ -218,7 +173,6 @@ public with sharing class VendorEmailController {
         }
     }
 
-    /** @description Context class to pass data cleanly to email service. */
     private class EmailSendingContext {
         public String opportunityId;
         public List<String> fileIds;
@@ -227,14 +181,12 @@ public with sharing class VendorEmailController {
         public String tenderType;
     }
 
-    /** @description Internal wrapper for email content parts. */
     private class EmailContentWrapper {
         public List<SObject> specs;
         public String specTable;
         public String abscondedTable;
     }
 
-    /** @description Helper class for Email Creation context to reduce parameter list. */
     private class EmailCreationContext {
         public Opportunity opportunity;
         public EmailTemplate template;
@@ -245,12 +197,9 @@ public with sharing class VendorEmailController {
 
     // ============================================================================
     // INNER HELPER CLASSES
-    
     // ============================================================================
 
-    /** @description Helper class to isolate Specification Query logic. */
     private with sharing class SpecQueryHelper {
-       
         public List<SObject> querySpecs(String opportunityId, String category) {
             Schema.FieldSet fs = SObjectType.Project_Specification__c.FieldSets.getMap().get('Vendor_Email_Fields');
             if (fs == null) { return new List<Project_Specification__c>(); }
@@ -270,35 +219,23 @@ public with sharing class VendorEmailController {
         }
     }
 
-    /** @description Helper class to isolate Email sending logic. */
     private with sharing class EmailServiceHelper {
-        /**
-         * @description Main entry point for processing and sending emails.
-         * @param ctx The context object containing IDs and types.
-         */
-        
         public void processAndSendEmails(EmailSendingContext ctx) {
-            // 1. Fetch Template
             String templateDevName = (ctx.tenderType == 'Backup') ? 'Backup_Tendor_Invitation' : 'Quatation_Email_Template';
             EmailTemplate template = [SELECT Id, Subject, HtmlValue FROM EmailTemplate WHERE DeveloperName = :templateDevName WITH SECURITY_ENFORCED LIMIT 1];
             
-            // 2. Prepare Tables & Specs
             EmailContentWrapper content = buildContent(ctx);
             
-            // 3. Fetch Opportunity
             Opportunity opp = [
                 SELECT Id, Name, Supervisor_User__r.Name, Supervisor_User__r.Email, Supervisor_User__r.Phone, Project_Scope__c
                 FROM Opportunity WHERE Id = :ctx.opportunityId WITH SECURITY_ENFORCED LIMIT 1
             ];
 
-            // 4. Prepare Attachments
             List<Messaging.EmailFileAttachment> attachments = buildAttachments(ctx.fileIds, content.specs);
 
-            // 5. Send
             List<Vendor__c> vendors = [SELECT Id, Name, Email__c, Vendor_Category__c FROM Vendor__c WHERE Id IN :ctx.vendorIds AND Email__c != NULL WITH SECURITY_ENFORCED];
             List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
 
-            // Consolidated context for the creation method
             EmailCreationContext creationCtx = new EmailCreationContext();
             creationCtx.opportunity = opp;
             creationCtx.template = template;
@@ -317,7 +254,6 @@ public with sharing class VendorEmailController {
             }
         }
 
-        
         private EmailContentWrapper buildContent(EmailSendingContext ctx) {
             EmailContentWrapper wrapper = new EmailContentWrapper();
             if (ctx.tenderType == 'New') {
@@ -330,13 +266,13 @@ public with sharing class VendorEmailController {
             return wrapper;
         }
 
-        
         private Messaging.SingleEmailMessage createEmail(Vendor__c v, EmailCreationContext ctx) {
             String cat = (v.Vendor_Category__c != null ? v.Vendor_Category__c : ctx.defaultCategory);
             
-            // Build Subject
+            // Build Subject (FIXED: Added Opportunity Name replacement here)
             String subject = ctx.template.Subject
                 .replace('{{{Vendor_Category__c}}}', cat)
+                .replace('{{{Opportunity.Name}}}', (ctx.opportunity.Name != null ? ctx.opportunity.Name : ''))
                 .replace('{{{project_scope}}}', (ctx.opportunity.Project_Scope__c != null ? ctx.opportunity.Project_Scope__c : ''));
 
             // Build Body
@@ -419,7 +355,8 @@ public with sharing class VendorEmailController {
             
             String table = '<table border="1" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;"><thead style="background-color: #f2f2f2;"><tr>';
             for (Schema.FieldSetMember f : fs.getFields()) {
-                if (f.getFieldPath() != 'Description__c') {
+                // FIX: Check for Description in path (handles Description, Description__c, Opportunity.Description)
+                if (!f.getFieldPath().containsIgnoreCase('Description')) {
                     table += '<th style="padding: 10px; text-align: left;">' + f.getLabel() + '</th>';
                 }
             }
@@ -427,7 +364,8 @@ public with sharing class VendorEmailController {
             for (SObject row : records) {
                 table += '<tr>';
                 for (Schema.FieldSetMember f : fs.getFields()) {
-                    if (f.getFieldPath() != 'Description__c') {
+                    // FIX: Check for Description in path
+                    if (!f.getFieldPath().containsIgnoreCase('Description')) {
                         table += '<td style="padding: 10px;">' + getDeepValue(row, f.getFieldPath()) + '</td>';
                     }
                 }
@@ -436,24 +374,23 @@ public with sharing class VendorEmailController {
             return table + '</tbody></table>';
         }
 
-
         public String buildAbscondedTaskTable(AbscondedVendorDetails details) {
-            if (details == null || (details.tasks.isEmpty() && details.overallCompletion == 0)) { 
-                return ''; 
+            if (details == null || (details.tasks.isEmpty() && details.overallCompletion == 0)) {
+                return '';
             }
             return buildAbscondedSummary(details) + buildAbscondedRows(details);
         }
 
         private String buildAbscondedSummary(AbscondedVendorDetails details) {
             String output = '<div style="margin-bottom: 15px; border: 1px solid #ccc; padding: 10px; background-color: #f9f9f9;">';
-            if (details.overallCompletion != null) { 
-                output += '<p><strong>Overall Assignment Completion: </strong>' + (details.overallCompletion * 100).setScale(2) + '%</p>'; 
+            if (details.overallCompletion != null) {
+                output += '<p><strong>Overall Assignment Completion: </strong>' + (details.overallCompletion * 100).setScale(2) + '%</p>';
             }
-            if (details.overallAssignmentStartDate != null) { 
-                output += '<p><strong>Start Date: </strong>' + details.overallAssignmentStartDate.format() + '</p>'; 
+            if (details.overallAssignmentStartDate != null) {
+                output += '<p><strong>Start Date: </strong>' + details.overallAssignmentStartDate.format() + '</p>';
             }
-            if (details.overallAssignmentEndDate != null) { 
-                output += '<p><strong>End Date: </strong>' + details.overallAssignmentEndDate.format() + '</p>'; 
+            if (details.overallAssignmentEndDate != null) {
+                output += '<p><strong>End Date: </strong>' + details.overallAssignmentEndDate.format() + '</p>';
             }
             return output + '</div>';
         }

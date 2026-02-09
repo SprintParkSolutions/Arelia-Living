@@ -9,7 +9,9 @@ public class OpportunityTriggerHandlerTest {
             Name = 'Test Opportunity',
             StageName = stage,
             CloseDate = Date.today().addDays(30),
-            Negotiation_Review_Budget__c = budget
+            Negotiation_Review_Budget__c = budget,
+            // Initialize flags to false/null to test distinct transitions
+            All_Vendors_Agreement_Completed__c = false
         );
         insert opp;
         return opp;
@@ -44,6 +46,9 @@ public class OpportunityTriggerHandlerTest {
         // Update Opportunity to qualified state
         opp.StageName = 'Resumed';
         opp.Negotiation_Review_Budget__c = 50000;
+        
+        // FIX: Satisfy Validation Rule ("Stage cannot be set to 'Resumed' until...")
+        opp.All_Vendors_Agreement_Completed__c = true; 
 
         Test.startTest();
         update opp;
@@ -82,6 +87,7 @@ public class OpportunityTriggerHandlerTest {
 
         // Update Opportunity without meeting criteria
         opp.Name = 'Updated Name Only';
+        // Note: We do NOT set Stage to Resumed or flags here, so it stays in Prospecting
 
         Test.startTest();
         update opp;
@@ -121,7 +127,8 @@ public class OpportunityTriggerHandlerTest {
                 Name = 'Bulk Opp ' + i,
                 StageName = 'Prospecting',
                 CloseDate = Date.today().addDays(10),
-                Negotiation_Review_Budget__c = null
+                Negotiation_Review_Budget__c = null,
+                All_Vendors_Agreement_Completed__c = false
             );
             opps.add(opp);
         }
@@ -135,6 +142,8 @@ public class OpportunityTriggerHandlerTest {
         for (Opportunity opp : opps) {
             opp.StageName = 'Resumed';
             opp.Negotiation_Review_Budget__c = 10000;
+            // FIX: Satisfy Validation Rule for Bulk update
+            opp.All_Vendors_Agreement_Completed__c = true;
         }
 
         Test.startTest();

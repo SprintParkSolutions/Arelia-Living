@@ -4,12 +4,12 @@
         <div class="header-section slds-media slds-media_center slds-m-bottom_medium">
             <div class="slds-media__figure">
                 <div class="header-icon-box">
-                    <lightning-icon icon-name="standard:file" size="medium" variant="inverse"></lightning-icon>
+                    <lightning-icon icon-name="standard:webcart" size="medium" variant="inverse"></lightning-icon>
                 </div>
             </div>
             <div class="slds-media__body">
-                <h1 class="slds-text-heading_medium slds-text-title_bold text-dark">Architecture Design Submission</h1>
-                <p class="slds-text-color_weak">Upload your complete design package <strong>for client approval</strong>.</p>
+                <h1 class="slds-text-heading_medium slds-text-title_bold text-dark">Proforma Invoice Submission</h1>
+                <p class="slds-text-color_weak">Upload your finalized invoice <strong>for client approval</strong>.</p>
             </div>
         </div>
 
@@ -27,23 +27,23 @@
             
             <div class="card-body slds-p-horizontal_medium slds-p-bottom_medium">
                 <p class="slds-m-vertical_small slds-text-color_weak">
-                    Please upload the complete architecture design package. Ensure all required files are included before submitting.
+                    Please upload the Proforma Invoice PDF to send for client approval. Ensure the total amount matches the system record before submitting.
                 </p>
 
                 <div class="requirements-box slds-p-around_medium">
-                    <h3 class="slds-text-title_bold slds-m-bottom_x-small brand-text">Required Files</h3>
+                    <h3 class="slds-text-title_bold slds-m-bottom_x-small brand-text">Required Documents</h3>
                     <ul class="slds-list_vertical slds-m-bottom_medium">
                         <li class="icon-list-item">
                             <lightning-icon icon-name="utility:check" size="xx-small" class="check-icon slds-m-right_x-small"></lightning-icon> 
-                            3D Renders (Interior & Exterior)
+                            Proforma Invoice (PDF)
                         </li>
                         <li class="icon-list-item">
                             <lightning-icon icon-name="utility:check" size="xx-small" class="check-icon slds-m-right_x-small"></lightning-icon> 
-                            PDF Plans / Drawings
+                            Cost Breakdown / BOQ
                         </li>
                         <li class="icon-list-item">
                             <lightning-icon icon-name="utility:check" size="xx-small" class="check-icon slds-m-right_x-small"></lightning-icon> 
-                            CAD files (if applicable)
+                            Tax Exemption Forms (if applicable)
                         </li>
                     </ul>
 
@@ -63,7 +63,7 @@
                         <lightning-icon icon-name="utility:upload" size="small" class="cloud-icon"></lightning-icon>
                     </div>
                     <div class="slds-media__body">
-                        <h2 class="slds-text-heading_small"><strong>Upload Design Files</strong></h2>
+                        <h2 class="slds-text-heading_small"><strong>Upload Invoice Files</strong></h2>
                     </div>
                 </div>
                 
@@ -77,7 +77,7 @@
                         onuploadfinished={handleUploadFinished}
                         class="file-upload-input">
                     </lightning-file-upload>
-                    <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">Supported formats: PDF, PNG, JPG, DWG, ZIP</p>
+                    <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">Supported formats: PDF, PNG, JPG, XLS</p>
                 </div>
             </div>
         </div>
@@ -95,7 +95,7 @@
                             <div key={file.documentId} class="file-item-card">
                                 <div class="file-left-group">
                                     <div class="file-icon-box">
-                                        <lightning-icon icon-name="doctype:image" size="medium"></lightning-icon>
+                                        <lightning-icon icon-name="doctype:pdf" size="medium"></lightning-icon>
                                     </div>
                                     <div class="file-details slds-p-left_small">
                                         <div class="file-name-text">{file.name}</div>
@@ -118,45 +118,39 @@
                     </div>
 
                     <div class="action-controls">
-                        <div class="budget-input-container slds-m-bottom_small">
-                            <lightning-input 
-                                type="number" 
-                                formatter="currency" 
-                                label="Architecture Budget" 
-                                placeholder="0.00"
-                                value={budget} 
-                                onchange={handleBudgetChange} 
-                                class="budget-field">
-                            </lightning-input>
-                        </div>
-
                         <lightning-button 
                             variant="brand" 
-                            label="Submit " 
+                            label="Send Invoice for Approval" 
                             onclick={handleSendClick}
                             disabled={isLoading}
-                            class="send-button slds-size_full">
+                            class="send-button">
                         </lightning-button>
                     </div>
                 </div>
             </div>
         </template>
 
-        <template if:true={hasFiles}>
-            <div class="history-section slds-m-top_large">
-                <h3 class="slds-text-heading_small slds-m-bottom_small slds-text-color_weak">
-                    <strong>Submission History</strong>
-                </h3>
-                <div class="table-container dynamic-height">
+        <div class="history-section slds-m-top_large">
+            <h3 class="slds-text-heading_small slds-m-bottom_small slds-text-color_weak">
+                <strong>Proforma Invoice History</strong>
+            </h3>
+            <div class="table-container dynamic-height">
+                <div if:true={invoices}>
                     <lightning-datatable
                         key-field="id"
-                        data={files}
+                        data={invoices}
                         columns={columns}
-                        hide-checkbox-column>
+                        hide-checkbox-column
+                        resize-column-disabled>
                     </lightning-datatable>
                 </div>
+                <template if:false={hasInvoices}>
+                    <div class="slds-p-around_medium slds-text-align_center slds-text-color_weak">
+                        No invoices found.
+                    </div>
+                </template>
             </div>
-        </template>
+        </div>
 
         <template if:true={isLoading}>
             <div class="spinner-overlay">

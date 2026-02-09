@@ -1,9 +1,6 @@
 /**
  * @description Trigger handler for Architecture_Design__c Manager Approval Emails.
- * Handles detection of status changes and email dispatching.
- * * NOTE: This class is 'without sharing' to ensure system emails are sent even if the 
- * triggering user (e.g., Guest User) lacks direct access to User/Template objects.
- * PMD CRUD violations are suppressed for this reason.
+ * Fixed: Moved utility methods to top-level to resolve "static can only be used on methods of a top level type".
  */
 @SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class ArchitectureDesignTriggerHandler {
@@ -11,9 +8,8 @@ public without sharing class ArchitectureDesignTriggerHandler {
     private static final String STATUS_APPROVED         = 'Approved';
     private static final String TEMPLATE_DEVELOPER_NAME = 'Architecture_Manager_Approval';
 
-    /**
-     * @description Inner class to hold email configuration context, reducing parameter count.
-     */
+    // --- Inner Classes ---
+
     private class EmailContext {
         public Map<Id, Architecture_Design__c> designMap;
         public Map<Id, ContentVersion> fileMap;
@@ -23,17 +19,14 @@ public without sharing class ArchitectureDesignTriggerHandler {
         public String siteBase;
     }
 
-    /**
-     * @description Entry point from Trigger. Checks for status change to Approved.
-     */
+    // --- Trigger Entry Point ---
+
     public static void onAfterUpdate(List<Architecture_Design__c> newList, Map<Id, Architecture_Design__c> oldMap) {
-        System.debug('--- Trigger Started: ArchitectureDesignTriggerHandler ---');
-        
         List<Id> approvedDesignIds = new List<Id>();
 
         for (Architecture_Design__c newRec : newList) {
             Architecture_Design__c oldRec = oldMap.get(newRec.Id);
-            // Detect status change to 'Approved'
+            // Check if Status changed to 'Approved'
             if (newRec.Status__c == STATUS_APPROVED && (oldRec == null || oldRec.Status__c != STATUS_APPROVED)) {
                 approvedDesignIds.add(newRec.Id);
             }
@@ -44,66 +37,76 @@ public without sharing class ArchitectureDesignTriggerHandler {
         }
     }
 
-    /**
-     * @description Main orchestration method for sending emails.
-     */
+    // --- Main Logic ---
+
     private static void sendEmailWithAttachment(List<Id> designIds) {
-        // 1. Prepare Email Context
+        EmailContext ctx = loadEmailContext();
+        if (ctx == null) {
+            return;
+        }
+
+        ctx.designMap = queryDesignData(designIds);
+        ctx.fileMap = mapDesignToLatestFile(designIds);
+
+        List<Messaging.SingleEmailMessage> emails = generateEmails(designIds, ctx);
+        
+        if (!emails.isEmpty()) {
+            try {
+                Messaging.sendEmail(emails, false);
+            } catch (Exception e) {
+                System.debug('Error sending email: ' + e.getMessage());
+            }
+        }
+    }
+
+    // --- Data Loading ---
+
+    private static EmailContext loadEmailContext() {
         EmailContext ctx = new EmailContext();
         
         ctx.toAddresses = parseEmailsFromLabel(Label.Arelia_Living_Enrollment_Members);
         if (ctx.toAddresses.isEmpty()) {
-            System.debug('ERROR: Label Arelia_Living_Enrollment_Members is empty.');
-            return;
+            return null;
         }
 
         ctx.orgWideId = getDefaultOrgWideEmailAddressId();
         if (ctx.orgWideId == null) {
-            System.debug('ERROR: Org-Wide Address not found or not accessible.');
-            return;
+            return null;
         }
 
         ctx.template = getEmailTemplate();
         if (ctx.template == null) {
-            System.debug('ERROR: Email Template "' + TEMPLATE_DEVELOPER_NAME + '" not found.');
-            return;
+            return null;
         }
 
         ctx.siteBase = Label.Arelia_Site_Label;
         if (ctx.siteBase != null && ctx.siteBase.endsWith('/')) {
             ctx.siteBase = ctx.siteBase.removeEnd('/');
         }
-
-        // 2. Query Data & Files
-        ctx.designMap = queryDesignData(designIds);
-        ctx.fileMap = mapDesignToLatestFile(designIds);
-
-        // 3. Process Sending
-        processAndSendEmails(designIds, ctx);
+        return ctx;
     }
 
-    /**
-     * @description Helper to query Design Data safely.
-     * UPDATED: Now fetches FirstName and LastName explicitly to avoid Nicknames.
-     */
     private static Map<Id, Architecture_Design__c> queryDesignData(List<Id> designIds) {
         return new Map<Id, Architecture_Design__c>([
             SELECT Id, 
+                   Status__c,        
+                   Comments__c,      
                    Opportunity__c,
+                   Opportunity__r.Name, 
+                   Opportunity__r.Project_Description__c,
+                   Opportunity__r.Site_Space__c,
                    Opportunity__r.Lead_Name__c,
                    Opportunity__r.Email__c,
-                   // FIX: Get explicit First and Last name
+                   Opportunity__r.Lead_Phone__c,
                    Opportunity__r.Supervisor_User__r.FirstName, 
                    Opportunity__r.Supervisor_User__r.LastName,
-                   Opportunity__r.Supervisor_User__r.Email
+                   Opportunity__r.Supervisor_User__r.Email,
+                   Project__r.Name
             FROM Architecture_Design__c
             WHERE Id IN :designIds
         ]);
     }
 
-    /**
-     * @description Helper to map Design IDs to their latest ContentVersion file.
-     */
     private static Map<Id, ContentVersion> mapDesignToLatestFile(List<Id> designIds) {
         Map<Id, Id> designIdToDocId = new Map<Id, Id>();
         Set<Id> docIds = new Set<Id>();
@@ -134,10 +137,9 @@ public without sharing class ArchitectureDesignTriggerHandler {
         return result;
     }
 
-    /**
-     * @description Loop through records, build emails, and send.
-     */
-    private static void processAndSendEmails(List<Id> designIds, EmailContext ctx) {
+    // --- Email Construction ---
+
+    private static List<Messaging.SingleEmailMessage> generateEmails(List<Id> designIds, EmailContext ctx) {
         List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
 
         for (Id designId : designIds) {
@@ -148,6 +150,7 @@ public without sharing class ArchitectureDesignTriggerHandler {
 
             Messaging.SingleEmailMessage mail = buildSingleEmail(design, ctx);
             
+            // Attach File if exists
             if (ctx.fileMap.containsKey(designId)) {
                 ContentVersion cv = ctx.fileMap.get(designId);
                 Messaging.EmailFileAttachment attach = new Messaging.EmailFileAttachment();
@@ -155,40 +158,24 @@ public without sharing class ArchitectureDesignTriggerHandler {
                 attach.setBody(cv.VersionData);
                 mail.setFileAttachments(new Messaging.EmailFileAttachment[] { attach });
             }
-
             emails.add(mail);
         }
-
-        if (!emails.isEmpty()) {
-            Messaging.sendEmail(emails, false);
-        }
+        return emails;
     }
 
-    /**
-     * @description Constructs a single email message object.
-     * UPDATED: Concatenates FirstName + LastName to force full name display.
-     */
     private static Messaging.SingleEmailMessage buildSingleEmail(Architecture_Design__c design, EmailContext ctx) {
-        // Logic to construct Full Name from First/Last to avoid Nicknames
-        String supervisorName = '';
-        if (design.Opportunity__r != null && design.Opportunity__r.Supervisor_User__r != null) {
-            String fname = design.Opportunity__r.Supervisor_User__r.FirstName;
-            String lname = design.Opportunity__r.Supervisor_User__r.LastName;
-            supervisorName = (fname != null ? fname + ' ' : '') + (lname != null ? lname : '');
-            supervisorName = supervisorName.trim(); 
-        }
+        // 1. Prepare Merge Data
+        Map<String, String> placeholders = prepareMergeMap(design, ctx.siteBase);
 
-        String approvalLink = buildApprovalLink(ctx.siteBase, design.Id); 
-
-        String html = ctx.template.HtmlValue;
-        html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Lead_Name__c}}}', design.Opportunity__r?.Lead_Name__c);
-        html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Email__c}}}', design.Opportunity__r?.Email__c);
-        html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Supervisor_Name__c}}}', supervisorName);
-        html = safeReplace(html, '{{{Architecture_Design__c.Opportunity__r.Supervisor_User_Email__c}}}', design.Opportunity__r?.Supervisor_User__r?.Email);
-        html = safeReplace(html, '{{{appointmentApprovalLink}}}', approvalLink);
+        // 2. Replace Body Placeholders
+        // FIX: Calling static method directly (moved from inner class)
+        String html = applyReplacements(ctx.template.HtmlValue, placeholders);
+        
+        // 3. Replace Subject Placeholders
+        String subject = safeReplace(ctx.template.Subject, '{{{leadName}}}', design.Opportunity__r?.Lead_Name__c);
 
         Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
-        mail.setSubject(safeReplace(ctx.template.Subject, '{{{leadName}}}', design.Opportunity__r?.Lead_Name__c));
+        mail.setSubject(subject);
         mail.setHtmlBody(html);
         mail.setToAddresses(ctx.toAddresses);
         mail.setOrgWideEmailAddressId(ctx.orgWideId);
@@ -197,7 +184,45 @@ public without sharing class ArchitectureDesignTriggerHandler {
         return mail;
     }
 
-    // --- Helpers ---
+    /**
+     * @description Prepares the map of tokens to values. 
+     */
+    private static Map<String, String> prepareMergeMap(Architecture_Design__c des, String siteBase) {
+        Map<String, String> m = new Map<String, String>();
+        
+        // 1. Calculations
+        String supervisorName = '';
+        if (des.Opportunity__r != null && des.Opportunity__r.Supervisor_User__r != null) {
+            String f = des.Opportunity__r.Supervisor_User__r.FirstName;
+            String l = des.Opportunity__r.Supervisor_User__r.LastName;
+            supervisorName = ((f != null ? f : '') + ' ' + (l != null ? l : '')).trim();
+        }
+
+        String approvalLink = buildApprovalLink(siteBase, des.Id);
+        
+        String projectName = (des.Opportunity__r != null) ? des.Opportunity__r.Name : 
+                             (des.Project__r != null) ? des.Project__r.Name : 'Unknown Project';
+
+        String clientName = (des.Opportunity__r != null && des.Opportunity__r.Lead_Name__c != null) 
+                            ? des.Opportunity__r.Lead_Name__c : 'Valued Client';
+
+        // 2. Populate Map
+        m.put('[PROJECT_NAME]', projectName);
+        m.put('[PROJECT_DESCRIPTION]', getField(des.Opportunity__r?.Project_Description__c));
+        m.put('[SITE_SPACE]', getField(des.Opportunity__r?.Site_Space__c));
+        m.put('[CLIENT_NAME]', clientName);
+        m.put('[CLIENT_EMAIL]', getField(des.Opportunity__r?.Email__c));
+        m.put('[CLIENT_PHONE]', getField(des.Opportunity__r?.Lead_Phone__c));
+        m.put('[CLIENT_DECISION]', getField(des.Status__c));
+        m.put('[CLIENT_REMARKS]', getField(des.Comments__c));
+        m.put('[SUPERVISOR_NAME]', supervisorName);
+        m.put('[SUPERVISOR_EMAIL]', getField(des.Opportunity__r?.Supervisor_User__r?.Email));
+        m.put('[APPROVAL_LINK]', approvalLink);
+
+        return m;
+    }
+
+    // --- Utilities ---
 
     private static EmailTemplate getEmailTemplate() {
         List<EmailTemplate> templates = [SELECT Id, Subject, HtmlValue FROM EmailTemplate WHERE DeveloperName = :TEMPLATE_DEVELOPER_NAME LIMIT 1];
@@ -207,7 +232,7 @@ public without sharing class ArchitectureDesignTriggerHandler {
     private static String buildApprovalLink(String siteBase, Id designId) {
         String pagePath = Label.Manager_Architecture_Approval;
         if (String.isBlank(siteBase) || String.isBlank(pagePath)) {
-            return '';
+            return '#';
         }
         if (!pagePath.startsWith('/')) {
             pagePath = '/' + pagePath;
@@ -222,6 +247,16 @@ public without sharing class ArchitectureDesignTriggerHandler {
         return labelValue.split('[,;]');
     }
 
+    private static Id getDefaultOrgWideEmailAddressId() {
+        try {
+            return [SELECT Id FROM OrgWideEmailAddress WHERE Address = :Label.Arelia_OWD LIMIT 1].Id;
+        } catch(Exception e) { 
+            return null; 
+        }
+    }
+
+    // --- REPLACEMENT UTILITIES (Moved to Top Level) ---
+
     private static String safeReplace(String source, String token, String value) {
         if (source == null || String.isBlank(token)) {
             return source;
@@ -229,11 +264,19 @@ public without sharing class ArchitectureDesignTriggerHandler {
         return source.replace(token, value == null ? '' : value);
     }
 
-    private static Id getDefaultOrgWideEmailAddressId() {
-        try {
-            return [SELECT Id FROM OrgWideEmailAddress WHERE Address = :Label.Arelia_OWD LIMIT 1].Id;
-        } catch(Exception e) { 
-            return null; 
+    private static String getField(String val) {
+        return (val != null) ? val : '';
+    }
+
+    private static String applyReplacements(String source, Map<String, String> tokenMap) {
+        if (String.isBlank(source)) {
+            return '';
         }
+        String result = source;
+        for (String token : tokenMap.keySet()) {
+            String val = tokenMap.get(token);
+            result = result.replace(token, val);
+        }
+        return result;
     }
 }
