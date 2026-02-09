@@ -2,24 +2,22 @@ import { LightningElement, api, wire, track } from 'lwc';
 import { CurrentPageReference } from 'lightning/navigation';
 import { getRecord } from 'lightning/uiRecordApi';
 import { refreshApex } from '@salesforce/apex';
-
-// Apex Methods
 import getAllStages from '@salesforce/apex/AreliaPathController.getAllStages';
 import getPathStatus from '@salesforce/apex/AreliaPathController.getPathStatus';
 
 const FIELDS = [
-    // --- NEW FIELDS ---
+    'Opportunity.Architect_Name__c', 
     'Opportunity.Architecture_Client_Approval_Sent__c',
     'Opportunity.Architecture_Manager_Approval__c',
     'Opportunity.Catalogue_Link_Sent__c',
-    // --- EXISTING FIELDS ---
     'Opportunity.Client_Agreement_Sent__c',
     'Opportunity.Client_Agreement_Signed__c',
     'Opportunity.All_Vendors_Agreement_Completed__c',
     'Opportunity.StageName'
 ];
+
 export default class AreliaPath extends LightningElement {
-   @api 
+    @api 
     get recordId() { return this._recordId; }
     set recordId(value) {
         this._recordId = value;
@@ -70,7 +68,6 @@ export default class AreliaPath extends LightningElement {
             }
             this.checkVisibility();
         } catch (e) {
-            // ESLint requires a comment or logic here
             console.warn('Could not parse Record ID from URL', e);
         }
     }
@@ -126,14 +123,12 @@ export default class AreliaPath extends LightningElement {
 
         const currentActiveValue = this._currentPathStatus;
         
-        // --- VISIBILITY FILTER ---
         const specialStages = ['Negotiation/Review', 'Resumed'];
         let visibleStages;
 
         if (specialStages.includes(currentActiveValue)) {
             visibleStages = this._allStages;
         } else {
-            // Filter out special stages if we are in normal flow
             visibleStages = this._allStages.filter(stage => !specialStages.includes(stage.value));
         }
 

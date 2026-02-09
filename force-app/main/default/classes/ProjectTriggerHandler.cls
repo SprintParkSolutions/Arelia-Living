@@ -286,7 +286,10 @@ public without sharing class ProjectTriggerHandler {
     /**
      * @description
      * Retrieves the Org-Wide Email Address Id for use in email sending.
+     * 
      */
+
+     @TestVisible
     private static Id getOrgWideEmailAddressId() {
         try {
             List<OrgWideEmailAddress> addresses = [SELECT Id FROM OrgWideEmailAddress WHERE Address = :DEFAULT_OWD_EMAIL LIMIT 1];
@@ -300,6 +303,7 @@ public without sharing class ProjectTriggerHandler {
     /**
      * @description Safe string (never null).
      */
+    @TestVisible
     private static String safe(String value) {
         return String.isNotBlank(value) ? value : '';
     }
@@ -325,6 +329,7 @@ public without sharing class ProjectTriggerHandler {
      * @description Fallback: derive a readable name from an email address.
      * e.g., "priya.sharma@x.com" -> "Priya Sharma"
      */
+    @TestVisible
     private static String nameFromEmail(String email) {
         if (String.isBlank(email)) {
             return '';

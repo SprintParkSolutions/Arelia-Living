@@ -153,8 +153,9 @@
         <div slot="footer">
             <template if:true={showCreation}>
                 <lightning-button variant="brand" label="Create & Preview" onclick={handleCreate}></lightning-button>
-                <lightning-button label="Back to List" onclick={goToPreview}
-                    class="slds-var-m-left_small"></lightning-button>
+                <template if:true={showBackButton}>
+                <lightning-button label="Back to List" onclick={goToPreview} class="slds-var-m-left_small"></lightning-button>
+            </template>
             </template>
             <template if:true={showPreview}>
                 <lightning-button variant="brand" label="Save All Changes" onclick={handleFinalSave}></lightning-button>

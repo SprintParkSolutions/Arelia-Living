@@ -1,4 +1,4 @@
-/* --- SHARED ARELIA STYLES --- */
+/* Main container */
 .arelia-container {
     background-color: #f9f9f9;
     padding: 40px 20px;
@@ -9,7 +9,7 @@
 
 .submit-spinner { z-index: 9999; position: absolute; }
 
-/* Typography */
+/* Headers */
 .main-title {
     font-size: 2.5rem;
     font-weight: 600;
@@ -25,7 +25,7 @@
     line-height: 1.5;
 }
 
-/* Card Styling */
+/* Card */
 .arelia-card {
     background: white;
     width: 100%;
@@ -43,44 +43,19 @@
     color: #333;
 }
 
-/* --- MANAGER SPECIFIC ELEMENTS --- */
-
-/* Client Status Box */
-.info-box {
-    background-color: #f0fcf4; /* Light green tint */
-    border-radius: 8px;
-    border: 1px solid #c9e7d0;
-    width: 100%;
-}
-.client-status-label {
-    font-size: 0.85rem;
-    color: #2e844a; /* Dark green */
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 700;
-}
-.value-text { font-size: 1.1rem; font-weight: 600; color: #333; }
-.success-text { color: #2e844a; }
-.sub-label { font-size: 0.9rem; color: #666; }
-
-/* Note Box (Warning Style) */
+/* Note Box */
 .note-box {
-    background-color: #fff8e1; /* Warning Yellow tint */
-    border: 1px solid #ffe0b2;
+    background-color: #f4f3f1;
     border-radius: 8px;
+    border: 1px solid #e0e0e0;
     width: 100%;
-    color: #5d4037;
+    color: #444;
 }
-.note-icon { --slds-c-icon-color-foreground: #f57f17; }
+.note-icon { --slds-c-icon-color-foreground: #7f7f7f; }
+.note-box p { margin: 0; line-height: 1.4; font-size: 0.95rem; }
 
-/* --- BUTTONS --- */
-.button-container { 
-    display: flex; 
-    justify-content: center; 
-    gap: 20px; 
-    width: 100%; 
-    flex-wrap: wrap; 
-}
+/* Buttons */
+.button-container { display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; width: 100%; }
 
 .arelia-btn {
     border: none;
@@ -90,28 +65,28 @@
     font-weight: 600;
     color: white;
     cursor: pointer;
+    transition: background-color 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     min-width: 200px;
-    transition: background-color 0.2s;
 }
 
-.btn-approve { background-color: #0070d2; }
-.btn-approve:hover { background-color: #005fb2; }
+.btn-approve { background-color: #4f8a55; } /* Green */
+.btn-approve:hover { background-color: #3e7044; }
 
-.btn-request { background-color: #ba0517; }
-.btn-request:hover { background-color: #8e0000; }
+.btn-request { background-color: #c23934; } /* Red */
+.btn-request:hover { background-color: #a6302c; }
 
 .btn-submit-changes {
-    background-color: #333;
+    background-color: #0176d3;
     font-size: 1rem;
     padding: 10px 20px;
     min-width: auto;
 }
-.btn-submit-changes:hover { background-color: #000; }
+.btn-submit-changes:hover { background-color: #005fb2; }
 
-/* Misc */
+/* Comment Box */
 .comment-box-container {
     width: 100%;
     background-color: #f9f9f9;
@@ -120,7 +95,7 @@
 }
 
 .animate-fade-in { animation: fadeIn 0.3s ease-in; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
 .slds-badge { font-size: 1rem; padding: 8px 16px; }
 .final-message { font-size: 1.1rem; color: #555; }

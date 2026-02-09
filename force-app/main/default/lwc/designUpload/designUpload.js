@@ -1,17 +1,33 @@
 import { LightningElement, api, wire, track } from 'lwc';
 import { refreshApex } from '@salesforce/apex';
-import getRelatedImages from '@salesforce/apex/ImageApprovalController.getRelatedImages';
-import sendApprovalRequest from '@salesforce/apex/ImageApprovalController.sendApprovalRequest';
+import { CloseActionScreenEvent } from 'lightning/actions';
+import { deleteRecord } from 'lightning/uiRecordApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import getRelatedImages from '@salesforce/apex/ImageApprovalController.getRelatedImages';
+import sendDesignBundle from '@salesforce/apex/ImageApprovalController.sendDesignBundle';
 
-export default class DesignUpload extends LightningElement {
+// Columns for the history table
+const COLUMNS = [
+    { label: 'Package Name', fieldName: 'title', type: 'text', wrapText: true },
+    { label: 'Sent Date', fieldName: 'createdDate', type: 'date', typeAttributes: { year: "numeric", month: "short", day: "2-digit" }},
+    { label: 'Status', fieldName: 'status', type: 'text' }, // You can use cellAttributes class if needed
+    { label: 'Client Comments', fieldName: 'clientComments', type: 'text', wrapText: true },
+    { label: 'Manager Approved', fieldName: 'managerApproved', type: 'boolean', cellAttributes: { alignment: 'center' } },
+    { label: 'Manager Comments', fieldName: 'managerComments', type: 'text', wrapText: true }
+];
+
+export default class DesignSubmission extends LightningElement {
     @api recordId;
     @track files = [];
-    @track uploadedFileId = null;
+    @track uploadedFiles = [];
+    @track budget;
+    @track isLoading = false;
     wiredFilesResult;
-    isLoading = false;
+    columns = COLUMNS;
 
-    get acceptedFormats() { return ['.pdf', '.png', '.jpg', '.jpeg']; }
+    get acceptedFormats() { return ['.pdf', '.png', '.jpg', '.zip', '.dwg']; }
+    get hasFiles() { return this.files && this.files.length > 0; }
+    get hasUploadedFiles() { return this.uploadedFiles && this.uploadedFiles.length > 0; }
 
     @wire(getRelatedImages, { recordId: '$recordId' })
     wiredFiles(result) {
@@ -22,29 +38,67 @@ export default class DesignUpload extends LightningElement {
     }
 
     handleUploadFinished(event) {
-        const uploadedFiles = event.detail.files;
-        if(uploadedFiles && uploadedFiles.length > 0) {
-            this.uploadedFileId = uploadedFiles[0].documentId;
-            this.showToast('Success', 'File Uploaded Successfully', 'success');
-            refreshApex(this.wiredFilesResult);
-        }
+        const newFiles = event.detail.files;
+        this.uploadedFiles = [...this.uploadedFiles, ...newFiles];
+        this.showToast('Success', `${newFiles.length} file(s) uploaded`, 'success');
     }
 
-    handleSendClick() {
-        if(!this.uploadedFileId) return;
-        this.isLoading = true;
+    handleBudgetChange(event) {
+        this.budget = event.target.value;
+    }
 
-        sendApprovalRequest({ recordId: this.recordId, fileId: this.uploadedFileId })
-            .then(() => {
-                this.showToast('Success', 'Approval Request Sent', 'success');
-                this.uploadedFileId = null; 
-                return refreshApex(this.wiredFilesResult);
-            })
-            .catch(error => {
-                let message = error.body ? error.body.message : 'Unknown Error';
-                this.showToast('Error', message, 'error');
-            })
-            .finally(() => { this.isLoading = false; });
+   
+    async handleDeleteFile(event) {
+        const fileId = event.target.dataset.id;
+        this.isLoading = true;
+        try {
+            await deleteRecord(fileId);
+            this.uploadedFiles = this.uploadedFiles.filter(file => file.documentId !== fileId);
+            this.showToast('Success', 'File removed successfully', 'success');
+        } catch (error) {
+            // FIX: Log the error so the variable is "used"
+            console.error('Error deleting file:', error);
+            this.showToast('Error', 'Error deleting file', 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
+    async handleSendClick() {
+        if (!this.budget) {
+            this.showToast('Error', 'Please enter a budget amount.', 'error');
+            return;
+        }
+        
+        // Ensure at least one file is present
+        if (this.uploadedFiles.length === 0) {
+            this.showToast('Error', 'Please upload at least one design file.', 'error');
+            return;
+        }
+
+        this.isLoading = true;
+        const fileIds = this.uploadedFiles.map(f => f.documentId);
+
+        try {
+            await sendDesignBundle({
+                recordId: this.recordId,
+                fileIds: fileIds,
+                budget: this.budget
+            });
+            
+            this.showToast('Success', 'Design Package Submitted!', 'success');
+            
+            // Clear UI
+            this.uploadedFiles = [];
+            this.budget = null;
+            
+            this.dispatchEvent(new CloseActionScreenEvent());
+            refreshApex(this.wiredFilesResult);
+            
+        } catch (error) {
+            this.showToast('Error', error.body ? error.body.message : 'Unknown error', 'error');
+        } finally {
+            this.isLoading = false;
+        }
     }
 
     showToast(title, message, variant) {

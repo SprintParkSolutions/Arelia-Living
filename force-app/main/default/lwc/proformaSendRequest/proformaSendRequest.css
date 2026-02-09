@@ -1,3 +1,5 @@
+/* proformaSendRequest.css */
+
 :host {
     --brand-primary: #0176d3;
     --brand-secondary: #0b5cab;
@@ -31,7 +33,7 @@
     border-radius: 12px;
     box-shadow: var(--card-shadow);
     overflow: hidden;
-    border-top: 3px solid var(--brand-primary); /* Blue accent top */
+    border-top: 3px solid var(--brand-primary);
 }
 
 .card-header {
@@ -46,7 +48,6 @@
 }
 
 .brand-text { color: var(--brand-secondary); }
-
 .check-icon { --slds-c-icon-color-foreground-default: var(--success-green); }
 
 .icon-list-item {
@@ -97,7 +98,7 @@
 .action-row {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start; /* Align top so budget box doesn't stretch */
+    align-items: center;
     gap: 20px;
 }
 
@@ -164,23 +165,19 @@
     --slds-c-button-icon-color-foreground: #ea001e;
 }
 
-/* Action Controls (Right Side) */
+/* UPDATED: Action Controls & Button Sizing */
 .action-controls {
     display: flex;
-    flex-direction: column; /* Stack Budget above Button */
-    width: 200px;
+    /* Removed fixed width */
     flex-shrink: 0;
-}
-
-.budget-input-container {
-    width: 100%;
+    justify-content: flex-end;
 }
 
 .send-button {
-    
+    --slds-c-button-brand-color-background: var(--brand-primary);
     --slds-c-button-brand-color-border: var(--brand-primary);
-    
-    width: 100%;
+    box-shadow: 0 4px 10px rgba(1, 118, 211, 0.25);
+    /* Removed width: 100% so it fits text */
 }
 
 /* History Table */
@@ -191,14 +188,12 @@
     background: white;
 }
 
-/* NEW CLASS: Allows table to grow with content up to 300px, then scroll */
 .dynamic-height {
     height: auto;
-    max-height: 300px; /* Adjust this value as preferred */
+    max-height: 300px; 
     overflow-y: auto;
 }
 
-/* Animations & Spinner */
 @keyframes slideUp {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }

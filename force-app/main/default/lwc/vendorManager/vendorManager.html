@@ -144,15 +144,19 @@
         </template>
 
         <div slot="footer">
-            <template if:true={showCreation}>
-                <lightning-button variant="brand" label="Create & Preview" onclick={handleCreate}></lightning-button>
-                <lightning-button label="Back to List" onclick={goToPreview}
-                    class="slds-var-m-left_small"></lightning-button>
+        <template if:true={showCreation}>
+            <lightning-button variant="brand" label="Create & Preview" onclick={handleCreate}></lightning-button>
+            
+            <template if:true={showBackButton}>
+                <lightning-button label="Back to List" onclick={goToPreview} class="slds-var-m-left_small"></lightning-button>
             </template>
-            <template if:true={showPreview}>
-                <lightning-button variant="brand" label="Save All Changes" onclick={handleFinalSave}></lightning-button>
-            </template>
-            <lightning-button label="Cancel" onclick={closeAction} class="slds-var-m-left_small"></lightning-button>
-        </div>
-    </lightning-quick-action-panel>
+        </template>
+        
+        <template if:true={showPreview}>
+            <lightning-button variant="brand" label="Save All Changes" onclick={handleFinalSave}></lightning-button>
+        </template>
+        
+        <lightning-button label="Cancel" onclick={closeAction} class="slds-var-m-left_small"></lightning-button>
+    </div>
+</lightning-quick-action-panel>
 </template>
