@@ -3,10 +3,26 @@ public class CreateProjectFromOpportunityHandlerTest {
 
     @testSetup
     static void setup() {
-        // 1. Create Supervisor
-        User u = TestDataUtility.createSupervisorUser('projHand');
+        // 1. Create User as SYSTEM ADMINISTRATOR
+        // This ensures full access to custom objects like Vendor_Opportunity__c
+        // preventing the "sObject type not supported" QueryException.
+        
+        Profile adminProfile = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        
+        User u = new User(
+            Alias = 'projHand', 
+            Email = 'projHand@testorg.com', 
+            EmailEncodingKey = 'UTF-8', 
+            LastName = 'Testing', 
+            LanguageLocaleKey = 'en_US', 
+            LocaleSidKey = 'en_US', 
+            ProfileId = adminProfile.Id, 
+            TimeZoneSidKey = 'America/Los_Angeles', 
+            UserName = 'projHand' + DateTime.now().getTime() + '@testorg.com'
+        );
+        insert u;
 
-        // 2. Create Account (Standard DML)
+        // 2. Create Account
         Account acc = new Account(Name = 'Test Client Company', OwnerId = u.Id);
         insert acc;
         
@@ -30,23 +46,28 @@ public class CreateProjectFromOpportunityHandlerTest {
         Contact client = [SELECT Id FROM Contact LIMIT 1];
         Vendor__c vendor = [SELECT Id FROM Vendor__c LIMIT 1];
         
+        // 1. Create Opportunity with AGREEMENT FLAGS TRUE
         Opportunity oldOpp = TestDataUtility.createOpportunity('Test Project Creation', u.Id);
         oldOpp.OwnerId = u.Id; 
         oldOpp.StageName = 'Negotiation';
         oldOpp.Primary_Contact__c = client.Id;
+        
+        // Set flags BEFORE creating VO to satisfy validation rules
+        oldOpp.Client_Agreement_Sent__c = true; 
         oldOpp.Client_Agreement_Signed__c = true;
         oldOpp.All_Vendors_Agreement_Completed__c = true;
         oldOpp.Budget__c = 50000;
         oldOpp.Project_Description__c = 'Test Desc';
         update oldOpp;
 
-        ContentVersion cv = TestDataUtility.createContentVersion('Spec Sheet', 'File Content');
-        TestDataUtility.linkFileToRecord(cv.Id, oldOpp.Id);
-
+        // 2. Create Vendor Opportunity
         Vendor_Opportunity__c vo = TestDataUtility.createVendorOpportunity(oldOpp.Id, vendor.Id, 'Active');
         vo.Vendor_Agreement_Sent__c = true; 
         vo.Vendor_Agreement_Signed__c = true; 
         update vo;
+
+        ContentVersion cv = TestDataUtility.createContentVersion('Spec Sheet', 'File Content');
+        TestDataUtility.linkFileToRecord(cv.Id, oldOpp.Id);
 
         Opportunity newOpp = oldOpp.clone(true, true, true, true);
         newOpp.StageName = 'Closed Won';
@@ -79,6 +100,9 @@ public class CreateProjectFromOpportunityHandlerTest {
         oldOpp.OwnerId = u.Id; 
         oldOpp.StageName = 'Negotiation';
         oldOpp.Primary_Contact__c = client.Id;
+        
+        // Set flags
+        oldOpp.Client_Agreement_Sent__c = true;
         oldOpp.Client_Agreement_Signed__c = true;
         oldOpp.All_Vendors_Agreement_Completed__c = true;
         update oldOpp;
@@ -124,7 +148,7 @@ public class CreateProjectFromOpportunityHandlerTest {
         Opportunity oldOpp = TestDataUtility.createOpportunity('Gate Test', u.Id);
         oldOpp.OwnerId = u.Id; 
         oldOpp.StageName = 'Negotiation';
-        oldOpp.Client_Agreement_Signed__c = false; // FAIL
+        oldOpp.Client_Agreement_Signed__c = false; // FAIL CONDITION
         oldOpp.All_Vendors_Agreement_Completed__c = true;
         update oldOpp;
 
@@ -152,13 +176,16 @@ public class CreateProjectFromOpportunityHandlerTest {
         Opportunity oldOpp = TestDataUtility.createOpportunity('Vendor Gate Test', u.Id);
         oldOpp.OwnerId = u.Id; 
         oldOpp.StageName = 'Negotiation';
+        
+        // Must be TRUE to create VO
+        oldOpp.Client_Agreement_Sent__c = true; 
         oldOpp.Client_Agreement_Signed__c = true;
         oldOpp.All_Vendors_Agreement_Completed__c = true;
         update oldOpp;
 
         Vendor_Opportunity__c vo = TestDataUtility.createVendorOpportunity(oldOpp.Id, vendor.Id, 'Active');
         vo.Vendor_Agreement_Sent__c = true;
-        vo.Vendor_Agreement_Signed__c = false; // FAIL
+        vo.Vendor_Agreement_Signed__c = false; // FAIL CONDITION (Not signed)
         update vo;
 
         Opportunity newOpp = oldOpp.clone(true, true, true, true);
@@ -184,8 +211,10 @@ public class CreateProjectFromOpportunityHandlerTest {
         Opportunity oldOpp = TestDataUtility.createOpportunity('Flag Test', u.Id);
         oldOpp.OwnerId = u.Id; 
         oldOpp.StageName = 'Negotiation';
+        
+        oldOpp.Client_Agreement_Sent__c = true;
         oldOpp.Client_Agreement_Signed__c = true;
-        oldOpp.All_Vendors_Agreement_Completed__c = false; // FAIL
+        oldOpp.All_Vendors_Agreement_Completed__c = false; // FAIL CONDITION
         update oldOpp;
 
         Opportunity newOpp = oldOpp.clone(true, true, true, true);
@@ -216,10 +245,10 @@ public class CreateProjectFromOpportunityHandlerTest {
         Opportunity oldOpp = TestDataUtility.createOpportunity('Re-Visit Test', u.Id);
         oldOpp.OwnerId = u.Id;
         oldOpp.StageName = 'Negotiation';
+        
+        oldOpp.Client_Agreement_Sent__c = true;
         oldOpp.Client_Agreement_Signed__c = true;
         oldOpp.All_Vendors_Agreement_Completed__c = true;
-        
-        // Old state: Normal Appointment (or null)
         update oldOpp;
         
         Vendor_Opportunity__c vo = TestDataUtility.createVendorOpportunity(oldOpp.Id, vendor.Id, 'Active');
@@ -227,7 +256,6 @@ public class CreateProjectFromOpportunityHandlerTest {
         vo.Vendor_Agreement_Signed__c = true;
         update vo;
 
-        // New state: Change to Re-Visit AND Closed Won
         Opportunity newOpp = oldOpp.clone(true, true, true, true);
         newOpp.StageName = 'Closed Won';
         newOpp.Appointment_Status__c = 'Re-Visit';
@@ -244,12 +272,7 @@ public class CreateProjectFromOpportunityHandlerTest {
         }
         Test.stopTest();
 
-        Project__c p = [SELECT End_Date__c, Supervisor_Estimated_Budget__c FROM Project__c WHERE Project_Name__c = :oldOpp.Id];
-        
-        // REMOVED: Assertion for End_Date__c since you commented it out in the handler.
-        // Assert.areEqual(newOpp.Re_Visit_Site_Supervisor_Completion_Date__c, p.End_Date__c, ...);
-        
-        // KEEP: Assertion for Budget as it is still mapped in the handler.
+        Project__c p = [SELECT Supervisor_Estimated_Budget__c FROM Project__c WHERE Project_Name__c = :oldOpp.Id];
         Assert.areEqual(5000, p.Supervisor_Estimated_Budget__c, 'Budget should map from Re-Visit field');
     }
 
@@ -262,7 +285,6 @@ public class CreateProjectFromOpportunityHandlerTest {
         oldOpp.StageName = 'Negotiation';
         update oldOpp;
 
-        // Transition: Negotiation -> Prospecting (Not Closed Won)
         Opportunity newOpp = oldOpp.clone(true, true, true, true);
         newOpp.StageName = 'Prospecting';
 

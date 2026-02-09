@@ -23,6 +23,7 @@ export default class VendorAssignmentManager extends LightningElement {
     showCreation = false;
     showPreview = false;
     @track currentStep = 'start'; 
+     @track showBackButton = false; 
 
     // Data Storage
     createFields = [];
@@ -115,7 +116,9 @@ export default class VendorAssignmentManager extends LightningElement {
             if (exists) {
                 this.showLanding = true;
                 this.currentStep = 'start';
+                this.showBackButton = true;
             } else {
+                this.showBackButton = false;
                 this.initCreation();
             }
 
@@ -141,6 +144,7 @@ export default class VendorAssignmentManager extends LightningElement {
         this.addRow(); 
         this.showPreview = false;
         this.showCreation = true;
+        this.showBackButton = true;
         this.currentStep = 'draft'; 
     }
 
@@ -213,6 +217,7 @@ export default class VendorAssignmentManager extends LightningElement {
 
             this.showToast('Success', 'Vendor Assignments created.', 'success');
             this.showCreation = false;
+            this.showBackButton = true;
             this.goToPreview(); 
 
         } catch (error) {

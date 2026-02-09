@@ -16,6 +16,9 @@ export default class VendorManager extends LightningElement {
     showLanding = false;
     showCreation = false;
     showPreview = false;
+    
+    // NEW: Controls visibility of the "Back to List" button
+    @track showBackButton = false; 
 
     // PATH INDICATOR STATE
     @track currentStep = 'start'; 
@@ -53,7 +56,9 @@ export default class VendorManager extends LightningElement {
             if (exists) {
                 this.showLanding = true;
                 this.currentStep = 'start';
+                this.showBackButton = true; // Records exist, so enable back button for future
             } else {
+                this.showBackButton = false; // No records, hide back button
                 this.initCreation();
             }
         } catch (error) {
@@ -66,23 +71,23 @@ export default class VendorManager extends LightningElement {
     // --- CREATION ---
     initCreation() {
         this.showCreation = true;
-        this.currentStep = 'draft'; // Update Path
+        this.currentStep = 'draft'; 
         this.addRow();
     }
 
-    // NEW: Handle user clicking "Add New Record" from the Preview Screen
     handleAddNewFromPreview() {
-        this.rows = []; // Reset rows
-        this.addRow(); // Add one blank row
+        this.rows = []; 
+        this.addRow(); 
         this.showPreview = false;
         this.showCreation = true;
-        this.currentStep = 'draft'; // Move path back
+        this.currentStep = 'draft'; 
+        this.showBackButton = true; // We came from Preview, so allow going back
     }
 
     addRow() {
         this.rows.push({
             key: Date.now(),
-            displayIndex: this.rows.length + 1, // Serial Number for Creation
+            displayIndex: this.rows.length + 1,
             data: {}, 
             uploadedDocId: null,
             fileName: null
@@ -93,7 +98,7 @@ export default class VendorManager extends LightningElement {
         const index = event.currentTarget.dataset.index;
         if(this.rows.length > 1) {
             this.rows.splice(index, 1);
-            this.rows = this.rows.map((r, i) => ({ ...r, displayIndex: i + 1 })); // Re-calculate Serial Numbers
+            this.rows = this.rows.map((r, i) => ({ ...r, displayIndex: i + 1 })); 
         }
     }
 
@@ -130,28 +135,27 @@ export default class VendorManager extends LightningElement {
                 opportunityId: this.recordId 
             });
 
-            // 3. Link Files (Reparent from Opp -> New Record)
+            // 3. Link Files
             const fileMap = {}; 
             this.rows.forEach((row, index) => {
-                // Only map if we have a file AND a valid saved record
                 if(row.uploadedDocId && savedRecords[index] && savedRecords[index].Id) {
                     fileMap[row.uploadedDocId] = savedRecords[index].Id;
                 }
             });
 
-            // Only call Apex if we actually have files to move
             if(Object.keys(fileMap).length > 0) {
                 await reparentFiles({ fileMap: fileMap });
             }
 
             // 4. Success & Transition
             this.showToast('Success', 'Records created and files attached.', 'success');
+            
+            this.showBackButton = true; // We now have records, so enable back button for next time
             this.showCreation = false;
             this.goToPreview(); 
 
         } catch (error) {
-            // UPDATED ERROR HANDLING: Catches "pageErrors" (common in DML) to avoid "undefined"
-            let msg = 'Unknown Error';
+             let msg = 'Unknown Error';
             if (error.body) {
                 if (error.body.message) msg = error.body.message;
                 else if (error.body.pageErrors && error.body.pageErrors.length > 0) {
@@ -171,30 +175,27 @@ export default class VendorManager extends LightningElement {
     async goToPreview() {
         this.isLoading = true;
         this.showLanding = false;
-        this.showCreation = false; // Ensure creation is hidden if coming from Back button
+        this.showCreation = false; 
         this.showPreview = true;
         this.currentStep = 'review';
         
         try {
-            // 1. Get Records
             const fieldsToQuery = this.previewFieldSet.map(f => f.fieldPath);
             const data = await getExistingRecords({ 
                 opportunityId: this.recordId, 
                 queryFields: fieldsToQuery 
             });
 
-            // 2. Get File Names for these records
             const recordIds = data.map(r => r.Id);
             const fileMap = await getAttachedFileNames({ parentIds: recordIds });
 
-            // 3. Merge Data (Add Serial No + File Name + Button Label)
             this.previewData = data.map((record, index) => {
                 const fileName = fileMap[record.Id]; 
                 return {
                     ...record,
                     serialNumber: index + 1,
-                    existingFileName: fileName || null, // logic to show file name
-                    uploadLabel: fileName ? 'Replace File' : 'Upload Quotation' // Dynamic label
+                    existingFileName: fileName || null, 
+                    uploadLabel: fileName ? 'Replace File' : 'Upload Quotation' 
                 };
             });
 
@@ -207,12 +208,10 @@ export default class VendorManager extends LightningElement {
 
     handlePreviewUpload(event) {
         const files = event.detail.files;
-        const recordId = event.target.dataset.id; // Get the specific record ID
+        const recordId = event.target.dataset.id; 
 
         if(files.length > 0) {
             const newFileName = files[0].name;
-            
-            // Update the UI immediately to show the new file
             this.previewData = this.previewData.map(rec => {
                 if(rec.Id === recordId) {
                     return { 
@@ -223,7 +222,6 @@ export default class VendorManager extends LightningElement {
                 }
                 return rec;
             });
-
             this.showToast('Success', 'File updated successfully', 'success');
         }
     }
@@ -235,7 +233,6 @@ export default class VendorManager extends LightningElement {
 
         forms.forEach(form => {
             const p = new Promise((resolve, reject) => {
-                // Define cleanup FIRST
                 let handleSuccess;
                 let handleError;
 
