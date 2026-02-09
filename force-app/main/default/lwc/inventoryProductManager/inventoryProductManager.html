@@ -290,6 +290,7 @@
                     </div>
 
                     <template if:true={cartItems.length}>
+                         <div class="cart-body" onscroll={handleCartScroll}>
     <template for:each={cartItems} for:item="item">
         <div key={item.Id} class="cart-line-row">
 
@@ -301,6 +302,7 @@
 </span>
                 <span class="quality-chip">{item.Quality__c}</span>
             </div>
+            
 
             <div class="cart-line-right">
                 <span class="price-text">₹ {item.Total_Amount__c}</span>
@@ -316,12 +318,25 @@
             </div>
 
         </div>
+        
     </template>
+   
+    </div>
+    
 
-    <div class="cart-total-row">
+    <div class="cart-total-row ">
         <strong>Total</strong>
         <span class="cart-total">₹ {cartTotal}</span>
+    <!-- Scroll to top -->
+    <div
+        class="scroll-indicator"
+        if:true={showScrollTop}
+        onclick={scrollCartToTop}
+        title="Scroll to top">
+        <span class="arrow">⌃</span>
+        <span class="label">Scroll to top</span>
     </div>
+</div>
 
     <div class="modal-actions">
         <lightning-button label="Close" onclick={closeCart}></lightning-button>
