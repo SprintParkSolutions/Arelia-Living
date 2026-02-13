@@ -120,6 +120,13 @@
         <value>Details_To_Lead</value>
     </labels>
     <labels>
+        <fullName>Arelia_Living_Lead_Site_Manager_Review_Approval_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Lead Site Manager Review Approval Email Template</shortDescription>
+        <value>Lead_Conversion_Review_Approval_Email_Template</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Lead_Site_Re_Visiting_Email_Template</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -160,6 +167,13 @@
         <protected>false</protected>
         <shortDescription>Arelia Living Opportunity Re-Visit Site Manager Approval Email Template</shortDescription>
         <value>Opportunity_Re_Visit_Site_Manager_Approval_Email_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Opportunity_Site_Manager_Review_Approval_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Opportunity Site Manager Review Approval Email Template</shortDescription>
+        <value>Opportunity_Re_Visit_Site_Manager_Review_Approval_Email_Template</value>
     </labels>
     <labels>
         <fullName>Arelia_Living_Project_Reminder_Days</fullName>
@@ -415,6 +429,34 @@
         <protected>false</protected>
         <shortDescription>Manager_Response_Notification_Template</shortDescription>
         <value>Manager_Response_Notification</value>
+    </labels>
+    <labels>
+        <fullName>Payment_Term_Page_Name</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Page_Name</shortDescription>
+        <value>payment-term-approval</value>
+    </labels>
+    <labels>
+        <fullName>Payment_Term_Template_Client</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Template_Client</shortDescription>
+        <value>Payment_Term_Client_Request</value>
+    </labels>
+    <labels>
+        <fullName>Payment_Term_Template_Manager</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Template_Manager</shortDescription>
+        <value>Payment_Term_Manager_Request</value>
+    </labels>
+    <labels>
+        <fullName>Payment_Term_Template_Notify</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Template_Notify</shortDescription>
+        <value>Payment_Term_Status_Notification</value>
     </labels>
     <labels>
         <fullName>Proforma_Client_Approval_Template</fullName>
