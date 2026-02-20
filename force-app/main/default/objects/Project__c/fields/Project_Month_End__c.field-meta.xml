@@ -4,7 +4,7 @@
     <description>Using for Month filter in the dashboard</description>
     <externalId>false</externalId>
     <formula>CASE(
-MONTH(End_Date__c),
+MONTH(Estimated_End_Date__c),
 1, &quot;January&quot;,
 2, &quot;February&quot;,
 3, &quot;March&quot;,

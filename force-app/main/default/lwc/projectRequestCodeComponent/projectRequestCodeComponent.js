@@ -72,9 +72,9 @@ export default class ProjectRequestCodeComponent extends LightningElement {
         this.showAutomaticScreen = false;
 
         // You can adjust these string checks to match your picklist labels
-        if (this.value === 'Manual Quotation') {
+        if (this.value === 'Manual') {
             this.showManualScreen = true;
-        } else if (this.value === 'Automatic Quotation') {
+        } else if (this.value === 'Automation') {
             this.showAutomaticScreen = true;
         } else {
             // If you add more quotation types later, you can handle them here

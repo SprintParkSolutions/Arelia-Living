@@ -80,8 +80,8 @@
                                     </div>
 
                                     <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                        <lightning-input label="Company Name (Optional)" name="companyName" value={companyName}
-                                            onchange={handleInputChange}>
+                                        <lightning-input label="Company Name (Optional)" name="companyName"
+                                            value={companyName} onchange={handleInputChange}>
                                         </lightning-input>
                                         <div class="field-help">If not provided, we'll use <b>Self</b>.</div>
                                     </div>
@@ -110,9 +110,10 @@
                             <template if:true={isStep2}>
                                 <div class="verification-section">
                                     <p class="section-help">
-                                        Click <strong>Send Code</strong>. We’ll email a 6-digit code. Enter it and click
-                                        <strong>Verify Code</strong> before completing registration.
+                                        We’ve sent a 6-digit verification code to your email. Enter it and click
+                                        <strong>Verify Code</strong> to continue.
                                     </p>
+
 
                                     <div class="summary-block">
                                         <div class="summary-label">Email to verify</div>
@@ -155,8 +156,9 @@
                                             <span>Resend available in {resendTimer} seconds.</span>
                                         </template>
                                         <template if:false={resendTimerActive}>
-                                            <span>Didn’t receive the code? Click <b>Send Code</b> again.</span>
+                                            <span>Didn’t receive the code? You can <b>Resend Code</b> now.</span>
                                         </template>
+
                                     </div>
                                 </div>
                             </template>

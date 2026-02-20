@@ -1,5 +1,12 @@
+/**
+ * @description       : 
+ * @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+ * @group             : 
+ * @last modified on  : 02-11-2026
+ * @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+**/
 @isTest
-@SuppressWarnings('PMD.ExcessivePublicCount, PMD.ExcessiveParameterList')
+@SuppressWarnings('PMD.ExcessivePublicCount, PMD.ExcessiveParameterList, PMD.ExcessiveParameterList')
 public class TestDataUtility {
 
     // 1. Create User
@@ -417,7 +424,7 @@ public class TestDataUtility {
         return ad;
     }
 
-    // 25. Create Interior Product - CORRECTED
+    // 24. Create Interior Product - CORRECTED
     public static Interior_Product__c createInteriorProduct(String name, String roomType, String category, Decimal price) {
         Interior_Product__c prod = new Interior_Product__c(
             Name = name,
@@ -429,8 +436,7 @@ public class TestDataUtility {
         insert prod;
         return prod;
     }
-
-    // ----------------------------
+    
     // 25. Create WhatsApp Chat  ✅ NEW
     // ----------------------------
     public static WhatsApp_Chat__c createWhatsAppChat(Id leadId, Id opportunityId, Id projectId, String lastFrom, String lastTo) {
@@ -447,5 +453,14 @@ public class TestDataUtility {
         );
         insert chat;
         return chat;
+    }
+
+    // 26. Create Proforma Invoice (NEW ADDITION)
+    public static Proforma_Invoice__c createProformaInvoice(Id oppId) {
+        Proforma_Invoice__c pi = new Proforma_Invoice__c(
+            Opportunity__c = oppId
+        );
+        insert pi;
+        return pi;
     }
 }

@@ -3,7 +3,7 @@
     <fullName>Type_Of_Project__c</fullName>
     <label>Type Of Project</label>
     <required>false</required>
-    <trackHistory>false</trackHistory>
+    <trackHistory>true</trackHistory>
     <trackTrending>false</trackTrending>
     <type>Picklist</type>
     <valueSet>
