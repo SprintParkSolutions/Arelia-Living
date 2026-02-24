@@ -497,7 +497,6 @@ public without sharing class RegistrationFormController {
 
     /**
      * @description Sets Org-Wide Email Address Id for guest users using
-     * custom label Registration_Verification_From_Address.
      * @param msg Email message to update.
      */
     private static void setOrgWideAddressForGuest(Messaging.SingleEmailMessage msg) {
@@ -512,16 +511,12 @@ public without sharing class RegistrationFormController {
     }
 
     /**
-     * @description Returns Org-Wide Email Address Id configured in
-     * custom label Registration_Verification_From_Address.
-     * @return Org-Wide Email Address Id or null when not configured.
+     * @description Gets Org-Wide Email Address ID used for outbound emails.
      */
     private static Id getOrgWideEmailAddressId() {
-        String idStr = System.Label.Registration_Verification_From_Address;
-        if (String.isBlank(idStr)) {
-            return null;
-        }
-        return (Id)idStr.trim();
+        List<OrgWideEmailAddress> oweaList = [SELECT Id FROM OrgWideEmailAddress
+            WHERE Address = :Label.Arelia_OWD AND IsAllowAllProfiles = true LIMIT 1];
+        return oweaList.isEmpty() ? null : oweaList[0].Id;
     }
 
     /**

@@ -12,15 +12,28 @@ import INSTAGRAM_URL from '@salesforce/label/c.Instagram_URL';
 import FACEBOOK_URL from '@salesforce/label/c.Facebook_URL';
 import LINKEDIN_URL from '@salesforce/label/c.LinkedIn_URL';
 
+import SITE_BASE_URL from '@salesforce/label/c.Arelia_Site_Label';
+
 export default class IdcFooterComponent extends LightningElement {
     logoUrl = IdcLogo;
     instagramIcon = InstagramIcon;
     facebookIcon = FacebookIcon;
     linkedinIcon = LinkedinIcon;
 
-    residentialUrl = RESIDENTIAL_URL;
-    commercialUrl = COMMERCIAL_URL;
-    hospitalityUrl = HOSPITALITY_URL;
+    baseUrl = SITE_BASE_URL;
+
+
+    get residentialUrl() {
+        return this.baseUrl + RESIDENTIAL_URL;
+    }
+
+    get commercialUrl() {
+        return this.baseUrl + COMMERCIAL_URL;
+    }
+
+    get hospitalityUrl() {
+        return this.baseUrl + HOSPITALITY_URL;
+    }
 
     instagramUrl = INSTAGRAM_URL;
     facebookUrl = FACEBOOK_URL;

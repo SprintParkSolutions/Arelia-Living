@@ -4,11 +4,14 @@
         <template if:true={showScreen1}>
             <div class="center-card animate-fade-in">
                 <h1 class="title animate-slide-up">
+
                     Choose Your Project Type
                 </h1>
 
                 <p class="subtitle animate-slide-up">
+
                     Select how you’d like us to prepare your Project Type. You can share
+
                     project details in the next step.
                 </p>
 
@@ -24,6 +27,7 @@
                                         <input type="radio" name="quoteType" value={opt.value} checked={opt.selected}
                                             onchange={handleChange} />
 
+                                        <!-- ✅ Show LABEL to user -->
                                         <span class="label-text">{opt.label}</span>
 
                                         <template if:true={opt.selected}>
@@ -39,8 +43,8 @@
                 </template>
 
                 <div class="next-button-wrapper animate-slide-up">
-                    <lightning-button variant="brand" label="Next" onclick={goNext} disabled={disableNext}>
-                    </lightning-button>
+                    <lightning-button variant="brand" label="Next" onclick={goNext}
+                        disabled={disableNext}></lightning-button>
                 </div>
             </div>
         </template>
