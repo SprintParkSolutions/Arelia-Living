@@ -1,5 +1,5 @@
 /**
- * @description Controller for the Manager Approval Portal (LWC).
+ * @description Controller for the Manager Approval Portal (LWC) for architecture deisgn .
  * Refactored to reduce Cognitive Complexity and fix PMD violations.
  * Updated to include Manager-specific context (Budget, Client Info).
  */

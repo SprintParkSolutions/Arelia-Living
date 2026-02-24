@@ -5,7 +5,7 @@
     <encodingKey>UTF-8</encodingKey>
     <name>Client Response Notification</name>
     <style>none</style>
-    <subject>Architecture Client Response</subject>
+    <subject>3D Design Proposal Status Update by  [CLIENT_NAME] -[DECISION]</subject>
     <type>custom</type>
     <uiType>SFX</uiType>
 </EmailTemplate>

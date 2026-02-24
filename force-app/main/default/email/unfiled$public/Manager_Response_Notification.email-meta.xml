@@ -5,7 +5,7 @@
     <encodingKey>UTF-8</encodingKey>
     <name>Manager Response Notification</name>
     <style>none</style>
-    <subject>Manager Response Notification of architecture</subject>
+    <subject>Manager Response Notification of Architecture Design - [CLIENT_NAME] : [DECISION]</subject>
     <type>custom</type>
     <uiType>SFX</uiType>
 </EmailTemplate>
