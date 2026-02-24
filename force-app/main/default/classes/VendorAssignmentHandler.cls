@@ -74,14 +74,14 @@ public with sharing class VendorAssignmentHandler {
             }
 
             Decimal vendorAssignedAmount = vendorAmountMap.containsKey(projectId) ? vendorAmountMap.get(projectId) : 0;
-            Decimal remainingBudget = proj.Remaining_Project_Budget__c != null ? proj.Remaining_Project_Budget__c : 0;
-            Decimal pendingAmount = remainingBudget - vendorAssignedAmount;
-            if (pendingAmount < 0) {pendingAmount = 0;}
+            // Decimal remainingBudget = proj.Remaining_Project_Budget__c != null ? proj.Remaining_Project_Budget__c : 0;
+            // Decimal pendingAmount = remainingBudget - vendorAssignedAmount;
+            // if (pendingAmount < 0) {pendingAmount = 0;}
 
             projectsToUpdate.add(new Project__c(
                 Id = projectId,
                 Project_Completion_Status__c = avg,
-                Remaining_Budget_Pending__c = pendingAmount
+                Remaining_Budget_Pending__c = vendorAssignedAmount
             ));
         }
 
