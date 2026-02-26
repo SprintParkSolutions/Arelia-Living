@@ -125,14 +125,15 @@ public without sharing class RegistrationFormController {
      * @param payload Map containing firstName, lastName, email, phone.
      * @return Id of the created Lead.
      */
+    
     @AuraEnabled
     public static Id registerLead(Map<String, Object> payload) {
         validatePayload(payload);
 
-        String firstName = (String)payload.get('firstName');
-        String lastName  = (String)payload.get('lastName');
-        String email     = (String)payload.get('email');
-        String phone     = (String)payload.get('phone');
+        String firstName   = (String)payload.get('firstName');
+        String lastName    = (String)payload.get('lastName');
+        String email       = (String)payload.get('email');
+        String phone       = (String)payload.get('phone');
         String companyName = (String)payload.get('companyName');
 
         validateNameFields(firstName, lastName);
@@ -141,12 +142,33 @@ public without sharing class RegistrationFormController {
         Lead leadToInsert = buildLead(firstName, lastName, email, phone, companyName);
 
         assertCanCreateLead();
-        // Insert in system mode so guest can create Lead (with explicit CRUD check above)
-        Database.insert(leadToInsert, AccessLevel.SYSTEM_MODE);
 
+        // ✅ DMLOptions to allow duplicates (same as UI "Similar Records Exist" warning)
+        Database.DMLOptions dmo = new Database.DMLOptions();
+        dmo.DuplicateRuleHeader.allowSave = true;           // do not block on duplicates
+        dmo.DuplicateRuleHeader.runAsCurrentUser = true;    // evaluate like UI/current user
+
+        // ✅ Most reliable insert signature: Database.insert(list, dmlOptions, accessLevel)
+        Database.SaveResult[] srList = Database.insert(new List<Lead>{ leadToInsert }, dmo,AccessLevel.SYSTEM_MODE);
+
+        if (srList == null || srList.isEmpty() || !srList[0].isSuccess()) {
+            // surface the real error message back to LWC
+            String msg = 'Failed to register. Please try again.';
+            if (srList != null && !srList.isEmpty() && srList[0].getErrors() != null && srList[0].getErrors().size() > 0) {
+                msg = srList[0].getErrors()[0].getMessage();
+            }
+            throw new AuraHandledException(msg);
+        }
+
+        Id leadId = srList[0].getId();
+
+        // keep your existing email logic
+        leadToInsert.Id = leadId;
         sendWelcomeEmailSafely(leadToInsert);
-        return leadToInsert.Id;
+
+        return leadId;
     }
+
 
     /**
      * @description Validates that payload is not null or empty.
@@ -475,7 +497,6 @@ public without sharing class RegistrationFormController {
 
     /**
      * @description Sets Org-Wide Email Address Id for guest users using
-     * custom label Registration_Verification_From_Address.
      * @param msg Email message to update.
      */
     private static void setOrgWideAddressForGuest(Messaging.SingleEmailMessage msg) {
@@ -490,16 +511,12 @@ public without sharing class RegistrationFormController {
     }
 
     /**
-     * @description Returns Org-Wide Email Address Id configured in
-     * custom label Registration_Verification_From_Address.
-     * @return Org-Wide Email Address Id or null when not configured.
+     * @description Gets Org-Wide Email Address ID used for outbound emails.
      */
     private static Id getOrgWideEmailAddressId() {
-        String idStr = System.Label.Registration_Verification_From_Address;
-        if (String.isBlank(idStr)) {
-            return null;
-        }
-        return (Id)idStr.trim();
+        List<OrgWideEmailAddress> oweaList = [SELECT Id FROM OrgWideEmailAddress
+            WHERE Address = :Label.Arelia_OWD AND IsAllowAllProfiles = true LIMIT 1];
+        return oweaList.isEmpty() ? null : oweaList[0].Id;
     }
 
     /**

@@ -4,7 +4,7 @@
     <deleteConstraint>SetNull</deleteConstraint>
     <label>Supervisor User</label>
     <lookupFilter>
-        <active>true</active>
+        <active>false</active>
         <filterItems>
             <field>User.UserRole.Name</field>
             <operation>equals</operation>

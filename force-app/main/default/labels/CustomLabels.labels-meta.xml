@@ -1,6 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
     <labels>
+        <fullName>AdditionalBudget_Approval_BaseUrl</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>AdditionalBudget_Approval_BaseUrl</shortDescription>
+        <value>additional-budget-approval</value>
+    </labels>
+    <labels>
+        <fullName>AdditionalBudget_Approved_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>AdditionalBudget_Approved_Template</shortDescription>
+        <value>Additional_Budget_Approved_Notification</value>
+    </labels>
+    <labels>
+        <fullName>AdditionalBudget_Manager_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>AdditionalBudget_Manager_Template</shortDescription>
+        <value>Additional_Budget_Manager_Approval</value>
+    </labels>
+    <labels>
+        <fullName>AdditionalBudget_Rejected_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>AdditionalBudget_Rejected_Template</shortDescription>
+        <value>Additional_Budget_Rejected_Notification</value>
+    </labels>
+    <labels>
+        <fullName>Additional_Request_FieldSet_Label</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Additional_Request_FieldSet_Label</shortDescription>
+        <value>Additional_Request_FieldSet</value>
+    </labels>
+    <labels>
+        <fullName>Architecture_Manager_Approval_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Architecture Manager Approval Template</shortDescription>
+        <value>Architecture_Manager_Approval</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Automated_Project_Quote_Submite_Template_DevName</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -22,6 +64,13 @@
         <value>Appointment_Rescheduled_Email</value>
     </labels>
     <labels>
+        <fullName>Arelia_Living_Architect_3D_Design_Approval_Email</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Architect 3D Design Approval Email</shortDescription>
+        <value>Architect_3D_Design_Approval_Email</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Automatic_Project_Quote_Management_Email_Template</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -36,11 +85,25 @@
         <value>Client_Project_Notification</value>
     </labels>
     <labels>
+        <fullName>Arelia_Living_Customer_Opportunity_Appointment_Approved_Email</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Customer Opportunity Appointment Approved Email</shortDescription>
+        <value>Customer_Opportunity_Appointment_Approved_Email</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Customer_Opportunity_Appointment_Rescheduled_Email</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Customer Opportunity Appointment Rescheduled Email</shortDescription>
+        <value>Customer_Opportunity_Appointment_Rescheduled_Email</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Enrollment_Members</fullName>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Arelia Living Enrollment Members</shortDescription>
-        <value>Monikag@sprintpark.com,mohit.e@sprintpark.com</value>
+        <value>tejaswaroopu@sprintpark.com,mohit.e@sprintpark.com</value>
     </labels>
     <labels>
         <fullName>Arelia_Living_Lead_Conversion_Approval_Email_Template</fullName>
@@ -55,6 +118,13 @@
         <protected>false</protected>
         <shortDescription>Arelia Living Lead Email Template</shortDescription>
         <value>Details_To_Lead</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Lead_Site_Manager_Review_Approval_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Lead Site Manager Review Approval Email Template</shortDescription>
+        <value>Lead_Conversion_Review_Approval_Email_Template</value>
     </labels>
     <labels>
         <fullName>Arelia_Living_Lead_Site_Re_Visiting_Email_Template</fullName>
@@ -97,6 +167,27 @@
         <protected>false</protected>
         <shortDescription>Arelia Living Opportunity Re-Visit Site Manager Approval Email Template</shortDescription>
         <value>Opportunity_Re_Visit_Site_Manager_Approval_Email_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Opportunity_Site_Manager_Review_Approval_Email_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Opportunity Site Manager Review Approval Email Template</shortDescription>
+        <value>Opportunity_Re_Visit_Site_Manager_Review_Approval_Email_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Project_Reminder_Days</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Project Reminder Days</shortDescription>
+        <value>15</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Project_Reminder_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Project Reminder Template</shortDescription>
+        <value>Project_Reminder_Template</value>
     </labels>
     <labels>
         <fullName>Arelia_Living_Project_Status_Update_Lead_Template</fullName>
@@ -198,6 +289,13 @@
         <value>nareshp@sprintpark.com</value>
     </labels>
     <labels>
+        <fullName>Arelia_Project_Request_Already_Submitted</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia_Project_Request_Already_Submitted</shortDescription>
+        <value>Lead details already submitted. If you have any queries contact Arelia Team.</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Project_Request_Page_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -219,11 +317,61 @@
         <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/</value>
     </labels>
     <labels>
+        <fullName>Client_Final_Response_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Client_Final_Response_Template</shortDescription>
+        <value>Client_Final_Response</value>
+    </labels>
+    <labels>
+        <fullName>Client_Image_Approval_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Client_Image_Approval_Template</shortDescription>
+        <value>Client_Image_Approval_Request</value>
+    </labels>
+    <labels>
+        <fullName>Client_Response_Notification_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Client_Response_Notification_Template</shortDescription>
+        <value>Client_Response_Notification</value>
+    </labels>
+    <labels>
         <fullName>Commercial_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Commercial_URL</shortDescription>
         <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/commerical-portifolio</value>
+    </labels>
+    <labels>
+        <fullName>Customer_Appointment_Approved_Email</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Customer Appointment Approved Email</shortDescription>
+        <value>Customer_Appointment_Approved</value>
+    </labels>
+    <labels>
+        <fullName>Customer_Appointment_Rescheduled_Email</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Customer Appointment Rescheduled Email</shortDescription>
+        <value>Customer_Appointment_Rescheduled</value>
+    </labels>
+    <labels>
+        <fullName>Due_In_Days</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Due In Days</shortDescription>
+        <value>3</value>
+    </labels>
+    <labels>
+        <fullName>Enrollment_Email_Addresses</fullName>
+        <categories>It stores all Arelia Enrollment members Email with comma separation</categories>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Enrollment Email Addresses</shortDescription>
+        <value>mohit98409@gmail.com</value>
     </labels>
     <labels>
         <fullName>Facebook_URL</fullName>
@@ -238,6 +386,13 @@
         <protected>false</protected>
         <shortDescription>Hospitality_URL</shortDescription>
         <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/hospitality-portfolio</value>
+    </labels>
+    <labels>
+        <fullName>Image_Approval</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Image Approval</shortDescription>
+        <value>imageclientapproval</value>
     </labels>
     <labels>
         <fullName>Instagram_URL</fullName>
@@ -259,6 +414,98 @@
         <protected>false</protected>
         <shortDescription>LinkedIn_URL</shortDescription>
         <value>https://www.linkedin.com/in/arelia-living-363053394/</value>
+    </labels>
+    <labels>
+        <fullName>Management_Email_Addresses</fullName>
+        <categories>It stores all Arelia Management emails with comma separation.</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Management_Email_Addresses</shortDescription>
+        <value>mohit.e@sprintpark.com</value>
+    </labels>
+    <labels>
+        <fullName>Manager_Response_Notification_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Manager_Response_Notification_Template</shortDescription>
+        <value>Manager_Response_Notification</value>
+    </labels>
+    <labels>
+        <fullName>Payment_Term_Page_Name</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Page_Name</shortDescription>
+        <value>payment-term-approval</value>
+    </labels>
+    <labels>
+        <fullName>Payment_Term_Template_Client</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Template_Client</shortDescription>
+        <value>Payment_Term_Client_Request</value>
+    </labels>
+    <labels>
+        <fullName>Payment_Term_Template_Manager</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Template_Manager</shortDescription>
+        <value>Payment_Term_Manager_Request</value>
+    </labels>
+    <labels>
+        <fullName>Payment_Term_Template_Notify</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Template_Notify</shortDescription>
+        <value>Payment_Term_Status_Notification</value>
+    </labels>
+    <labels>
+        <fullName>Proforma_Client_Approval_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Proforma_Client_Approval_Template</shortDescription>
+        <value>Proforma_Client_Approval_Request</value>
+    </labels>
+    <labels>
+        <fullName>Proforma_Client_Final_Approval_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Proforma_Client_Final_Approval_Template</shortDescription>
+        <value>Proforma_Client_Final_Approval</value>
+    </labels>
+    <labels>
+        <fullName>Proforma_Client_Response_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Proforma_Client_Response_Template</shortDescription>
+        <value>Proforma_Client_Response_Notification</value>
+    </labels>
+    <labels>
+        <fullName>Proforma_Invoice_Site_Page</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Proforma_Invoice_Site_Page</shortDescription>
+        <value>/proforma-approval</value>
+    </labels>
+    <labels>
+        <fullName>Proforma_Manager_Approval_Request_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Proforma_Manager_Approval_Request_Template</shortDescription>
+        <value>Proforma_Manager_Approval_Request</value>
+    </labels>
+    <labels>
+        <fullName>Proforma_Manager_Response_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Proforma_Manager_Response_Template</shortDescription>
+        <value>Proforma_Manager_Response_Notification</value>
+    </labels>
+    <labels>
+        <fullName>Proforma_Manager_Site_Page</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Proforma_Manager_Site_Page</shortDescription>
+        <value>/proforma-manager-approval</value>
     </labels>
     <labels>
         <fullName>Registration_Enrollment_Template_DevName</fullName>
@@ -296,6 +543,13 @@
         <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/residential-portfolio</value>
     </labels>
     <labels>
+        <fullName>Residential_portfolio</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Residential_URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/residential-portfolio</value>
+    </labels>
+    <labels>
         <fullName>Site_Appointment_Link_Page</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -314,7 +568,7 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>WA_Access_Token</shortDescription>
-        <value>EAAURDkLToDYBQGVZAyH8ZCUdThSYMb6YH1FhQZB0j8ruAAU6mYjfp2luz6bK7ci3u0oVBsqvYxVTGDXksIKQuoqTFmVOMBPFZCiky2uZAnfIiKW2Al3uUGw4UEMOWjyUa2Gx6zCxgtYmpKv5eV70PMkbctRpKS8frlMlmPxF3ZCY0uiusZAAwVEQyKmPMavm3gs93BBLJErbwZBNULvdURs1cKiTn8VZCHPGpRedn1r2swwsn5Xjoap8ZCPhoc09bx5iWbftVXHhCT1wIV4LQyy25yZAQZDZD</value>
+        <value>EAAURDkLToDYBQjouNFu46IkXTAr44bz65Y2ZByT0RDZBDuaI8afO4A6lfzJjuiIuhkClKbpRFmOSULPSGc9zSwhSs9GqpzDasN8ZCVUQFufnyOiq8Rav9SZCzVTQcxo12YrPznWdopTYPH4jvor4Vgg7E9addjZCNOGrxjTN37dDEyDg9W91GbO9mjlO4bofWW7hHN4qEfxazqbNy6E1uAwF1LZCKPfSwlZCLbQEXKgZAzh7C4t3rS6uTzHcMQe7n7nlZAWfsuAD5GleIEGG6UzeZANDt3</value>
     </labels>
     <labels>
         <fullName>WA_Phone_Number_Id</fullName>
@@ -326,8 +580,15 @@
     <labels>
         <fullName>WA_Verify_Token</fullName>
         <language>en_US</language>
-        <protected>false</protected>
+        <protected>true</protected>
         <shortDescription>WA_Verify_Token</shortDescription>
         <value>MyUltraSecret123</value>
+    </labels>
+    <labels>
+        <fullName>manager_architecture_approval</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>manager architecture approval</shortDescription>
+        <value>/manager-architecture-approval</value>
     </labels>
 </CustomLabels>

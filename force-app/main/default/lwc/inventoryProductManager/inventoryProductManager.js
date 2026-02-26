@@ -2,11 +2,10 @@
 import { LightningElement, api, track, wire } from 'lwc';
 import { CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
+import getCatalogConfig from '@salesforce/apex/InventoryApiService.getCatalogConfig';
+import getOpportunitySummary from '@salesforce/apex/InventoryApiService.getOpportunitySummary';
+import ARELIA_SITE_URL from '@salesforce/label/c.Arelia_Site_Label';
 
-import PROJECT_SPEC_OBJECT from '@salesforce/schema/Project_Specification__c';
-import ROOM_TYPE_FIELD from '@salesforce/schema/Project_Specification__c.Room_Type__c';
-import PRODUCT_CATEGORY_FIELD from '@salesforce/schema/Project_Specification__c.Product_Category__c';
 
 import getProducts from '@salesforce/apex/InventoryApiService.getProducts';
 import saveCart from '@salesforce/apex/OpportunityQuotePDFController.saveCart';
@@ -18,14 +17,40 @@ import getSavedCart from '@salesforce/apex/OpportunityQuotePDFController.getSave
 export default class InventoryProductManager extends LightningElement {
     @api recordId;
 
-    /* ================= OBJECT INFO ================= */
-    @wire(getObjectInfo, { objectApiName: PROJECT_SPEC_OBJECT })
-    objectInfo;
+  
+   @track roomTypes = [];
+@track categoriesByRoom = {};
+    
+showScrollTop = false;
 
-    roomTypesBase = [];
-    categoriesBase = [];
+@track oppSummary;
 
-    /* ================= MAIN STATE ================= */
+@wire(getOpportunitySummary, { opportunityId: '$recordId' })
+wiredOpp({ data }) {
+    if (data) {
+        this.oppSummary = data;
+    }
+}
+get isManual() {
+    return this.oppSummary?.Project_Request_Quotation_Type__c === 'Manual Quotation';
+}
+
+get isAutomatic() {
+    return this.oppSummary?.Project_Request_Quotation_Type__c === 'Automatic Quotation';
+}
+
+goToStep0() {
+    this.currentStep = 0;
+    this.updateUrlStep();
+}
+
+goToStep1() {
+    this.currentStep = 1;
+    this.updateUrlStep();
+    this.loadCatalogConfig();
+}
+
+   
     @track _products = [];
     @track visibleProducts = [];
     @track cartItems = [];
@@ -39,21 +64,25 @@ export default class InventoryProductManager extends LightningElement {
     @track isCartOpen = false;
 
     /* ================= STEP UX ================= */
-    @track currentStep = 1;
+    @track currentStep = 0; 
 
+get isStep0() { 
+    return this.currentStep === 0; 
+}
     get isStep1() { return this.currentStep === 1; }
     get isStep2() { return this.currentStep === 2; }
     get isStep3() { return this.currentStep === 3; }
 
     get stepClass1() {
-        return `step ${this.currentStep >= 1 ? 'active completed' : ''}`;
-    }
-    get stepClass2() {
-        return `step ${this.currentStep >= 2 ? 'active completed' : ''}`;
-    }
-    get stepClass3() {
-        return `step ${this.currentStep === 3 ? 'active' : ''}`;
-    }
+    return `step ${this.currentStep === 1 ? 'active' : ''}`;
+}
+get stepClass2() {
+    return `step ${this.currentStep === 2 ? 'active' : ''}`;
+}
+get stepClass3() {
+    return `step ${this.currentStep === 3 ? 'active' : ''}`;
+}
+
 
     /* ================= IMAGE MODAL ================= */
     @track isImageModalOpen = false;
@@ -72,14 +101,13 @@ export default class InventoryProductManager extends LightningElement {
     /* ================= LIFECYCLE ================= */
     connectedCallback() {
         this.loadQualityOptions();
-        this.fetchSavedCart();
 
         // restore step from URL
         const params = new URLSearchParams(window.location.search);
         const step = Number(params.get('step'));
-        if (step >= 1 && step <= 3) {
-            this.currentStep = step;
-        }
+        if (step >= 0 && step <= 3) {
+    this.currentStep = step;
+}
 
         // ESC key closes image modal
         this._escHandler = (e) => {
@@ -94,6 +122,26 @@ export default class InventoryProductManager extends LightningElement {
         window.removeEventListener('keydown', this._escHandler);
     }
 
+  
+
+get interiorProjectTypeName() {
+    return this.oppSummary &&
+           this.oppSummary.Interior_Project_Type__r
+        ? this.oppSummary.Interior_Project_Type__r.Name
+        : '';
+}
+
+get backButtonLabel() {
+    return this.currentStep === 1 ? 'Back to Summary' : 'Back';
+}
+
+handleBackClick() {
+    if (this.currentStep === 1) {
+        this.goToStep0();   // Step 1 → Summary
+    } else {
+        this.goBack();     // Step 2/3 → previous step
+    }
+}
     /* ================= URL STEP ================= */
     updateUrlStep() {
         const url = new URL(window.location.href);
@@ -102,55 +150,64 @@ export default class InventoryProductManager extends LightningElement {
     }
 
     goBack() {
-        if (this.currentStep > 1) {
-            this.currentStep--;
-            this.updateUrlStep();
-        }
+    if (this.currentStep > 0) {
+        this.currentStep--;
+        this.updateUrlStep();
     }
+}
+    loadCatalogConfig() {
+    if (!this.recordId) return;
+
+    getCatalogConfig({ opportunityId: this.recordId })
+        .then(res => {
+            this.roomTypes = res.rooms || [];
+            this.categoriesByRoom = res.categoriesByRoom || {};
+            if (!this.roomTypes.length) {
+        this.showToast(
+            'No Products Available',
+            'No catalogue items found for this project type',
+            'warning'
+        );
+    }
+        })
+        .catch(() => {
+            this.showToast(
+                'Error',
+                'Unable to load catalogue configuration',
+                'error'
+            );
+        });
+}
+
 
     /* ================= COMMUNITY PARAM ================= */
     @wire(CurrentPageReference)
-    getPageRef(pageRef) {
-        if (pageRef?.state?.id) {
-            this.recordId = pageRef.state.id;
-        }
-    }
+getPageRef(pageRef) {
+    if (pageRef?.state?.id) {
+        this.recordId = pageRef.state.id;
 
-    /* ================= PICKLISTS ================= */
-    @wire(getPicklistValues, {
-        recordTypeId: '$objectInfo.data.defaultRecordTypeId',
-        fieldApiName: ROOM_TYPE_FIELD
-    })
-    roomTypePicklist({ data }) {
-        if (data) {
-            this.roomTypesBase = data.values.map(v => v.label);
-        }
+       
+        this.fetchSavedCart();
     }
+}
 
-    @wire(getPicklistValues, {
-        recordTypeId: '$objectInfo.data.defaultRecordTypeId',
-        fieldApiName: PRODUCT_CATEGORY_FIELD
-    })
-    categoryPicklist({ data }) {
-        if (data) {
-            this.categoriesBase = data.values.map(v => v.label);
-        }
-    }
+    
 
     /* ================= UI GETTERS ================= */
-    get roomTypes() {
-        return this.roomTypesBase.map(v => ({
-            value: v,
-            className: `chip ${this.selectedRoomType === v ? 'chip-selected' : ''}`
-        }));
-    }
+    get roomTypesUI() {
+    return this.roomTypes.map(v => ({
+        value: v,
+        className: `chip ${this.selectedRoomType === v ? 'chip-selected' : ''}`
+    }));
+}
 
     get categories() {
-        return this.categoriesBase.map(v => ({
-            value: v,
-            className: `chip ${this.selectedCategory === v ? 'chip-selected' : ''}`
-        }));
-    }
+    const cats = this.categoriesByRoom[this.selectedRoomType] || [];
+    return cats.map(v => ({
+        value: v,
+        className: `chip ${this.selectedCategory === v ? 'chip-selected' : ''}`
+    }));
+}
 
     get selectedProductsList() {
         return this.cartItems.map(i => ({
@@ -165,12 +222,17 @@ export default class InventoryProductManager extends LightningElement {
 
     /* ================= STEP HANDLERS ================= */
     handleRoomSelect(event) {
-        this.selectedRoomType = event.currentTarget.dataset.value;
-        this.selectedCategory = null;
-        this.products = [];
-        this.currentStep = 2;
-        this.updateUrlStep();
-    }
+    this.selectedRoomType = event.currentTarget.dataset.value;
+    this.selectedCategory = null;
+
+    // 🔥 Reset dependent state
+    this.products = [];
+    this.visibleProducts = [];
+    this.currentPage = 1;
+
+    this.currentStep = 2;
+    this.updateUrlStep();
+}
 
     handleCategorySelect(event) {
         this.selectedCategory = event.currentTarget.dataset.value;
@@ -410,8 +472,8 @@ export default class InventoryProductManager extends LightningElement {
                     Name: prod?.Name,
 
                       // 🔥 ADD THESE TWO
-    Room_Type__c: this.selectedRoomType,
-    Product_Category__c: this.selectedCategory,
+    Room_Type__c: this.selectedRoomType || prod?.Room_Type__c || 'Unknown',
+Product_Category__c: this.selectedCategory || prod?.Product_Category__c || 'Others',
                     Quantity__c: qty,
                     Unit_Price__c: price,
                     Quality__c: quality,
@@ -529,6 +591,17 @@ export default class InventoryProductManager extends LightningElement {
             this.isLoading = false;
         });
 }
+handleCartScroll(event) {
+    const shouldShow = event.target.scrollTop > 150;
+    if (shouldShow !== this.showScrollTop) {
+        this.showScrollTop = shouldShow;
+    }
+}
+
+scrollCartToTop() {
+    const el = this.template.querySelector('.cart-body');
+    el?.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
     /* ================= GENERATE QUOTE ================= */
     handleGenerateClick() {
@@ -552,9 +625,13 @@ export default class InventoryProductManager extends LightningElement {
                 this.showCustomPopup('🎉 Success', 'Quotation PDF generated & emailed!');
             })
             .catch(error => {
-                this.isLoading = false;
-                this.showToast('Error', error.body?.message || 'Unknown error', 'error');
-            });
+    this.isLoading = false;
+    const msg =
+        error?.body?.message ||
+        error?.message ||
+        'PDF generation failed. Check product data.';
+    this.showToast('Error', msg, 'error');
+});
     }
 
     /* ================= IMAGE MODAL ================= */
@@ -580,8 +657,13 @@ export default class InventoryProductManager extends LightningElement {
     }
 
     closePopup() {
-        this.showPopup = false;
-    }
+    this.showPopup = false;
+
+    setTimeout(() => {
+        window.location.href = ARELIA_SITE_URL;
+    }, 300);
+}
+
 
     /* ================= HELPERS ================= */
     fetchSavedCart() {

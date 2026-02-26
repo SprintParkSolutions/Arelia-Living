@@ -11,6 +11,7 @@
  *  - Curly braces on all if/for blocks.
  *  - Small helpers to keep Cognitive Complexity / NCSS low.
  */
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ExcessiveParameterList,PMD.ApexCRUDViolation')
 public without sharing class ProjectUpdateHandler {
 
     // ----------------------------------------------------------------------
@@ -23,23 +24,13 @@ public without sharing class ProjectUpdateHandler {
      * Entry point from the trigger (AFTER UPDATE).
      */
     public static void afterUpdate(List<Project__c> newList, Map<Id, Project__c> oldMap) {
-        if (newList == null) {
-            return;
-        }
-        if (newList.isEmpty()) {
-            return;
-        }
-        if (oldMap == null) {
-            return;
-        }
-        if (oldMap.isEmpty()) {
-            return;
-        }
+        if (newList == null) { return; }
+        if (newList.isEmpty()) { return; }
+        if (oldMap == null) { return; }
+        if (oldMap.isEmpty()) { return; }
 
         List<Project__c> changed = pickWithStatusChange(newList, oldMap);
-        if (changed.isEmpty()) {
-            return;
-        }
+        if (changed.isEmpty()) { return; }
 
         sendProjectStatusUpdateEmails(changed);
     }
@@ -52,13 +43,9 @@ public without sharing class ProjectUpdateHandler {
 
         for (Project__c pNew : newList) {
             Project__c pOld = oldMap.get(pNew.Id);
-            if (pOld == null) {
-                continue;
-            }
+            if (pOld == null) { continue; }
             Boolean statusChanged = pNew.Project_Completion_Status__c != pOld.Project_Completion_Status__c;
-            if (statusChanged) {
-                result.add(pNew);
-            }
+            if (statusChanged) { result.add(pNew); }
         }
         return result;
     }
@@ -67,12 +54,8 @@ public without sharing class ProjectUpdateHandler {
      * Orchestrates email sending to client and supervisor using Lightning Email Templates.
      */
     public static void sendProjectStatusUpdateEmails(List<Project__c> updatedProjects) {
-        if (updatedProjects == null) {
-            return;
-        }
-        if (updatedProjects.isEmpty()) {
-            return;
-        }
+        if (updatedProjects == null) { return; }
+        if (updatedProjects.isEmpty()) { return; }
 
         Id clientTemplateId = getTemplateIdByDeveloperName(CLIENT_TPL_DEVNAME);
         Id supervisorTemplateId = getTemplateIdByDeveloperName(SUPERVISOR_TPL_DEVNAME);
@@ -96,20 +79,13 @@ public without sharing class ProjectUpdateHandler {
         List<Messaging.SingleEmailMessage> batch = new List<Messaging.SingleEmailMessage>();
 
         for (Project__c proj : updatedProjects) {
-            if (proj == null) {
-                continue;
-            }
+            if (proj == null) { continue; }
 
             if (String.isNotBlank(proj.Client_Email__c)) {
                 List<String> clientTos = cleanedEmails(new List<String>{ proj.Client_Email__c });
                 if (!clientTos.isEmpty()) {
                     Messaging.SingleEmailMessage toClient = buildTemplatedEmail(
-                        dummyContact.Id,
-                        clientTos,
-                        clientTemplateId,
-                        proj.Id,
-                        oweaId
-                    );
+                        dummyContact.Id,clientTos,clientTemplateId,proj.Id,oweaId);
                     batch.add(toClient);
                 }
             }
@@ -118,17 +94,11 @@ public without sharing class ProjectUpdateHandler {
                 List<String> supTos = cleanedEmails(new List<String>{ proj.Supervisor_Email_Text_c__c });
                 if (!supTos.isEmpty()) {
                     Messaging.SingleEmailMessage toSupervisor = buildTemplatedEmail(
-                        dummyContact.Id,
-                        supTos,
-                        supervisorTemplateId,
-                        proj.Id,
-                        oweaId
-                    );
+                        dummyContact.Id, supTos, supervisorTemplateId, proj.Id, oweaId);
                     batch.add(toSupervisor);
                 }
             }
         }
-
         sendEmails(batch);
     }
 
@@ -139,9 +109,7 @@ public without sharing class ProjectUpdateHandler {
         Set<String> uniq = new Set<String>();
         if (raw != null) {
             for (String s : raw) {
-                if (String.isBlank(s)) {
-                    continue;
-                }
+                if (String.isBlank(s)) { continue; }
                 uniq.add(s.trim());
             }
         }
@@ -154,18 +122,14 @@ public without sharing class ProjectUpdateHandler {
      * Builds a SingleEmailMessage for a Lightning Email Template.
      */
     private static Messaging.SingleEmailMessage buildTemplatedEmail(
-        Id targetContactId,
-        List<String> toAddresses,
-        Id templateId,
-        Id whatId,
-        Id oweaId
-    ) {
+        Id targetContactId, List<String> toAddresses, Id templateId, Id whatId, Id oweaId)
+    {
         Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
         msg.setTargetObjectId(targetContactId);
         msg.setToAddresses(toAddresses);
         msg.setTemplateId(templateId);
         msg.setWhatId(whatId);
-        msg.setTreatTargetObjectAsRecipient(true);
+        msg.setTreatTargetObjectAsRecipient(false);
         msg.setSaveAsActivity(true);
         if (oweaId != null) {
             msg.setOrgWideEmailAddressId(oweaId);
@@ -224,9 +188,7 @@ public without sharing class ProjectUpdateHandler {
      */
     private static Contact getSharedDummyContact() {
         List<Contact> contacts = [SELECT Id FROM Contact LIMIT 1];
-        if (!contacts.isEmpty()) {
-            return contacts[0];
-        }
+        if (!contacts.isEmpty()) { return contacts[0]; }
         return null;
     }
 
@@ -234,11 +196,8 @@ public without sharing class ProjectUpdateHandler {
      * Resolve Email Template Id by DeveloperName.
      */
     private static Id getTemplateIdByDeveloperName(String devName) {
-        if (String.isBlank(devName)) {
-            return null;
-        }
-        List<EmailTemplate> templates = [SELECT Id FROM EmailTemplate
-            WHERE DeveloperName = :devName LIMIT 1];
+        if (String.isBlank(devName)) { return null;}
+        List<EmailTemplate> templates = [SELECT Id FROM EmailTemplate WHERE DeveloperName = :devName LIMIT 1];
         if (!templates.isEmpty()) {
             return templates[0].Id;
         }

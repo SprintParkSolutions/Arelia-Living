@@ -3,17 +3,18 @@
     <fullName>Project_Timeline_Status__c</fullName>
     <externalId>false</externalId>
     <formula>IF(
-    ISPICKVAL(Status__c, &quot;Completed&quot;),
-    IF(
-         Actual_Completion_Date__c &gt;  End_Date__c,
-        &quot;Completed, but delayed by &quot; &amp; TEXT( Actual_Completion_Date__c - End_Date__c) &amp; &quot; days&quot;,
-        &quot;Completed on time&quot;
-    ),
-    IF(
-        End_Date__c &gt;= TODAY(),
-        TEXT( End_Date__c - TODAY()) &amp; &quot; days left&quot;,
-        TEXT(TODAY() -  End_Date__c) &amp; &quot; days overdue&quot;
-    )
+  ISPICKVAL(Status__c, &quot;Completed&quot;),
+  IF(
+    Actual_Completion_Date__c &gt; Estimated_End_Date__c,
+    &quot;Completed, but delayed by &quot; &amp;
+    TEXT(Actual_Completion_Date__c - Estimated_End_Date__c) &amp; &quot; days&quot;,
+    &quot;Completed on time&quot;
+  ),
+  IF(
+    Estimated_End_Date__c &gt;= TODAY(),
+    TEXT(Estimated_End_Date__c - TODAY()) &amp; &quot; days left&quot;,
+    TEXT(TODAY() - Estimated_End_Date__c) &amp; &quot; days overdue&quot;
+  )
 )</formula>
     <label>Project Timeline Status</label>
     <required>false</required>
