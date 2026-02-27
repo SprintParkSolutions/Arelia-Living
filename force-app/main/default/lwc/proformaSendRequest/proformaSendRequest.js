@@ -22,7 +22,8 @@ export default class ProformaSendRequest extends LightningElement {
     
     wiredInvoicesResult;
     columns = COLUMNS;
-    acceptedFormats = ['.pdf', '.jpg', '.png', '.xls', '.xlsx'];
+    // Allow more file types
+    acceptedFormats = ['.pdf', '.jpg', '.png', '.jpeg', '.xls', '.xlsx', '.csv', '.doc', '.docx', '.zip'];
 
     get hasUploadedFiles() {
         return this.uploadedFiles && this.uploadedFiles.length > 0;
@@ -46,7 +47,43 @@ export default class ProformaSendRequest extends LightningElement {
     handleUploadFinished(event) {
         const files = event.detail.files;
         if (files && files.length > 0) {
-            this.uploadedFiles = [...this.uploadedFiles, ...files];
+            
+            // --- NEW ICON LOGIC ---
+            const processedFiles = files.map(file => {
+                // Default icon
+                let icon = 'doctype:attachment'; 
+                
+                // Get extension
+                let ext = '';
+                const parts = file.name.split('.');
+                if(parts.length > 1) {
+                    ext = parts.pop().toLowerCase();
+                }
+
+                // Map extension to SLDS Doctype Icons
+                if (ext === 'pdf') {
+                    icon = 'doctype:pdf';
+                } else if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
+                    icon = 'doctype:image';
+                } else if (['xls', 'xlsx', 'csv'].includes(ext)) {
+                    icon = 'doctype:excel';
+                } else if (['doc', 'docx'].includes(ext)) {
+                    icon = 'doctype:word';
+                } else if (['zip', 'rar'].includes(ext)) {
+                    icon = 'doctype:zip';
+                } else if (['ppt', 'pptx'].includes(ext)) {
+                    icon = 'doctype:ppt';
+                } else if (['txt', 'rtf'].includes(ext)) {
+                    icon = 'doctype:txt';
+                }
+
+                return { 
+                    ...file, 
+                    iconName: icon 
+                };
+            });
+
+            this.uploadedFiles = [...this.uploadedFiles, ...processedFiles];
             this.showToast('Success', `${files.length} file(s) uploaded successfully.`, 'success');
             refreshApex(this.wiredInvoicesResult);
         }

@@ -14,12 +14,7 @@ public with sharing class VendorEmailController {
         }
         
         Set<Id> docIds = new Set<Id>();
-        for (ContentDocumentLink link : [
-            SELECT ContentDocumentId
-            FROM ContentDocumentLink
-            WHERE LinkedEntityId = :opportunityId
-            WITH SECURITY_ENFORCED
-        ]) {
+        for (ContentDocumentLink link : [SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = :opportunityId WITH SECURITY_ENFORCED]) {
             docIds.add(link.ContentDocumentId);
         }
 
@@ -67,13 +62,7 @@ public with sharing class VendorEmailController {
     @AuraEnabled(cacheable=true)
     public static List<EmailTemplate> getEmailTemplatesByType(String tenderType) {
         String devName = (tenderType == 'Backup') ? 'Backup_Tendor_Invitation' : 'Quatation_Email_Template';
-        List<EmailTemplate> templates = [
-            SELECT Id, Name, DeveloperName
-            FROM EmailTemplate
-            WHERE DeveloperName = :devName
-            WITH SECURITY_ENFORCED
-            LIMIT 1
-        ];
+        List<EmailTemplate> templates = [SELECT Id, Name, DeveloperName FROM EmailTemplate WHERE DeveloperName = :devName WITH SECURITY_ENFORCED LIMIT 1];
         
         if (templates.isEmpty()) {
             throw new AuraHandledException('Template not found: ' + devName);
@@ -98,15 +87,7 @@ public with sharing class VendorEmailController {
     public static AbscondedVendorDetails getAbscondedVendorTasks(String opportunityId, String category) {
         AbscondedVendorDetails details = new AbscondedVendorDetails();
         try {
-            List<Vendor_Assignment__c> assigns = [
-                SELECT Id, Vendor_Work_Start_Date__c, Vendor_Work_End_Date__c, Completion__c
-                FROM Vendor_Assignment__c
-                WHERE Vendor_Opportunity__r.Opportunity__c = :opportunityId
-                AND Vendor_Opportunity__r.Vendor_Category__c = :category
-                AND Vendor_Opportunity__r.Vendor_Opportunity_Status__c = 'Abscond'
-                WITH SECURITY_ENFORCED
-                LIMIT 1
-            ];
+            List<Vendor_Assignment__c> assigns = [SELECT Id, Vendor_Work_Start_Date__c, Vendor_Work_End_Date__c, Completion__c FROM Vendor_Assignment__c WHERE Vendor_Opportunity__r.Opportunity__c = :opportunityId AND Vendor_Opportunity__r.Vendor_Category__c = :category AND Vendor_Opportunity__r.Vendor_Opportunity_Status__c = 'Abscond' WITH SECURITY_ENFORCED LIMIT 1];
 
             if (assigns.isEmpty()) {
                 return details;
@@ -126,7 +107,7 @@ public with sharing class VendorEmailController {
         }
     }
 
-    // --- 4. EMAIL SENDING & FILE HANDLING ---
+    // --- 4. EMAIL SENDING ---
 
     @AuraEnabled
     @SuppressWarnings('PMD.ExcessiveParameterList')
@@ -145,16 +126,13 @@ public with sharing class VendorEmailController {
         new EmailServiceHelper().processAndSendEmails(context);
     }
 
-    // ============================================================================
-    // WRAPPER CLASSES
-    // ============================================================================
+    // ================= WRAPPER CLASSES =================
 
     public class AbscondedVendorDetails {
         @AuraEnabled public List<AbscondedTaskWrapper> tasks { get; set; }
         @AuraEnabled public Decimal overallCompletion { get; set; }
         @AuraEnabled public Date overallAssignmentStartDate { get; set; }
         @AuraEnabled public Date overallAssignmentEndDate { get; set; }
-
         public AbscondedVendorDetails() {
             this.tasks = new List<AbscondedTaskWrapper>();
             this.overallCompletion = 0;
@@ -165,7 +143,6 @@ public with sharing class VendorEmailController {
         @AuraEnabled public Id taskId { get; set; }
         @AuraEnabled public String taskSubject { get; set; }
         @AuraEnabled public String taskStatus { get; set; }
-
         public AbscondedTaskWrapper(Task t) {
             this.taskId = t.Id;
             this.taskSubject = t.Subject;
@@ -195,17 +172,19 @@ public with sharing class VendorEmailController {
         public String defaultCategory;
     }
 
-    // ============================================================================
-    // INNER HELPER CLASSES
-    // ============================================================================
+    // ================= HELPERS =================
 
     private with sharing class SpecQueryHelper {
         public List<SObject> querySpecs(String opportunityId, String category) {
             Schema.FieldSet fs = SObjectType.Project_Specification__c.FieldSets.getMap().get('Vendor_Email_Fields');
-            if (fs == null) { return new List<Project_Specification__c>(); }
+            if (fs == null) {
+                return new List<Project_Specification__c>();
+            }
 
             List<Schema.FieldSetMember> fields = fs.getFields();
-            if (fields.isEmpty()) { return new List<Project_Specification__c>(); }
+            if (fields.isEmpty()) {
+                return new List<Project_Specification__c>();
+            }
 
             String query = 'SELECT Id, Interior_Product__c, Interior_Product__r.Name, Quality__c, Quantity__c, ';
             for (Schema.FieldSetMember f : fields) {
@@ -226,13 +205,9 @@ public with sharing class VendorEmailController {
             
             EmailContentWrapper content = buildContent(ctx);
             
-            Opportunity opp = [
-                SELECT Id, Name, Supervisor_User__r.Name, Supervisor_User__r.Email, Supervisor_User__r.Phone, Project_Scope__c
-                FROM Opportunity WHERE Id = :ctx.opportunityId WITH SECURITY_ENFORCED LIMIT 1
-            ];
+            Opportunity opp = [SELECT Id, Name, Supervisor_User__r.Name, Supervisor_User__r.Email, Supervisor_User__r.Phone, Project_Scope__c FROM Opportunity WHERE Id = :ctx.opportunityId WITH SECURITY_ENFORCED LIMIT 1];
 
             List<Messaging.EmailFileAttachment> attachments = buildAttachments(ctx.fileIds, content.specs);
-
             List<Vendor__c> vendors = [SELECT Id, Name, Email__c, Vendor_Category__c FROM Vendor__c WHERE Id IN :ctx.vendorIds AND Email__c != NULL WITH SECURITY_ENFORCED];
             List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
 
@@ -269,13 +244,11 @@ public with sharing class VendorEmailController {
         private Messaging.SingleEmailMessage createEmail(Vendor__c v, EmailCreationContext ctx) {
             String cat = (v.Vendor_Category__c != null ? v.Vendor_Category__c : ctx.defaultCategory);
             
-            // Build Subject (FIXED: Added Opportunity Name replacement here)
             String subject = ctx.template.Subject
                 .replace('{{{Vendor_Category__c}}}', cat)
                 .replace('{{{Opportunity.Name}}}', (ctx.opportunity.Name != null ? ctx.opportunity.Name : ''))
                 .replace('{{{project_scope}}}', (ctx.opportunity.Project_Scope__c != null ? ctx.opportunity.Project_Scope__c : ''));
 
-            // Build Body
             String body = ctx.template.HtmlValue
                 .replace('{{{Opportunity.Name}}}', (ctx.opportunity.Name != null ? ctx.opportunity.Name : ''))
                 .replace('{{{Opportunity.SupervisorName}}}', (ctx.opportunity.Supervisor_User__r?.Name != null ? ctx.opportunity.Supervisor_User__r.Name : ''))
@@ -296,7 +269,6 @@ public with sharing class VendorEmailController {
             email.setSubject(subject);
             email.setHtmlBody(body);
             email.setFileAttachments(ctx.attachments);
-            
             if (ctx.opportunity.Supervisor_User__r?.Name != null) {
                 email.setSenderDisplayName(ctx.opportunity.Supervisor_User__r.Name + ' (Project Supervisor)');
             }
@@ -317,7 +289,9 @@ public with sharing class VendorEmailController {
                 Set<Id> productIds = new Set<Id>();
                 for (SObject s : specs) {
                     Id prodId = (Id) s.get('Interior_Product__c');
-                    if (prodId != null) { productIds.add(prodId); }
+                    if (prodId != null) { 
+                        productIds.add(prodId); 
+                    }
                 }
                 attachments.addAll(getAttachmentsFromParentIds(productIds));
             }
@@ -326,14 +300,17 @@ public with sharing class VendorEmailController {
 
         private List<Messaging.EmailFileAttachment> getAttachmentsFromParentIds(Set<Id> parentIds) {
             List<Messaging.EmailFileAttachment> result = new List<Messaging.EmailFileAttachment>();
-            if (parentIds.isEmpty()) { return result; }
+            if (parentIds.isEmpty()) {
+                return result;
+            }
             
             Set<Id> docIds = new Set<Id>();
             for (ContentDocumentLink cdl : [SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId IN :parentIds WITH SECURITY_ENFORCED]) {
                 docIds.add(cdl.ContentDocumentId);
             }
-            
-            if (docIds.isEmpty()) { return result; }
+            if (docIds.isEmpty()) {
+                return result;
+            }
             
             for (ContentVersion cv : [SELECT Title, VersionData, FileExtension FROM ContentVersion WHERE ContentDocumentId IN :docIds AND IsLatest = TRUE WITH SECURITY_ENFORCED]) {
                 Messaging.EmailFileAttachment att = new Messaging.EmailFileAttachment();
@@ -345,17 +322,23 @@ public with sharing class VendorEmailController {
         }
     }
 
-    /** @description Helper class specifically for HTML Table generation. */
+    /** @description Helper class for HTML Table generation. */
     private with sharing class TableBuilderHelper {
 
         public String buildDynamicSpecificationTable(List<SObject> records) {
-            if (records == null || records.isEmpty()) { return ''; }
-            Schema.FieldSet fs = SObjectType.Project_Specification__c.FieldSets.getMap().get('Vendor_Email_Fields');
-            if (fs == null) { return ''; }
+            if (records == null || records.isEmpty()) {
+                return ''; // RETURNS EMPTY STRING IF NO DATA
+            }
             
-            String table = '<table border="1" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;"><thead style="background-color: #f2f2f2;"><tr>';
+            Schema.FieldSet fs = SObjectType.Project_Specification__c.FieldSets.getMap().get('Vendor_Email_Fields');
+            if (fs == null) {
+                return '';
+            }
+            
+            String table = '<p>Below are the project specifications and requirements. Please review them and submit your best quotation at your earliest convenience.</p><br/>';
+            
+            table += '<table border="1" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;"><thead style="background-color: #f2f2f2;"><tr>';
             for (Schema.FieldSetMember f : fs.getFields()) {
-                // FIX: Check for Description in path (handles Description, Description__c, Opportunity.Description)
                 if (!f.getFieldPath().containsIgnoreCase('Description')) {
                     table += '<th style="padding: 10px; text-align: left;">' + f.getLabel() + '</th>';
                 }
@@ -364,7 +347,6 @@ public with sharing class VendorEmailController {
             for (SObject row : records) {
                 table += '<tr>';
                 for (Schema.FieldSetMember f : fs.getFields()) {
-                    // FIX: Check for Description in path
                     if (!f.getFieldPath().containsIgnoreCase('Description')) {
                         table += '<td style="padding: 10px;">' + getDeepValue(row, f.getFieldPath()) + '</td>';
                     }
@@ -378,7 +360,10 @@ public with sharing class VendorEmailController {
             if (details == null || (details.tasks.isEmpty() && details.overallCompletion == 0)) {
                 return '';
             }
-            return buildAbscondedSummary(details) + buildAbscondedRows(details);
+            
+            String intro = '<p>For your reference and to assist in your estimation, here are the details from the previous vendor\'s assignment. <b>This information shows the work status at the time of exit.</b></p><br/>';
+            
+            return intro + buildAbscondedSummary(details) + buildAbscondedRows(details);
         }
 
         private String buildAbscondedSummary(AbscondedVendorDetails details) {
@@ -407,7 +392,9 @@ public with sharing class VendorEmailController {
         }
 
         private String getDeepValue(SObject record, String fieldPath) {
-            if (record == null) { return ''; }
+            if (record == null) {
+                return '';
+            }
             if (!fieldPath.contains('.')) {
                 Object val = record.get(fieldPath);
                 return (val != null) ? String.valueOf(val) : '';
@@ -416,7 +403,9 @@ public with sharing class VendorEmailController {
             SObject currentObj = record;
             for (Integer i = 0; i < parts.size() - 1; i++) {
                 currentObj = currentObj.getSObject(parts[i]);
-                if (currentObj == null) { return ''; }
+                if (currentObj == null) {
+                    return '';
+                }
             }
             Object val = currentObj.get(parts[parts.size() - 1]);
             return (val != null) ? String.valueOf(val) : '';

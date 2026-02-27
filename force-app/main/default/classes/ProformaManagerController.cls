@@ -171,14 +171,28 @@ public without sharing class ProformaManagerController {
         String projectName = (data.invoice.Opportunity__r != null) ? data.invoice.Opportunity__r.Name : 'Project';
         String safeComments = String.isNotBlank(data.comments) ? data.comments : 'No comments provided.';
         String decisionLabel = (data.action == 'Approve') ? 'Approved' : 'Rejected / Changes Requested';
-        String supervisorName = (data.invoice.Opportunity__r != null && data.invoice.Opportunity__r.Supervisor_User__r != null) ? data.invoice.Opportunity__r.Supervisor_User__r.FirstName : 'Team';
+        
+        // --- UPDATED: Supervisor Name Logic (First Name + Last Name) ---
+        String supervisorName = 'Team';
+        if (data.invoice.Opportunity__r != null && data.invoice.Opportunity__r.Supervisor_User__r != null) {
+            String firstName = data.invoice.Opportunity__r.Supervisor_User__r.FirstName;
+            String lastName = data.invoice.Opportunity__r.Supervisor_User__r.LastName;
+            
+            // Handle cases where First Name might be null
+            supervisorName = (String.isNotBlank(firstName) ? firstName + ' ' : '') + 
+                             (String.isNotBlank(lastName) ? lastName : '');
+            
+            if (String.isBlank(supervisorName)) { supervisorName = 'Team'; }
+        }
+        // -------------------------------------------------------------
+
         String clientName = (data.invoice.Opportunity__r != null) ? data.invoice.Opportunity__r.Lead_Name__c : 'Client';
 
         String htmlBody = et.HtmlValue.replace('[PROJECT_NAME]', projectName)
                                       .replace('[OPPORTUNITY_NAME]', projectName)
                                       .replace('[DECISION]', decisionLabel)
                                       .replace('[COMMENTS]', safeComments)
-                                      .replace('[SUPERVISOR_NAME]', supervisorName)
+                                      .replace('[SUPERVISOR_NAME]', supervisorName) // Uses the new full name
                                       .replace('[CLIENT_NAME]', clientName);
                                       
         String subject = et.Subject.replace('[OPPORTUNITY_NAME]', projectName);
@@ -190,7 +204,6 @@ public without sharing class ProformaManagerController {
         mail.setHtmlBody(htmlBody);
         return mail;
     }
-
     private static void attachAllFilesToEmail(Messaging.SingleEmailMessage mail, Set<Id> fileIds) {
         List<ContentVersion> files = [SELECT VersionData, Title, FileExtension FROM ContentVersion WHERE ContentDocumentId IN :fileIds AND IsLatest = true];
         List<Messaging.EmailFileAttachment> attachments = new List<Messaging.EmailFileAttachment>();

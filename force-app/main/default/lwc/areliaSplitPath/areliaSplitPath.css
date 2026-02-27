@@ -23,7 +23,7 @@
 
 /* 3. THE LIST - Rows of items */
 .slds-path__nav {
-    display: flex !important;          /* Align items in a row */
+    display: flex !important;          /* Align items in a row */   
     flex-wrap: nowrap !important;      /* FORCE single line (no wrapping) */
     list-style: none;
     margin: 0;

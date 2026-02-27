@@ -110,7 +110,6 @@ export default class SendVendorEmailWizard extends LightningElement {
         this.categoryOptions = result.map((c) => ({ label: c, value: c }));
       })
       .catch(() =>
-        
         this.showToast("Error", "Failed to load vendor categories", "error")
       );
   }
@@ -118,10 +117,6 @@ export default class SendVendorEmailWizard extends LightningElement {
   handleTenderTypeChange(event) {
     this.tenderType = event.detail.value;
   }
-  get isReadyToRender() {
-    // Only show the form if loading is done AND we actually have the ID
-    return !this.isLoading && this.showCreation && this.fetchedOpportunity;
-}
 
   async handleCategoryChange(event) {
     this.selectedCategory = event.detail.value;
@@ -141,7 +136,6 @@ export default class SendVendorEmailWizard extends LightningElement {
             opportunityId: this.recordId,
             category: this.selectedCategory
           });
-          // Gracefully handle empty result
           this.specifications = result || [];
           this.showSpecificationTable = this.specifications.length > 0;
         }
@@ -153,7 +147,6 @@ export default class SendVendorEmailWizard extends LightningElement {
             category: this.selectedCategory
           });
 
-          // Gracefully handle missing backup data
           if (result) {
             this.abscondedTasks = result.tasks || [];
             this.overallAssignmentCompletionPercentage =
@@ -161,13 +154,11 @@ export default class SendVendorEmailWizard extends LightningElement {
             this.overallAssignmentStartDate = result.overallAssignmentStartDate;
             this.overallAssignmentEndDate = result.overallAssignmentEndDate;
           } else {
-            // Reset if no result comes back
             this.abscondedTasks = [];
           }
           this.isLoadingAbscondedTasks = false;
         }
       } catch (error) {
-        // Only show toast if it's a real system error, not just empty data
         console.error(error);
         this.showToast(
           "Error",
@@ -195,18 +186,6 @@ export default class SendVendorEmailWizard extends LightningElement {
   handleSendEmail() {
     if (!this.selectedVendorIds || this.selectedVendorIds.length === 0) {
       this.showToast("Error", "Please select at least one vendor.", "error");
-      return;
-    }
-
-    if (
-      this.tenderType === "New" &&
-      (!this.specifications || this.specifications.length === 0)
-    ) {
-      this.showToast(
-        "Error",
-        "Cannot send email without project specifications.",
-        "error"
-      );
       return;
     }
 

@@ -36,12 +36,6 @@
     font-weight:800;
 }
 
-.subtitle{
-    margin:6px 0 0;
-    color:#667;
-    font-size:12px;
-}
-
 .center{
     padding:22px 0;
     display:flex;
@@ -82,22 +76,6 @@
 .label{
     font-weight:900;
     font-size:13px;
-}
-
-.hint{
-    font-size:11px;
-    color:#789;
-    margin-top:2px;
-}
-
-.step{
-    width:28px;height:28px;
-    border-radius:999px;
-    display:grid;
-    place-items:center;
-    font-weight:900;
-    border:1px solid #e4eef7;
-    background:#f7fbff;
 }
 
 .money{
@@ -148,15 +126,6 @@
 .secTitle{
     font-weight:900;
     font-size:15px;
-}
-
-.total{
-    margin-top:10px;
-    padding-top:10px;
-    border-top:1px dashed #e3eaf3;
-    display:flex;
-    justify-content:space-between;
-    font-size:13px;
 }
 
 /* footer buttons centered */

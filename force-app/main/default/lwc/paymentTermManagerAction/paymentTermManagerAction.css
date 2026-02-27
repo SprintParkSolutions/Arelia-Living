@@ -7,13 +7,17 @@
 
 .table-header {
     padding-bottom: 0.5rem;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .slds-text-title_caps {
     font-size: 0.7rem;
     letter-spacing: 0.05em;
-    
+}
+
+.responsive-table {
+    width: 100%;
+    overflow-x: auto;
 }
 
 /* ===============================
