@@ -17,7 +17,7 @@
 global without sharing class VendorReminderScheduler implements Schedulable {
 
     // ---------- Config ----------
-    private static final String TEMPLATE_DEV_NAME  = 'VA_Due_Alert_to_the_Supervisor_User';
+    private static final String TEMPLATE_DEV_NAME  = Label.Arelia_Living_VA_Due_Alert_to_the_Supervisor_User;
     private static final String ROLE_LIKE_FILTER   = '%Manager%';
     private static final String STATUS_FIELD       = 'Status__c';
     private static final String STATUS_IN_PROGRESS = 'In-Progress';
@@ -163,6 +163,7 @@ global without sharing class VendorReminderScheduler implements Schedulable {
             '       Vendor_Work_End_Date__c,' +
             '       Number_of_Days__c,' +
             '       Completion__c,' +
+            '       Vendor_Category__c,' +  // ✅ Added
             '       ' + STATUS_FIELD + ',' +
             '       Supervisor_User__r.Email, Supervisor_User__r.Name,' +
             '       Project__r.Name ' +
@@ -306,11 +307,20 @@ global without sharing class VendorReminderScheduler implements Schedulable {
     }
 
     private static String buildSubject(EmailTemplate tpl, Vendor_Assignment__c va) {
-        String name = safe(va.Name);
+        String assignmentName = safe(va.Name);
+        String projectName    = safe(va.Project__r != null ? va.Project__r.Name : '');
+        String vendorCategory = safe(va.Vendor_Category__c);
+
+        // Fallback if template missing
         if (tpl == null || String.isBlank(tpl.Subject)) {
-            return 'Vendor Assignment Reminder: ' + name;
+            return 'Vendor Reminder: ' + assignmentName +
+                (String.isBlank(projectName) ? '' : ' for ' + projectName);
         }
-        return tpl.Subject.replace('{{Vendor_Assignment__c.Name}}', name);
+
+        return tpl.Subject
+            .replace('{{AssignmentName}}', assignmentName)
+            .replace('{{ProjectName}}', projectName)
+            .replace('{{VendorCategory}}', vendorCategory);
     }
 
     private static String supMgrHtml(

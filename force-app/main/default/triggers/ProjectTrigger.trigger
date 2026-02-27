@@ -1,9 +1,9 @@
 /**
  * @description       : 
- * @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+ * @author            : Arelia Living
  * @group             : 
  * @last modified on  : 12-11-2025
- * @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+ * @last modified by  : Arelia Living
 **/
 trigger ProjectTrigger on Project__c (before insert, before update, after insert, after update) {
 
@@ -32,7 +32,7 @@ trigger ProjectTrigger on Project__c (before insert, before update, after insert
             ProjectTriggerHandler.sendProjectApprovedEmail(Trigger.new);
 
             // Link chats after create
-            // WhatsAppChatRelinkerOnProject.onAfterInsert(Trigger.new);
+            WhatsAppChatRelinkerOnProject.onAfterInsert(Trigger.new);
         } catch (Exception e) {
             System.debug('Failed during after-insert: ' + e.getMessage());
         }
@@ -42,7 +42,7 @@ trigger ProjectTrigger on Project__c (before insert, before update, after insert
     if (Trigger.isAfter && Trigger.isUpdate) {
         try {
             // Your existing relinker
-            // WhatsAppChatRelinkerOnProject.onAfterUpdate(Trigger.new, Trigger.oldMap);
+            WhatsAppChatRelinkerOnProject.onAfterUpdate(Trigger.new, Trigger.oldMap);
 
             // Delegate "Completed @ 100%" transition detection to the handler
             ProjectCompletionEmailHandler.handleAfterUpdate(Trigger.new, Trigger.oldMap);
