@@ -7,6 +7,7 @@
  * @author      Naresh
  * @version     1.0
  */
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public with sharing class ScheduleAppointmentonOppController {
 
 
@@ -186,6 +187,7 @@ public with sharing class ScheduleAppointmentonOppController {
         String subject = tpl.Subject
             .replace('{{{appointmentDate}}}', formattedDate)
             .replace('{{{timeSlot}}}', timeSlot)
+            .replace('{{{appointmentType}}}', appointmentType)
             .replace('{{{leadName}}}', clientName);
 
         Messaging.SingleEmailMessage m = new Messaging.SingleEmailMessage();
@@ -214,6 +216,7 @@ public with sharing class ScheduleAppointmentonOppController {
         String subject = tpl.Subject
             .replace('{{{appointmentDate}}}', formattedDate)
             .replace('{{{timeSlot}}}', timeSlot)
+            .replace('{{{appointmentType}}}', appointmentType)
             .replace('{{{leadName}}}', clientName);
 
         Messaging.SingleEmailMessage m = new Messaging.SingleEmailMessage();

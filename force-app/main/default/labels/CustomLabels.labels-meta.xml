@@ -50,6 +50,27 @@
         <value>Arelia_Automated_Project_Request_Quote_Design_Submit_Template</value>
     </labels>
     <labels>
+        <fullName>Arelia_Expense_Approval_Page</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia_Expense_Approval_Page</shortDescription>
+        <value>expense-approval</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Expense_Approved_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia_Expense_Approved_Template</shortDescription>
+        <value>Expense_Sheet_Approved_Notification</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Expense_Template</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia_Expense_Template</shortDescription>
+        <value>Expense_Approval_Request</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Appointment_Approved_Email</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -103,7 +124,7 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Arelia Living Enrollment Members</shortDescription>
-        <value>tejaswaroopu@sprintpark.com,mohit.e@sprintpark.com</value>
+        <value>tejaswaroopu@sprintpark.com,mohite.9804@gmail.com</value>
     </labels>
     <labels>
         <fullName>Arelia_Living_Lead_Conversion_Approval_Email_Template</fullName>
@@ -317,6 +338,69 @@
         <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/</value>
     </labels>
     <labels>
+        <fullName>Budget_Review_Page_Name</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Budget_Review_Page_Name</shortDescription>
+        <value>budget-review-approval</value>
+    </labels>
+    <labels>
+        <fullName>Budget_Template_Client_Ack_Pending</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Budget_Template_Client_Ack_Pending</shortDescription>
+        <value>Budget_Review_Client_Ack_Pending</value>
+    </labels>
+    <labels>
+        <fullName>Budget_Template_Client_Fresh</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Budget_Review_Template_Client_Fresh</shortDescription>
+        <value>Budget_Review_Client_Fresh</value>
+    </labels>
+    <labels>
+        <fullName>Budget_Template_Client_Manager_Revised</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Budget_Template_Client_Manager_Revised</shortDescription>
+        <value>Budget_Review_Client_Manager_Revised</value>
+    </labels>
+    <labels>
+        <fullName>Budget_Template_Client_Revised</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Budget_Review_Template_Client_Revised</shortDescription>
+        <value>Budget_Review_Client_Revised</value>
+    </labels>
+    <labels>
+        <fullName>Budget_Template_Confirmation</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Budget_Review_Template_Confirmation</shortDescription>
+        <value>Budget_Review_Confirmation</value>
+    </labels>
+    <labels>
+        <fullName>Budget_Template_Manager_Fresh</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Budget_Review_Template_Manager_Fresh</shortDescription>
+        <value>Budget_Review_Manager_Fresh</value>
+    </labels>
+    <labels>
+        <fullName>Budget_Template_Manager_Revised</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Budget_Review_Template_Manager_Revised</shortDescription>
+        <value>Budget_Review_Manager_Revised</value>
+    </labels>
+    <labels>
+        <fullName>Budget_Template_Notify_Supervisor</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Budget_Review_Template_Notify_Supervisor</shortDescription>
+        <value>Budget_Review_Notify_Supervisor</value>
+    </labels>
+    <labels>
         <fullName>Client_Final_Response_Template</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -342,7 +426,7 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Commercial_URL</shortDescription>
-        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/commerical-portifolio</value>
+        <value>commerical-portifolio</value>
     </labels>
     <labels>
         <fullName>Customer_Appointment_Approved_Email</fullName>
@@ -385,7 +469,7 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Hospitality_URL</shortDescription>
-        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/hospitality-portfolio</value>
+        <value>hospitality-portfolio</value>
     </labels>
     <labels>
         <fullName>Image_Approval</fullName>
@@ -445,11 +529,39 @@
         <value>Payment_Term_Client_Request</value>
     </labels>
     <labels>
+        <fullName>Payment_Term_Template_Client_Revised</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Template_Client_Revised</shortDescription>
+        <value>Payment_Term_Client_Revised</value>
+    </labels>
+    <labels>
+        <fullName>Payment_Term_Template_Confirmation</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Template_Confirmation</shortDescription>
+        <value>Payment_Term_Client_Confirmation</value>
+    </labels>
+    <labels>
         <fullName>Payment_Term_Template_Manager</fullName>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Payment_Term_Template_Manager</shortDescription>
         <value>Payment_Term_Manager_Request</value>
+    </labels>
+    <labels>
+        <fullName>Payment_Term_Template_Manager_Client_Revised</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Template_Manager_Client_Revised</shortDescription>
+        <value>Payment_Term_Manager_Client_Revised</value>
+    </labels>
+    <labels>
+        <fullName>Payment_Term_Template_Manager_Revised</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Payment_Term_Template_Manager_Revised</shortDescription>
+        <value>Payment_Term_Manager_Revised</value>
     </labels>
     <labels>
         <fullName>Payment_Term_Template_Notify</fullName>
@@ -478,6 +590,13 @@
         <protected>false</protected>
         <shortDescription>Proforma_Client_Response_Template</shortDescription>
         <value>Proforma_Client_Response_Notification</value>
+    </labels>
+    <labels>
+        <fullName>Proforma_Invoice_Sent_To_Supervisor</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Proforma Invoice Sent To Supervisor</shortDescription>
+        <value>Proforma_Invoice_Sent_To_Supervisor</value>
     </labels>
     <labels>
         <fullName>Proforma_Invoice_Site_Page</fullName>
@@ -540,7 +659,7 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Residential_URL</shortDescription>
-        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/residential-portfolio</value>
+        <value>residential-portfolio</value>
     </labels>
     <labels>
         <fullName>Residential_portfolio</fullName>
@@ -568,7 +687,7 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>WA_Access_Token</shortDescription>
-        <value>EAAURDkLToDYBQjouNFu46IkXTAr44bz65Y2ZByT0RDZBDuaI8afO4A6lfzJjuiIuhkClKbpRFmOSULPSGc9zSwhSs9GqpzDasN8ZCVUQFufnyOiq8Rav9SZCzVTQcxo12YrPznWdopTYPH4jvor4Vgg7E9addjZCNOGrxjTN37dDEyDg9W91GbO9mjlO4bofWW7hHN4qEfxazqbNy6E1uAwF1LZCKPfSwlZCLbQEXKgZAzh7C4t3rS6uTzHcMQe7n7nlZAWfsuAD5GleIEGG6UzeZANDt3</value>
+        <value>EAAURDkLToDYBQmQgDtPBCJ67mrkNiFFyAsbBdTqZA45VMLEgkc8ZBIoANbXY2m42V6MLusyX9dX8Cq5pKcBgrbpJuRHhHv2ZAnpPY6PcdyJl8PWOBy7Ewcg4PL8sXLkMZCxZAU6nQoGNXzQjNRosD6wll7WJonuBUpZBv7koAETAbV0oygDrZBe3hZBnZC16tkEtnfZAdXZABdMDr9AlcS93dCRW1xIHURBNN1ZBEPgnC5HZACwUehEynmYlzPUEyErXZBboZC2JlgsYcIyiIl9hO51HGZAdugZCG</value>
     </labels>
     <labels>
         <fullName>WA_Phone_Number_Id</fullName>

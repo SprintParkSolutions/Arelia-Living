@@ -1,22 +1,37 @@
+/**
+ * @description
+ *  Queueable class that:
+ *   - Generates Invoice PDF using Visualforce page
+ *   - Saves it as Salesforce File (ContentVersion)
+ *   - Links the file to Invoice__c
+ *   - Updates Invoice with generated File Id
+ *
+ *  Used after Invoice submission.
+ *
+ *  Notes:
+ *   - Runs asynchronously (Queueable)
+ *   - Safe for test context (dummy PDF in test)
+ */
 public with sharing class InvoicePdfJob implements Queueable, Database.AllowsCallouts {
     private final Id invoiceId;
+
+    // ✅ TEST HOOK (does nothing in prod)
+    @TestVisible private static Boolean forcePdfException = false;
 
     public InvoicePdfJob(Id invoiceId) {
         this.invoiceId = invoiceId;
     }
 
     public void execute(QueueableContext qc) {
-        if (invoiceId == null) return;
+        if (invoiceId == null) { return; }
 
-        // ✅ Query invoice + opportunity name for file title
-        // CHANGE FIELD NAME HERE if your lookup is not Opportunity__c
         List<Invoice__c> invList = [
             SELECT Id, Name, Invoice_No__c, Opportunity__c, Opportunity__r.Name
             FROM Invoice__c
             WHERE Id = :invoiceId
             LIMIT 1
         ];
-        if (invList.isEmpty()) return;
+        if (invList.isEmpty()) { return; }
 
         Invoice__c inv = invList[0];
 
@@ -34,6 +49,10 @@ public with sharing class InvoicePdfJob implements Queueable, Database.AllowsCal
         Blob pdfBlob;
         try {
             if (Test.isRunningTest()) {
+                if (forcePdfException) {
+                    // ✅ forces catch branch only in tests
+                    throw new AuraHandledException('FORCED_PDF_EXCEPTION');
+                }
                 pdfBlob = Blob.valueOf('DUMMY_PDF');
             } else {
                 pdfBlob = pr.getContentAsPDF();
@@ -41,13 +60,15 @@ public with sharing class InvoicePdfJob implements Queueable, Database.AllowsCal
         } catch (Exception e) {
             try {
                 update new Invoice__c(Id = invoiceId, PDF_Error__c = e.getMessage());
-            } catch (Exception ignore) {}
+            } catch (Exception ignore) {
+                System.debug('Error updating Invoice__c with PDF_Error__c');
+            }
             return;
         }
 
         ContentVersion cv = new ContentVersion();
-        cv.Title = fileTitle;          // ✅ Title shows Invoice_<Opportunity Name>
-        cv.PathOnClient = fileName;    // ✅ Invoice_<Opportunity Name>.pdf
+        cv.Title = fileTitle;
+        cv.PathOnClient = fileName;
         cv.VersionData = pdfBlob;
         insert cv;
 
@@ -57,7 +78,7 @@ public with sharing class InvoicePdfJob implements Queueable, Database.AllowsCal
             WHERE Id = :cv.Id
             LIMIT 1
         ];
-        if (cv2.isEmpty() || cv2[0].ContentDocumentId == null) return;
+        if (cv2.isEmpty() || cv2[0].ContentDocumentId == null) { return; }
 
         Id docId = cv2[0].ContentDocumentId;
 
@@ -70,15 +91,20 @@ public with sharing class InvoicePdfJob implements Queueable, Database.AllowsCal
 
         try {
             update new Invoice__c(Id = invoiceId, PDF_ContentDocumentId__c = docId);
-        } catch (Exception ignore2) {}
+        } catch (Exception ignore2) {
+            System.debug('Error updating Invoice__c with PDF_ContentDocumentId__c');
+        }
     }
 
-    // ✅ Remove characters not allowed in file names
+    /**
+     * Removes invalid characters from file name
+     */
+    @TestVisible
     private static String sanitizeFileName(String inputName) {
         String v = String.isBlank(inputName) ? 'Invoice' : inputName.trim();
-        v = v.replaceAll('[\\\\/:*?"<>|]', ' '); // illegal filename chars
-        v = v.replaceAll('\\s+', ' ').trim();    // collapse spaces
-        if (v.length() > 80) v = v.substring(0, 80);
+        v = v.replaceAll('[\\\\/:*?"<>|]', ' ');
+        v = v.replaceAll('\\s+', ' ').trim();
+        if (v.length() > 80) { v = v.substring(0, 80); }
         return v;
     }
 }
