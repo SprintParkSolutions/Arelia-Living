@@ -1,3 +1,20 @@
+/**
+ * @description
+ *  Controller used by InvoicePdf Visualforce page.
+ *  Loads:
+ *    - Invoice header data
+ *    - Section + line items
+ *    - Materials list
+ *    - Not Included list
+ *
+ *  Data is grouped into SectionWrap for easier rendering in PDF.
+ *
+ *  Notes:
+ *   - Read-only controller (no DML)
+ *   - Handles invalid / missing Invoice Id safely
+ *   - Keeps logic simple for PDF rendering
+ */
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public with sharing class InvoicePdfController {
 
     public Invoice__c inv { get; private set; }
@@ -6,6 +23,9 @@ public with sharing class InvoicePdfController {
     public List<Invoice_Not_Included__c> notIncluded { get; private set; }
     public String errorMessage { get; private set; }
 
+    /**
+     * Wrapper class to group section header + line rows
+     */
     public class SectionWrap {
         public String sectionName { get; set; }
         public String sectionType { get; set; }   // picklist stored value
@@ -17,18 +37,28 @@ public with sharing class InvoicePdfController {
         public Boolean getIsOther()      { return typeKey == 'OTHER'; }
     }
 
-    // ✅ canonical type must match LWC + InvoiceService
+     /**
+     * Converts raw section type into canonical type.
+     * Ensures consistent behavior across:
+     *  - LWC
+     *  - InvoiceService
+     *  - PDF rendering
+     */
     private static String canonType(String raw) {
-        if (String.isBlank(raw)) return 'OTHER';
+        if (String.isBlank(raw)) {return 'OTHER';}
         String u = raw.trim().toUpperCase();
 
-        if (u == 'WOOD' || u.contains('WOOD')) return 'WOOD';
-        if (u.contains('ELECTRIC')) return 'ELECTRICAL';
-        if (u.contains('CIVIL')) return 'WOOD';     // civil behaves like wood
-        if (u.contains('OTHER')) return 'OTHER';
+        if (u == 'WOOD' || u.contains('WOOD')) {return 'WOOD';}
+        if (u.contains('ELECTRIC')) {return 'ELECTRICAL';}
+        if (u.contains('CIVIL')) {return 'WOOD';}     // civil behaves like wood
+        if (u.contains('OTHER')) {return 'OTHER';}
         return 'OTHER';
     }
 
+    /**
+     * Constructor
+     * Loads all required invoice data for PDF rendering.
+     */
     public InvoicePdfController() {
         sections = new List<SectionWrap>();
         materials = new List<Invoice_Material__c>();
@@ -51,14 +81,10 @@ public with sharing class InvoicePdfController {
             return;
         }
 
-        List<Invoice__c> invList = [
-            SELECT Id, Client_Name__c, Phone__c, Address__c,
-                   Invoice_No__c, Invoice_Date__c, Version_No__c,
-                   GST_Percent__c, Total__c, GST_Amount__c, Grand_Total__c
-            FROM Invoice__c
-            WHERE Id = :invoiceId
-            LIMIT 1
-        ];
+        List<Invoice__c> invList = [SELECT Id, Client_Name__c, Phone__c, Address__c,
+                     Invoice_No__c, Invoice_Date__c, Version_No__c,
+                    GST_Percent__c, Total__c, GST_Amount__c, Grand_Total__c
+                    FROM Invoice__c WHERE Id = :invoiceId LIMIT 1];
         if (invList.isEmpty()) {
             errorMessage = 'Invoice not found or no access.';
             inv = new Invoice__c();
@@ -66,16 +92,11 @@ public with sharing class InvoicePdfController {
         }
         inv = invList[0];
 
-        List<Invoice_Line__c> allLines = [
-            SELECT Is_Section__c, Section_Name__c, Section_Type__c,
-                   Category__c, Item__c, Brand__c, Explanation__c,
-                   L__c, H__c, Qty__c, Area_Sqft__c,
-                   Electrical_Mode__c, Coils__c, Meters__c,
-                   Rate__c, Amount__c, Sort_Order__c
-            FROM Invoice_Line__c
-            WHERE Invoice__c = :invoiceId
-            ORDER BY Sort_Order__c
-        ];
+        List<Invoice_Line__c> allLines = [SELECT Is_Section__c, Section_Name__c, Section_Type__c,
+                Category__c, Item__c, Brand__c, Explanation__c,
+                L__c, H__c, Qty__c, Area_Sqft__c, Electrical_Mode__c, Coils__c, Meters__c,
+                Rate__c, Amount__c, Sort_Order__c FROM Invoice_Line__c
+                WHERE Invoice__c = :invoiceId ORDER BY Sort_Order__c];
 
         SectionWrap current;
         for (Invoice_Line__c l : allLines) {
@@ -91,18 +112,11 @@ public with sharing class InvoicePdfController {
             }
         }
 
-        materials = [
-            SELECT Material__c, Brand__c, Grade__c, Sort_Order__c
-            FROM Invoice_Material__c
-            WHERE Invoice__c = :invoiceId
-            ORDER BY Sort_Order__c
-        ];
+        materials = [SELECT Material__c, Brand__c, Grade__c, Sort_Order__c
+            FROM Invoice_Material__c WHERE Invoice__c = :invoiceId
+            ORDER BY Sort_Order__c];
 
-        notIncluded = [
-            SELECT Text__c, Sort_Order__c
-            FROM Invoice_Not_Included__c
-            WHERE Invoice__c = :invoiceId
-            ORDER BY Sort_Order__c
-        ];
+        notIncluded = [SELECT Text__c, Sort_Order__c FROM Invoice_Not_Included__c
+            WHERE Invoice__c = :invoiceId ORDER BY Sort_Order__c];
     }
 }
