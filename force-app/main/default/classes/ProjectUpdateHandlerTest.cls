@@ -1,122 +1,196 @@
-@isTest
-public class ProjectUpdateHandlerTest {
+@IsTest
+private class ProjectUpdateHandlerTest {
 
-    @testSetup
-    static void setupData() {
-        // Variable to hold the supervisor so we can use their ID later
-        User supervisor;
-
-        // 1. Create Setup Objects (Templates & User) inside runAs to avoid Mixed DML
-        System.runAs(new User(Id = UserInfo.getUserId())) {
-            // Using a local helper for templates since they are specific to this Handler's labels
-            createMockTemplate(Label.Arelia_Living_Project_Status_Update_Lead_Template);
-            createMockTemplate(Label.Arelia_Living_Project_Status_Update_Supervisor_Template);
-            
-            // Create the Supervisor User using Utility
-            supervisor = TestDataUtility.createSupervisorUser('sup');
-        }
-
-        // 2. Create Non-Setup Objects (Contacts) using Utility
-        // Utility method requires (Name, Email, Password)
-        Contact dummy = TestDataUtility.createContact('Dummy Contact', 'dummy@test.com', 'pass123');
-        Contact client = TestDataUtility.createContact('Real Client', 'client@real.com', 'pass123');
-
-        // 3. Create Project using Utility
-        // Utility requires (Name, Budget, ContactId)
-        Project__c proj = TestDataUtility.createProject('Test Project Update', 10000, client.Id);
-        
-        // Update fields specific to this test
-        proj.Supervisor_User__c = supervisor.Id; 
-        proj.Project_Completion_Status__c = 0;
-        update proj;
+    /**
+     * @description Helper to get Client Template DeveloperName dynamically.
+     */
+    private static String getClientTemplateDevName() {
+        String labelVal = Label.Arelia_Living_Project_Status_Update_Lead_Template;
+        return String.isNotBlank(labelVal) ? labelVal : 'Test_Client_Template';
     }
 
     /**
-     * Helper to create an EmailTemplate with the specific DeveloperName 
+     * @description Helper to get Supervisor Template DeveloperName dynamically.
      */
-    private static void createMockTemplate(String devName) {
-        if (String.isBlank(devName)) {
-            return;
+    private static String getSupervisorTemplateDevName() {
+        String labelVal = Label.Arelia_Living_Project_Status_Update_Supervisor_Template;
+        return String.isNotBlank(labelVal) ? labelVal : 'Test_Supervisor_Template';
+    }
+
+    /**
+     * @description Sets up the test data including Users, Contacts, Projects, and Templates.
+     */
+    @TestSetup
+    static void setupData() {
+        // 1. Create Users & Contacts
+        User supervisor = TestDataUtility.createSupervisorUser('supUser');
+        TestDataUtility.createContact('Dummy Contact', 'dummy@arelia.test', 'pass123');
+        Contact client = TestDataUtility.createContact('Real Client', 'client@arelia.test', 'pass123');
+
+        // 2. Create Project
+        Project__c proj = TestDataUtility.createProject('Test Project Coverage', 10000, client.Id);
+        proj.Supervisor_User__c = supervisor.Id;
+        proj.Project_Completion_Status__c = 0;
+        update proj;
+
+        // 3. Create Templates (Run as admin to avoid Mixed DML)
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            TestDataUtility.createSpecificEmailTemplate(
+                getClientTemplateDevName(), 
+                'Client Update', 
+                'Status Update: {{Project__c.Name}}', 
+                'Project status is now {{Project__c.Project_Completion_Status__c}}'
+            );
+            
+            TestDataUtility.createSpecificEmailTemplate(
+                getSupervisorTemplateDevName(), 
+                'Supervisor Update', 
+                'Status Update: {{Project__c.Name}}', 
+                'Project status is now {{Project__c.Project_Completion_Status__c}}'
+            );
+        }
+    }
+
+    // ============================================================================
+    // POSITIVE TESTS
+    // ============================================================================
+
+    /**
+     * @description Verifies that a change in Project_Completion_Status__c triggers emails.
+     */
+    @IsTest
+    static void testStatusChangeSendsEmails() {
+        // Query the project to ensure formula fields (Emails) are populated by the database
+        Project__c proj = [
+            SELECT Id, Name, Project_Completion_Status__c, Client_Email__c, Supervisor_Email_Text_c__c 
+            FROM Project__c 
+            LIMIT 1
+        ];
+
+        // Clone preserves Id and formula fields in memory
+        Project__c oldProj = proj.clone(true, true, true, true);
+        Project__c newProj = proj.clone(true, true, true, true);
+        
+        // Trigger the change condition
+        newProj.Project_Completion_Status__c = 50;
+
+        List<Project__c> newList = new List<Project__c>{ newProj };
+        Map<Id, Project__c> oldMap = new Map<Id, Project__c>{ oldProj.Id => oldProj };
+
+        Test.startTest();
+        Integer emailsBefore = Limits.getEmailInvocations();
+        
+        // Directly invoke the handler
+        ProjectUpdateHandler.afterUpdate(newList, oldMap);
+        
+        Integer emailsAfter = Limits.getEmailInvocations();
+        Test.stopTest();
+
+        // 1 Client Email + 1 Supervisor Email = 2 Emails (or 1 invocation processing a batch of 2)
+        Assert.isTrue(emailsAfter > emailsBefore, 'Email invocations should increase after a status change.');
+    }
+
+    // ============================================================================
+    // NEGATIVE TESTS & EDGE CASES
+    // ============================================================================
+
+    /**
+     * @description Verifies that no emails are sent if the required EmailTemplates are missing.
+     */
+    @IsTest
+    static void testNegativeMissingTemplates() {
+        Project__c proj = [SELECT Id, Client_Email__c, Supervisor_Email_Text_c__c FROM Project__c LIMIT 1];
+
+        // Remove the templates
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            delete [SELECT Id FROM EmailTemplate WHERE DeveloperName IN (:getClientTemplateDevName(), :getSupervisorTemplateDevName())];
         }
 
-        EmailTemplate t = new EmailTemplate();
-        t.isActive = true;
-        t.Name = devName;
-        t.DeveloperName = devName;
-        t.TemplateType = 'text';
-        t.FolderId = UserInfo.getUserId(); // Storing in User's personal folder
-        t.Subject = 'Test Subject';
-        t.Body = 'Test Body';
-        insert t;
-    }
-
-    @isTest
-    static void testStatusChangeTriggersEmail() {
-        Project__c p = [SELECT Id, Project_Completion_Status__c FROM Project__c LIMIT 1];
-
         Test.startTest();
-        // Change the status to trigger the email logic
-        p.Project_Completion_Status__c = 50; 
-        update p;
-        
-        // Check email invocations
-        Integer emailInvocations = Limits.getEmailInvocations();
+        Integer emailsBefore = Limits.getEmailInvocations();
+        ProjectUpdateHandler.sendProjectStatusUpdateEmails(new List<Project__c>{ proj });
+        Integer emailsAfter = Limits.getEmailInvocations();
         Test.stopTest();
 
-        // Expect emails to be sent
-        System.assert(emailInvocations > 0, 'Emails should be sent when completion status changes');
+        Assert.areEqual(emailsBefore, emailsAfter, 'No emails should be sent when the required templates are missing.');
     }
 
-    @isTest
-    static void testNoChangeNoEmail() {
-        Project__c p = [SELECT Id, Project_Completion_Status__c FROM Project__c LIMIT 1];
+    /**
+     * @description Verifies that no emails are sent if the dummy contact is missing.
+     */
+    @IsTest
+    static void testNegativeMissingContact() {
+        Project__c proj = [SELECT Id, Client_Email__c, Supervisor_Email_Text_c__c FROM Project__c LIMIT 1];
+
+        // Delete ALL contacts so getSharedDummyContact() returns null
+        delete [SELECT Id FROM Contact];
 
         Test.startTest();
-        // Update project but DO NOT change the completion status
-        p.Name = 'Updated Name Only';
-        update p;
-        
-        Integer emailInvocations = Limits.getEmailInvocations();
+        Integer emailsBefore = Limits.getEmailInvocations();
+        ProjectUpdateHandler.sendProjectStatusUpdateEmails(new List<Project__c>{ proj });
+        Integer emailsAfter = Limits.getEmailInvocations();
         Test.stopTest();
 
-        System.assertEquals(0, emailInvocations, 'No emails should be sent if status did not change');
+        Assert.areEqual(emailsBefore, emailsAfter, 'No emails should be sent when the dummy TargetObject contact is missing.');
     }
 
-    @isTest
-    static void testMissingRecipientEmails() {
-        // SCENARIO: Project Status changes, but Client/Supervisor emails are blank.
+    /**
+     * @description Verifies behavior when the old record is missing from the map (Orphaned Record).
+     */
+    @IsTest
+    static void testOrphanedOldRecord() {
+        Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
         
-        Project__c p = [SELECT Id, Client__c FROM Project__c LIMIT 1];
-        Contact client = [SELECT Id FROM Contact WHERE Id = :p.Client__c];
-        
-        // Clear Client Email
-        client.Email = null;
-        update client;
-        
+        List<Project__c> newList = new List<Project__c>{ proj };
+        Map<Id, Project__c> oldMap = new Map<Id, Project__c>(); // Empty old map
+
         Test.startTest();
-        p.Project_Completion_Status__c = 100;
-        
-        // Try to clear explicit email fields on project if they exist and are writable
-        try { 
-            p.put('Client_Email__c', null); 
-        } catch(Exception e) {
-            System.debug(LoggingLevel.INFO, 'Ignored write to formula field: ' + e.getMessage());
-        }
-        
-        update p;
+        Integer emailsBefore = Limits.getEmailInvocations();
+        ProjectUpdateHandler.afterUpdate(newList, oldMap);
+        Integer emailsAfter = Limits.getEmailInvocations();
         Test.stopTest();
-        
-        System.assert(true, 'Method executed successfully with missing emails');
+
+        Assert.areEqual(emailsBefore, emailsAfter, 'No emails should be sent if the old record map does not contain the project.');
     }
 
-    @isTest
-    static void testGuardClauses() {
+    /**
+     * @description Verifies that no emails are sent if the status field has NOT changed.
+     */
+    @IsTest
+    static void testNoStatusChange() {
+        Project__c proj = [SELECT Id, Project_Completion_Status__c FROM Project__c LIMIT 1];
+        
+        // Both maps have the exact same status
+        Map<Id, Project__c> oldMap = new Map<Id, Project__c>{ proj.Id => proj };
+        List<Project__c> newList = new List<Project__c>{ proj };
+
         Test.startTest();
+        Integer emailsBefore = Limits.getEmailInvocations();
+        ProjectUpdateHandler.afterUpdate(newList, oldMap);
+        Integer emailsAfter = Limits.getEmailInvocations();
+        Test.stopTest();
+
+        Assert.areEqual(emailsBefore, emailsAfter, 'No emails should be sent if the completion status remained unchanged.');
+    }
+
+    /**
+     * @description Verifies that guard clauses handle null inputs gracefully without throwing exceptions.
+     */
+    @IsTest
+    static void testGuardClausesAndNulls() {
+        Test.startTest();
+        
+        // Pass nulls and empty lists to trigger early returns
         ProjectUpdateHandler.afterUpdate(null, null);
         ProjectUpdateHandler.afterUpdate(new List<Project__c>(), null);
         ProjectUpdateHandler.sendProjectStatusUpdateEmails(null);
-        Test.stopTest();
+        ProjectUpdateHandler.sendProjectStatusUpdateEmails(new List<Project__c>());
+
+        // List containing a null project
+        ProjectUpdateHandler.sendProjectStatusUpdateEmails(new List<Project__c>{ null });
         
-        System.assert(true, 'Guard clauses handled nulls gracefully');
+        Test.stopTest();
+
+        Assert.isTrue(true, 'Guard clauses should handle nulls and empty lists gracefully without throwing NullPointerExceptions.');
     }
 }
