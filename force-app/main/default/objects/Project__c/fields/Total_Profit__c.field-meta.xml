@@ -8,7 +8,7 @@
     NULL
 )</formula>
     <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
-    <inlineHelpText>Total Profit = sum of Company Share of the Project and Remaining Budget Pending, when status is completed</inlineHelpText>
+    <inlineHelpText>Total Profit = Company Share of the Project, when status is completed</inlineHelpText>
     <label>Total Profit</label>
     <precision>18</precision>
     <required>false</required>

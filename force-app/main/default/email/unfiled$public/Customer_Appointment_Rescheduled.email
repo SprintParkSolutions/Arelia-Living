@@ -1,0 +1,28 @@
+<html>
+<head>
+	<title></title>
+</head>
+<body style="height: auto; min-height: auto;"><span style="font-size:16px;">Hi&nbsp;<strong>{{{Recipient.FirstName}}}</strong> <strong>{{{Recipient.LastName}}}</strong>,<br />
+<br />
+<br />
+Your appointment has been&nbsp;<strong>{{{Recipient.Appointment_Status__c}}} </strong>as you requested.<br />
+<br />
+<strong>New Rescheduled Appointment Details:</strong></span>
+<ul>
+	<li><span style="font-size:16px;">Rescheduled Appointment date:&nbsp;<strong>{{{Recipient.Appointment_Rescheduled_Time__c}}}</strong></span></li>
+	<li><span style="font-size:16px;">Time Slots:&nbsp;<strong>{{{Recipient.Time_Slots__c}}}</strong></span></li>
+</ul>
+<span style="font-size:16px;">Please make a note of the updated schedule and reach out if any clarification is needed.<br />
+<br />
+<strong>Supervisor Details:</strong></span>
+
+<ul>
+	<li><span style="font-size:16px;">Supervisor Name:&nbsp;<strong>{{{Recipient.Supervisor_User__c}}}</strong></span></li>
+	<li><span style="font-size:16px;">Email<strong>:</strong>&nbsp;<strong>{{{Recipient.Supervisor_User_Email__c}}}</strong></span></li>
+	<li><span style="font-size:16px;">Phone:&nbsp;<strong>{{{Recipient.Supervisor_User_Phone__c}}}</strong></span></li>
+</ul>
+<br />
+<br />
+<span style="font-size:16px;">Thanks,<br />
+Arelia Living Team</span></body>
+</html>

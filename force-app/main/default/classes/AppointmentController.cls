@@ -14,6 +14,7 @@
  * @author      Arelia Living
  * @version     1.0
  */
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ExcessiveParameterList,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public without sharing class AppointmentController {
 
     // ---------------------------
@@ -40,12 +41,8 @@ public without sharing class AppointmentController {
     private static final String TEMPLATE_APPROVED    = Label.Arelia_Living_Appointment_Approved_Email;
     private static final String TEMPLATE_RESCHEDULED = Label.Arelia_Living_Appointment_Rescheduled_Email;
 
-    // Prevent instantiation
-    private AppointmentController() {}
-
-    // ---------------------------
-    // Public API
-    // ---------------------------
+    private static final String TEMPLATE_CUSTOMER_APPROVED    = Label.Customer_Appointment_Approved_Email;
+    private static final String TEMPLATE_CUSTOMER_RESCHEDULED = Label.Customer_Appointment_Rescheduled_Email;
 
     /**
      * Updates appointment status:
@@ -64,17 +61,9 @@ public without sharing class AppointmentController {
         enforceNotBlankId(leadId, 'Lead ID is missing.');
         enforceNotBlank(status, 'Status is required.');
 
-        Lead leadRecord = [
-            SELECT Id,
-                   FirstName, LastName, Email,
-                   Appointment_Status__c,Appointment_Completed__c,
-                   Appointment_Date__c, Appointment_Time_Slots__c,
-                   Appointment_Rescheduled_Time__c, Time_Slots__c,
-                   Supervisor_User__c, Supervisor_User__r.Email
-            FROM Lead
-            WHERE Id = :leadId
-            LIMIT 1
-        ];
+        Lead leadRecord = [SELECT Id, FirstName, LastName, Email, Appointment_Status__c,Appointment_Completed__c,
+            Appointment_Date__c, Appointment_Time_Slots__c, Appointment_Rescheduled_Time__c, Time_Slots__c,
+            Supervisor_User__c, Supervisor_User__r.Email FROM Lead WHERE Id = :leadId LIMIT 1];
 
         final String existing = leadRecord.Appointment_Status__c;
         if (String.isNotBlank(existing)
@@ -113,10 +102,7 @@ public without sharing class AppointmentController {
 
         update leadRecord;
 
-        // Notify Supervisor
-        if (leadRecord.Supervisor_User__r != null && !String.isBlank(leadRecord.Supervisor_User__r.Email)) {
-            sendConfirmationEmail(leadRecord, leadRecord.Appointment_Status__c);
-        }
+        sendNotifications(leadRecord, leadRecord.Appointment_Status__c);
     }
 
     /**
@@ -132,12 +118,7 @@ public without sharing class AppointmentController {
         enforceNotNull(forDate, 'Please select a date first.');
         enforceNotBlankId(currentLeadId, 'Lead ID is missing.');
 
-        Lead currentLead = [
-            SELECT Id, Supervisor_User__c
-            FROM Lead
-            WHERE Id = :currentLeadId
-            LIMIT 1
-        ];
+        Lead currentLead = [SELECT Id, Supervisor_User__c FROM Lead WHERE Id = :currentLeadId LIMIT 1];
 
         List<String> allSlots = getPicklistValues(Lead.Time_Slots__c);
         if (allSlots.isEmpty()) {
@@ -147,41 +128,31 @@ public without sharing class AppointmentController {
         Set<String> taken = new Set<String>();
 
         // (A) Reschedule pair blocked: (reschedule date + Time_Slots__c) for any Approved/Rescheduled-like
-        for (AggregateResult arA : [
-            SELECT Time_Slots__c slot
-            FROM Lead
-            WHERE Supervisor_User__c = :currentLead.Supervisor_User__c
-              AND Appointment_Rescheduled_Time__c = :forDate
-              AND Time_Slots__c != null
-              AND Appointment_Status__c IN :APPROVED_OR_RESCHEDULED
-            GROUP BY Time_Slots__c
-        ]) {
+        for (AggregateResult arA : [SELECT Time_Slots__c slot FROM Lead
+                WHERE Supervisor_User__c = :currentLead.Supervisor_User__c
+                AND Appointment_Rescheduled_Time__c = :forDate
+                AND Time_Slots__c != null AND Appointment_Status__c IN :APPROVED_OR_RESCHEDULED
+                GROUP BY Time_Slots__c])
+        {
             taken.add(sanitizeSlot((String)arA.get('slot')));
         }
 
         // (B) Initial pair blocked for Approved AND Rescheduled-like (KEY FIX)
-        for (AggregateResult arB : [
-            SELECT Appointment_Time_Slots__c slot
-            FROM Lead
-            WHERE Supervisor_User__c = :currentLead.Supervisor_User__c
-              AND Appointment_Date__c = :forDate
-              AND Appointment_Time_Slots__c != null
-              AND Appointment_Status__c IN :APPROVED_OR_RESCHEDULED
-            GROUP BY Appointment_Time_Slots__c
-        ]) {
+        for (AggregateResult arB : [SELECT Appointment_Time_Slots__c slot FROM Lead
+                        WHERE Supervisor_User__c = :currentLead.Supervisor_User__c
+                        AND Appointment_Date__c = :forDate AND Appointment_Time_Slots__c != null
+                        AND Appointment_Status__c IN :APPROVED_OR_RESCHEDULED
+                        GROUP BY Appointment_Time_Slots__c])
+        {
             taken.add(sanitizeSlot((String)arB.get('slot')));
         }
 
         // (C) Pending initial pair holds
-        for (AggregateResult arC : [
-            SELECT Appointment_Time_Slots__c slot
-            FROM Lead
-            WHERE Supervisor_User__c = :currentLead.Supervisor_User__c
-              AND Appointment_Date__c = :forDate
-              AND Appointment_Time_Slots__c != null
-              AND Appointment_Status__c = :STATUS_PENDING
-            GROUP BY Appointment_Time_Slots__c
-        ]) {
+        for (AggregateResult arC : [SELECT Appointment_Time_Slots__c slot FROM Lead
+                    WHERE Supervisor_User__c = :currentLead.Supervisor_User__c
+                    AND Appointment_Date__c = :forDate AND Appointment_Time_Slots__c != null
+                    AND Appointment_Status__c = :STATUS_PENDING GROUP BY Appointment_Time_Slots__c])
+        {
             taken.add(sanitizeSlot((String)arC.get('slot')));
         }
 
@@ -201,10 +172,6 @@ public without sharing class AppointmentController {
         return getPicklistValues(Lead.Time_Slots__c);
     }
 
-    // ---------------------------
-    // Private helpers
-    // ---------------------------
-
     /**
      * True only if destination (Supervisor + onDate + slot) has NO conflicts across:
      *  - Approved initial pair
@@ -219,44 +186,24 @@ public without sharing class AppointmentController {
         final String slot = sanitizeSlot(slotLabel);
 
         // Approved initial pair
-        Integer approvedInitial = [
-            SELECT COUNT()
-            FROM Lead
-            WHERE Supervisor_User__c = :supervisorUserId
-              AND Appointment_Status__c = :STATUS_APPROVED
-              AND Appointment_Date__c = :onDate
-              AND Appointment_Time_Slots__c = :slot
-        ];
+        Integer approvedInitial = [SELECT COUNT() FROM Lead
+                WHERE Supervisor_User__c = :supervisorUserId AND Appointment_Status__c = :STATUS_APPROVED
+              AND Appointment_Date__c = :onDate AND Appointment_Time_Slots__c = :slot];
 
         // Rescheduled-like reschedule pair OR Approved referencing reschedule fields
-        Integer reschedPair = [
-            SELECT COUNT()
-            FROM Lead
-            WHERE Supervisor_User__c = :supervisorUserId
-              AND Appointment_Status__c IN :APPROVED_OR_RESCHEDULED
-              AND Appointment_Rescheduled_Time__c = :onDate
-              AND Time_Slots__c = :slot
-        ];
+        Integer reschedPair = [SELECT COUNT() FROM Lead
+                WHERE Supervisor_User__c = :supervisorUserId AND Appointment_Status__c IN :APPROVED_OR_RESCHEDULED
+                AND Appointment_Rescheduled_Time__c = :onDate AND Time_Slots__c = :slot];
 
         // Rescheduled-like initial pair (if still populated)
-        Integer reschedInitial = [
-            SELECT COUNT()
-            FROM Lead
-            WHERE Supervisor_User__c = :supervisorUserId
-              AND Appointment_Status__c IN :RESCHEDULE_STATUSES
-              AND Appointment_Date__c = :onDate
-              AND Appointment_Time_Slots__c = :slot
-        ];
+        Integer reschedInitial = [SELECT COUNT() FROM Lead
+                WHERE Supervisor_User__c = :supervisorUserId AND Appointment_Status__c IN :RESCHEDULE_STATUSES
+                AND Appointment_Date__c = :onDate AND Appointment_Time_Slots__c = :slot];
 
         // Pending initial pair
-        Integer pendingInitial = [
-            SELECT COUNT()
-            FROM Lead
-            WHERE Supervisor_User__c = :supervisorUserId
-              AND Appointment_Status__c = :STATUS_PENDING
-              AND Appointment_Date__c = :onDate
-              AND Appointment_Time_Slots__c = :slot
-        ];
+        Integer pendingInitial = [SELECT COUNT() FROM Lead
+                WHERE Supervisor_User__c = :supervisorUserId AND Appointment_Status__c = :STATUS_PENDING
+                AND Appointment_Date__c = :onDate AND Appointment_Time_Slots__c = :slot];
 
         return (approvedInitial + reschedPair + reschedInitial + pendingInitial) == 0;
     }
@@ -270,42 +217,100 @@ public without sharing class AppointmentController {
         return values;
     }
 
-    /** Send confirmation email to Supervisor using OWD/email template. */
-    private static void sendConfirmationEmail(Lead ld, String finalStatus) {
-        final String templateDevName = (finalStatus == STATUS_APPROVED)
-            ? TEMPLATE_APPROVED
-            : TEMPLATE_RESCHEDULED;
+    private static void sendNotifications(Lead ld, String finalStatus) {
+        // ---------------------------
+        // 1) Supervisor email (internal template)
+        //    - Use TO address = Supervisor email
+        //    - Use TargetObjectId = Lead.Id (for Lead merge fields)
+        //    - TreatTargetObjectAsRecipient = false
+        //    - NO WhatId (avoid error)
+        // ---------------------------
+        if (ld.Supervisor_User__r != null && !String.isBlank(ld.Supervisor_User__r.Email)) {
+            String supervisorTpl = (finalStatus == STATUS_APPROVED)
+                ? TEMPLATE_APPROVED
+                : TEMPLATE_RESCHEDULED;
 
-        List<EmailTemplate> tpls = [
-            SELECT Id
-            FROM EmailTemplate
-            WHERE DeveloperName = :templateDevName
-            LIMIT 1
-        ];
-        if (tpls.isEmpty()) {
-            return; // defensive: skip silently if template missing
+            sendToEmailWithLeadTemplate(ld,ld.Supervisor_User__r.Email,supervisorTpl);
+        }
+
+        // ---------------------------
+        // 2) Customer email (customer template)
+        //    - TargetObjectId = Lead.Id (Lead recipient)
+        //    - TreatTargetObjectAsRecipient = true
+        // ---------------------------
+        if (!String.isBlank(ld.Email)) {
+            String customerTpl = (finalStatus == STATUS_APPROVED)
+                ? TEMPLATE_CUSTOMER_APPROVED
+                : TEMPLATE_CUSTOMER_RESCHEDULED;
+
+            sendToLeadRecipientWithTemplate(ld, customerTpl);
+        }
+    }
+
+    /**
+     * Supervisor email:
+     * - Sends using a template
+     * - Recipient is a plain email address (Supervisor email)
+     * - Template merges from Lead because TargetObjectId = Lead.Id
+     */
+    private static void sendToEmailWithLeadTemplate(Lead ld, String toEmail, String templateDevName) {
+        if (ld == null || String.isBlank(toEmail) || String.isBlank(templateDevName)) {
+            return;
+        }
+
+        Id tplId = getTemplateIdByDevName(templateDevName);
+        if (tplId == null) {
+            return;
         }
 
         Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
-        msg.setToAddresses(new List<String>{ ld.Supervisor_User__r.Email });
-        msg.setTreatTargetObjectAsRecipient(false);
+        msg.setToAddresses(new List<String>{ toEmail });
+
+        // Lead merge fields work because target is Lead
         msg.setTargetObjectId(ld.Id);
-        msg.setTemplateId(tpls[0].Id);
+        msg.setTreatTargetObjectAsRecipient(false);
+
+        // Do NOT set WhatId here (causes error for UserId scenarios)
+        msg.setTemplateId(tplId);
         msg.setSaveAsActivity(true);
         msg.setOrgWideEmailAddressId(getDefaultOrgWideEmailAddressId());
 
         Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
     }
 
+    /**
+     * Customer email:
+     * - Recipient is the Lead itself
+     * - Works perfectly with Lead email templates
+     */
+    private static void sendToLeadRecipientWithTemplate(Lead ld, String templateDevName) {
+        if (ld == null || String.isBlank(ld.Email) || String.isBlank(templateDevName)) {
+            return;
+        }
+
+        Id tplId = getTemplateIdByDevName(templateDevName);
+        if (tplId == null) { return;}
+
+        Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
+        msg.setTargetObjectId(ld.Id);
+        msg.setTreatTargetObjectAsRecipient(true);
+
+        msg.setTemplateId(tplId);
+        msg.setSaveAsActivity(true);
+        msg.setOrgWideEmailAddressId(getDefaultOrgWideEmailAddressId());
+
+        Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
+    }
+
+    private static Id getTemplateIdByDevName(String devName) {
+        List<EmailTemplate> tpls = [SELECT Id FROM EmailTemplate WHERE DeveloperName = :devName LIMIT 1];
+        return tpls.isEmpty() ? null : tpls[0].Id;
+    }
+
     /** Resolve Org-Wide Email Address by label value. */
     private static Id getDefaultOrgWideEmailAddressId() {
-        List<OrgWideEmailAddress> owd = [
-            SELECT Id
-            FROM OrgWideEmailAddress
-            WHERE Address = :Label.Arelia_OWD
-              AND IsAllowAllProfiles = true
-            LIMIT 1
-        ];
+        List<OrgWideEmailAddress> owd = [SELECT Id FROM OrgWideEmailAddress
+            WHERE Address = :Label.Arelia_OWD AND IsAllowAllProfiles = true LIMIT 1];
         return owd.isEmpty() ? null : owd[0].Id;
     }
 
@@ -313,28 +318,28 @@ public without sharing class AppointmentController {
     // Tiny utilities (help PMD)
     // ---------------------------
     private static String normalizeStatus(String s) {
-        if (String.isBlank(s)) return s;
+        if (String.isBlank(s)) {return s;}
         String t = s.trim();
-        if (t.equalsIgnoreCase(STATUS_PENDING))                 return STATUS_PENDING;
-        if (t.equalsIgnoreCase(STATUS_APPROVED))                return STATUS_APPROVED;
-        if (t.equalsIgnoreCase(STATUS_RESCHEDULED))             return STATUS_RESCHEDULED;
-        if (t.equalsIgnoreCase(STATUS_APPT_RESCHEDULED))        return STATUS_APPT_RESCHEDULED;
+        if (t.equalsIgnoreCase(STATUS_PENDING)) {return STATUS_PENDING;}
+        if (t.equalsIgnoreCase(STATUS_APPROVED)){return STATUS_APPROVED;}
+        if (t.equalsIgnoreCase(STATUS_RESCHEDULED)){return STATUS_RESCHEDULED;}
+        if (t.equalsIgnoreCase(STATUS_APPT_RESCHEDULED)){return STATUS_APPT_RESCHEDULED;}
         return t; // unsupported handled by caller
     }
 
     private static String sanitizeSlot(String label) {
-        if (String.isBlank(label)) return null;
+        if (String.isBlank(label)){return null;}
         String t = label.trim();
         return t == '' ? null : t;
     }
 
     private static void enforceNotBlankId(Id i, String msg) {
-        if (i == null) throw new AuraHandledException(msg);
+        if (i == null) {throw new AuraHandledException(msg);}
     }
     private static void enforceNotNull(Object o, String msg) {
-        if (o == null) throw new AuraHandledException(msg);
+        if (o == null) {throw new AuraHandledException(msg);}
     }
     private static void enforceNotBlank(String s, String msg) {
-        if (String.isBlank(s)) throw new AuraHandledException(msg);
+        if (String.isBlank(s)) {throw new AuraHandledException(msg);}
     }
 }

@@ -6,9 +6,9 @@
     <formula>IF(
   AND(
     NOT(ISBLANK(Start_Date__c)),
-    NOT(ISBLANK(End_Date__c))
+    NOT(ISBLANK(Estimated_End_Date__c))
   ),
-  End_Date__c - Start_Date__c,
+  Estimated_End_Date__c - Start_Date__c,
   NULL
 )</formula>
     <inlineHelpText>Project Duration in Days (End Date - Start Date)</inlineHelpText>

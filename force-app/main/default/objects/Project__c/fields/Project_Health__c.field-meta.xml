@@ -3,30 +3,30 @@
     <fullName>Project_Health__c</fullName>
     <externalId>false</externalId>
     <formula>IF(
-  AND(ISBLANK(Actual_Completion_Date__c), TODAY() &gt; End_Date__c),
+  AND(ISBLANK(Actual_Completion_Date__c), TODAY() &gt;  Estimated_End_Date__c),
   &quot;Overdue&quot;,
 IF(
   AND(
     ISBLANK(Actual_Completion_Date__c),
     Project_Completion_Status__c &lt; 0.75,
-    (End_Date__c - TODAY()) &lt; 30
+    (Estimated_End_Date__c - TODAY()) &lt; 30
   ),
   &quot;At Risk&quot;,
 IF(
   AND(
     ISBLANK(Actual_Completion_Date__c),
     Project_Completion_Status__c &gt;= 0.75,
-    (End_Date__c - TODAY()) &lt; 30
+    (Estimated_End_Date__c - TODAY()) &lt; 30
   ),
   &quot;Nearly Complete&quot;,
 IF(
-  AND(ISBLANK(Actual_Completion_Date__c), (End_Date__c - TODAY()) &gt;= 30),
+  AND(ISBLANK(Actual_Completion_Date__c), (Estimated_End_Date__c - TODAY()) &gt;= 30),
   &quot;On Track&quot;,
 IF(
-  AND(NOT(ISBLANK(Actual_Completion_Date__c)), Actual_Completion_Date__c &gt; End_Date__c),
+  AND(NOT(ISBLANK(Actual_Completion_Date__c)), Actual_Completion_Date__c &gt; Estimated_End_Date__c),
   &quot;Completed, but Delayed&quot;,
 IF(
-  AND(NOT(ISBLANK(Actual_Completion_Date__c)), Actual_Completion_Date__c &lt;= End_Date__c),
+  AND(NOT(ISBLANK(Actual_Completion_Date__c)), Actual_Completion_Date__c &lt;=  Estimated_End_Date__c),
   &quot;Completed On Time&quot;,
 &quot;&quot;
 ))))))</formula>

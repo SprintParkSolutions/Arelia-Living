@@ -9,7 +9,7 @@ public without sharing class WhatsAppChatStore {
                               Id contentDocumentId,
                               String externalUrl) {
 
-        // Normalize & resolve an eligible lead (Lead.Id != null AND Lead.Type_Of_Project__c != null).
+        // Normalize & resolve an eligible lead (Lead.Id != null AND Lead.Project_Request_Quotation_Type__c != null).
         String digits = normalizeDigits(e164OrDigits);
         Lead lead = resolveEligibleLead(digits);
         if (lead == null) {
@@ -106,11 +106,11 @@ public without sharing class WhatsAppChatStore {
         return d;
     }
 
-    // Return eligible lead only if Type_Of_Project__c is populated
+    // Return eligible lead only if Project_Request_Quotation_Type__c is populated
     private static Lead resolveEligibleLead(String last10) {
         if (String.isBlank(last10)) return null;
         List<Lead> leads = [
-            SELECT Id, Type_Of_Project__c
+            SELECT Id, Project_Request_Quotation_Type__c
             FROM Lead
             WHERE (Phone LIKE :('%' + last10) OR MobilePhone LIKE :('%' + last10))
             ORDER BY LastModifiedDate DESC
@@ -118,7 +118,7 @@ public without sharing class WhatsAppChatStore {
         ];
         if (leads.isEmpty()) return null;
         Lead l = leads[0];
-        return (l.Type_Of_Project__c == null) ? null : l;
+        return (l.Project_Request_Quotation_Type__c == null) ? null : l;
     }
 
     // Find existing chat linked to lead, else by phone tail (no creation)
