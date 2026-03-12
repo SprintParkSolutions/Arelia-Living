@@ -225,6 +225,13 @@
         <value>Project_Status_Update_Supervisor_Template</value>
     </labels>
     <labels>
+        <fullName>Arelia_Living_Quotation_Manager_Approval</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Quotation Manager Approval</shortDescription>
+        <value>Quotation_Manager_Approval</value>
+    </labels>
+    <labels>
         <fullName>Arelia_Living_Sending_Project_Create_Information_to_Enrollment</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -286,6 +293,13 @@
         <protected>false</protected>
         <shortDescription>Arelia Living Supervisor Site Visiting Email Template</shortDescription>
         <value>Supervisor_Site_Visiting_Email_Template</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_VA_Due_Alert_to_the_Supervisor_User</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living VA Due Alert to the Supervisor User</shortDescription>
+        <value>VA_Due_Alert_to_the_Supervisor_User</value>
     </labels>
     <labels>
         <fullName>Arelia_Living_Vendor_Abscond_Templates</fullName>
@@ -465,6 +479,34 @@
         <value>https://www.facebook.com/profile.php?id=61584344340267</value>
     </labels>
     <labels>
+        <fullName>Footer_Copyright</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Footer_Copyright</shortDescription>
+        <value>© 2026 Arelia. All rights reserved.</value>
+    </labels>
+    <labels>
+        <fullName>Footer_Email</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Footer_Email</shortDescription>
+        <value>spareliaspace@gmail.com</value>
+    </labels>
+    <labels>
+        <fullName>Footer_Location</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Footer_Location</shortDescription>
+        <value>123 Design Ave, Interior City</value>
+    </labels>
+    <labels>
+        <fullName>Footer_Phone</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Footer_Phone</shortDescription>
+        <value>+1 (123) 456-7890</value>
+    </labels>
+    <labels>
         <fullName>Hospitality_URL</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -483,7 +525,7 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Instagram_URL</shortDescription>
-        <value>https://www.instagram.com/arelialivin/</value>
+        <value>https://www.instagram.com/areliaspace/</value>
     </labels>
     <labels>
         <fullName>Inventory_Catalogue_Site_Base</fullName>
@@ -497,7 +539,7 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>LinkedIn_URL</shortDescription>
-        <value>https://www.linkedin.com/in/arelia-living-363053394/</value>
+        <value>https://www.linkedin.com/in/arelia-space-363053394/</value>
     </labels>
     <labels>
         <fullName>Management_Email_Addresses</fullName>
@@ -627,6 +669,13 @@
         <value>/proforma-manager-approval</value>
     </labels>
     <labels>
+        <fullName>Quotation_Approval_Page</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Quotation Approval Page</shortDescription>
+        <value>approvalpage</value>
+    </labels>
+    <labels>
         <fullName>Registration_Enrollment_Template_DevName</fullName>
         <language>en_US</language>
         <protected>false</protected>
@@ -687,14 +736,14 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>WA_Access_Token</shortDescription>
-        <value>EAAURDkLToDYBQmQgDtPBCJ67mrkNiFFyAsbBdTqZA45VMLEgkc8ZBIoANbXY2m42V6MLusyX9dX8Cq5pKcBgrbpJuRHhHv2ZAnpPY6PcdyJl8PWOBy7Ewcg4PL8sXLkMZCxZAU6nQoGNXzQjNRosD6wll7WJonuBUpZBv7koAETAbV0oygDrZBe3hZBnZC16tkEtnfZAdXZABdMDr9AlcS93dCRW1xIHURBNN1ZBEPgnC5HZACwUehEynmYlzPUEyErXZBboZC2JlgsYcIyiIl9hO51HGZAdugZCG</value>
+        <value>EAAURDkLToDYBQ2mptwMFVYQxuh2TDnvLTaJEVDGSytty3AVFTfiGKy5x16DyX7WpxZCFZAxZA9IZCMU9ZAl0PmTnODaR5bfr6QPSpuKpPOX5Sw9yHZCOzY5WNy48TZBLRYqsNFZC86Ui9s4BHJSEnNZBug1F2n8NUIHtvaRVtydH9WNZCl2RtekdcG9SwElTKwbBj8mhlbDW8A0Wq768GKvXhcUpAMA8nwTkpNZCmdtvk225Qp37QoqCgYg2UlgkSIw4xSd4eo7ZAaztOKq79KFbsxRr2yfl</value>
     </labels>
     <labels>
         <fullName>WA_Phone_Number_Id</fullName>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>WA_Phone_Number_Id</shortDescription>
-        <value>940676392452334</value>
+        <value>1069747942878068</value>
     </labels>
     <labels>
         <fullName>WA_Verify_Token</fullName>

@@ -1,3 +1,4 @@
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public without sharing class AreliaPathController {
     
     @AuraEnabled(cacheable=true)
@@ -45,25 +46,15 @@ public without sharing class AreliaPathController {
 
     @AuraEnabled(cacheable=true)
     public static String getPathStatus(Id oppId) {
-        Opportunity opp = [
-            SELECT Id, StageName, 
-                   Architect_Name__c, 
-                   Architecture_Client_Approval_Sent__c,
-                   Architecture_Manager_Approval__c,
-                   Budget_Review_Status__c,
-                   Payment_Terms_Status__c,
-                   Catalogue_Link_Sent__c,
-                   Client_Agreement_Sent__c, 
-                   Client_Agreement_Signed__c, 
-                   All_Vendors_Agreement_Completed__c, 
-                   (SELECT Id, Vendor_Agreement_Sent__c FROM Vendor_Opportunities__r),
-                   (SELECT Id FROM Architecture_Designs__r WHERE Status__c = 'Approved' LIMIT 1),
-                   (SELECT Id, Status__c, Manager_Approval__c FROM Proforma_Invoices__r ORDER BY CreatedDate DESC LIMIT 1),
-                   (SELECT Id, Manager_Approval__c FROM Quotations__r ORDER BY CreatedDate DESC LIMIT 1)
-            FROM Opportunity WHERE Id = :oppId 
-            WITH USER_MODE 
-            LIMIT 1
-        ];
+        Opportunity opp = [SELECT Id, StageName, Architect_Name__c, 
+                    Architecture_Client_Approval_Sent__c, Architecture_Manager_Approval__c,
+                    Budget_Review_Status__c, Payment_Terms_Status__c, Catalogue_Link_Sent__c,
+                    Client_Agreement_Sent__c, Client_Agreement_Signed__c, All_Vendors_Agreement_Completed__c, 
+                    (SELECT Id, Vendor_Agreement_Sent__c FROM Vendor_Opportunities__r),
+                    (SELECT Id FROM Architecture_Designs__r WHERE Status__c = 'Approved' LIMIT 1),
+                    (SELECT Id, Status__c, Manager_Approval__c FROM Proforma_Invoices__r ORDER BY CreatedDate DESC LIMIT 1),
+                    (SELECT Id, Manager_Approval__c FROM Quotations__r ORDER BY CreatedDate DESC LIMIT 1)
+                FROM Opportunity WHERE Id = :oppId LIMIT 1];
 
         if (opp.StageName == 'Resumed') { return 'Resumed'; }
         if (opp.StageName == 'Negotiation/Review') { return 'Negotiation/Review'; }

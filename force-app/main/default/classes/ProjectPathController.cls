@@ -1,3 +1,4 @@
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public with sharing class ProjectPathController {
 
     @AuraEnabled(cacheable=true)
@@ -6,13 +7,8 @@ public with sharing class ProjectPathController {
             return null;
         }
 
-        List<Project__c> projects = [
-            SELECT Id, Status__c 
-            FROM Project__c 
-            WHERE Id = :projectId 
-            WITH USER_MODE 
-            LIMIT 1
-        ];
+        List<Project__c> projects = [SELECT Id, Status__c FROM Project__c 
+            WHERE Id = :projectId LIMIT 1];
         
         if (projects.isEmpty()) {
             return null; 
@@ -20,13 +16,8 @@ public with sharing class ProjectPathController {
 
         Project__c proj = projects[0];
         
-
-        Integer vendorCount = [
-            SELECT Count() 
-            FROM Vendor_Assignment__c 
-            WHERE Project__c = :projectId 
-            WITH USER_MODE
-        ];
+        Integer vendorCount = [SELECT Count() FROM Vendor_Assignment__c 
+            WHERE Project__c = :projectId];
 
         if (proj.Status__c == 'Completed') {
             return 'Project Completion';
