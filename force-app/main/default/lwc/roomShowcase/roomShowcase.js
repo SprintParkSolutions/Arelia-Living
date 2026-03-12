@@ -26,7 +26,17 @@ import BALCONY_2 from '@salesforce/resourceUrl/balcony_2';
 import BALCONY_3 from '@salesforce/resourceUrl/balcony_3';
 import BALCONY_4 from '@salesforce/resourceUrl/balcony_4';
 
+import SITE_BASE_URL from '@salesforce/label/c.Arelia_Site_Label';
+import REGISTRATION_FORM_URL from '@salesforce/label/c.Registration_Form_URL';
+
 export default class RoomShowcase extends LightningElement {
+
+  baseUrl = SITE_BASE_URL;
+
+  get registrationFormUrl() {
+    return this.baseUrl + REGISTRATION_FORM_URL;
+  }
+
   @api rooms = [
     {
       key: 'living',
@@ -477,11 +487,9 @@ export default class RoomShowcase extends LightningElement {
 
     // close modal then navigate to registration form
     this.closeModal();
-
-    const targetUrl = 'https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/registration-form';
     // slight delay so close animation is visible
     setTimeout(() => {
-      window.location.href = targetUrl;
+      window.location.href = this.registrationFormUrl;
     }, 180);
   }
 }

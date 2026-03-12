@@ -20,9 +20,18 @@ import BOUTIQUE_1 from '@salesforce/resourceUrl/boutique_1';
 import BOUTIQUE_2 from '@salesforce/resourceUrl/boutique_2';
 import BOUTIQUE_3 from '@salesforce/resourceUrl/boutique_3';
 
-const REGISTRATION_URL = 'https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/registration-form';
+import SITE_BASE_URL from '@salesforce/label/c.Arelia_Site_Label';
+import REGISTRATION_FORM_URL from '@salesforce/label/c.Registration_Form_URL';
 
 export default class HospitalityShowcase extends LightningElement {
+
+  baseUrl = SITE_BASE_URL;
+
+  get registrationFormUrl() {
+    return this.baseUrl + REGISTRATION_FORM_URL;
+  }
+
+
   @api rooms = [
     {
       key: 'hotel-suites',
@@ -586,10 +595,10 @@ export default class HospitalityShowcase extends LightningElement {
     // navigate after a tiny delay so the modal close animation runs
     setTimeout(() => {
       try {
-        window.location.href = REGISTRATION_URL;
+        window.location.href = this.registrationFormUrl;
       } catch (e) {
         // fallback: open new tab if direct nav fails
-        window.open(REGISTRATION_URL, '_blank');
+        window.open(this.registrationFormUrl, '_blank');
       }
     }, 200);
   }

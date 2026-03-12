@@ -5,9 +5,41 @@ import { NavigationMixin } from 'lightning/navigation';
 import ARELIA_LIVING from '@salesforce/resourceUrl/ResidentialImage';
 import ARELIA_WORK from '@salesforce/resourceUrl/CommercialImage';
 import ARELIA_HOSPITALITY from '@salesforce/resourceUrl/HospitalityImage';
-import ARELIA_RETAIL from '@salesforce/resourceUrl/HealthcareImage';
+
+import RESIDENTIAL_URL from '@salesforce/label/c.Residential_URL';
+import COMMERCIAL_URL from '@salesforce/label/c.Commercial_URL';
+import HOSPITALITY_URL from '@salesforce/label/c.Hospitality_URL';
+import REGISTRATION_FORM_URL from '@salesforce/label/c.Registration_Form_URL';
+
+import SITE_BASE_URL from '@salesforce/label/c.Arelia_Site_Label';
 
 export default class FourPillars extends NavigationMixin(LightningElement) {
+    baseUrl = SITE_BASE_URL;
+
+    get residentialUrl() {
+        return this.baseUrl + RESIDENTIAL_URL;
+    }
+
+    get commercialUrl() {
+        return this.baseUrl + COMMERCIAL_URL;
+    }
+
+    get hospitalityUrl() {
+        return this.baseUrl + HOSPITALITY_URL;
+    }
+
+    get registrationFormUrl() {
+        return this.baseUrl + REGISTRATION_FORM_URL;
+    }
+
+    get pillarUrlMap() {
+        return {
+            residential: this.residentialUrl,
+            commercial: this.commercialUrl,
+            hospitality: this.hospitalityUrl
+        };
+    }
+
     pillars = [
         {
             id: 1,
@@ -32,24 +64,13 @@ export default class FourPillars extends NavigationMixin(LightningElement) {
             title: 'Luxury Hospitality',
             description: 'Creating unforgettable guest experiences. From boutique hotels to michelin-star restaurants, we set the stage for exquisite service and ambiance.',
             image: ARELIA_HOSPITALITY
-        },
-        
+        }
     ];
 
-    // PILLAR → URL MAP
-    pillarUrlMap = {
-        residential: 'https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/residential-portfolio',
-        commercial:  'https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/commerical-portifolio',
-        hospitality: 'https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/hospitality-portfolio',
-        
-    };
-
-    // PILLAR NAMES FOR MODAL
     pillarDataMap = {
         residential: { title: 'Residential Design', tagline: 'Bespoke homes — concept to completion.' },
-        commercial:  { title: 'Commercial Interiors', tagline: 'Workplaces that perform and inspire.' },
-        hospitality: { title: 'Hospitality Design', tagline: 'Crafting memorable guest experiences.' },
-        
+        commercial: { title: 'Commercial Interiors', tagline: 'Workplaces that perform and inspire.' },
+        hospitality: { title: 'Hospitality Design', tagline: 'Crafting memorable guest experiences.' }
     };
 
     _animInit = false;
@@ -64,12 +85,10 @@ export default class FourPillars extends NavigationMixin(LightningElement) {
         const cards = Array.from(this.template.querySelectorAll('.pillar-card'));
         if (!cards.length) return;
 
-        // fade-left / fade-right assignment
         cards.forEach((card, idx) => {
             card.classList.add(idx % 2 === 0 ? 'fade-left' : 'fade-right');
         });
 
-        // Fallback for older browsers
         if (!('IntersectionObserver' in window)) {
             cards.forEach(c => c.classList.add('is-visible'));
             return;
@@ -99,7 +118,9 @@ export default class FourPillars extends NavigationMixin(LightningElement) {
 
         setTimeout(() => {
             const modal = this.template.querySelector('.explore-modal');
-            modal && modal.focus();
+            if (modal) {
+                modal.focus();
+            }
         }, 50);
     }
 
@@ -124,14 +145,11 @@ export default class FourPillars extends NavigationMixin(LightningElement) {
     handleModalAction(e) {
         const action = e.currentTarget.dataset.action;
         const pillar = this.activePillar;
-
-        // SELECT correct destination URL per pillar
         const targetUrl = this.pillarUrlMap[pillar];
 
         switch (action) {
             case 'styles':
             case 'beforeafter':
-                // → navigate to pillar portfolio page
                 this[NavigationMixin.Navigate]({
                     type: 'standard__webPage',
                     attributes: { url: targetUrl }
@@ -139,13 +157,15 @@ export default class FourPillars extends NavigationMixin(LightningElement) {
                 break;
 
             case 'book':
-                // → navigate to registration form page you provided
                 this[NavigationMixin.Navigate]({
                     type: 'standard__webPage',
                     attributes: {
-                        url: 'https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/registration-form'
+                        url: this.registrationFormUrl
                     }
                 });
+                break;
+
+            default:
                 break;
         }
 

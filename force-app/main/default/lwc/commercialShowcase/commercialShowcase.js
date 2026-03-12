@@ -30,9 +30,18 @@ import COMM_WS_1 from '@salesforce/resourceUrl/COMM_WS_1';
 import COMM_WS_2 from '@salesforce/resourceUrl/COMM_WS_2';
 import COMM_WS_3 from '@salesforce/resourceUrl/COMM_WS_3';
 import COMM_WS_4 from '@salesforce/resourceUrl/COMM_WS_4';
-// -----------------------------------------------------------------------------------------------
+
+import SITE_BASE_URL from '@salesforce/label/c.Arelia_Site_Label';
+import REGISTRATION_FORM_URL from '@salesforce/label/c.Registration_Form_URL';
 
 export default class CommercialShowcase extends LightningElement {
+
+  baseUrl = SITE_BASE_URL;
+
+  get registrationFormUrl() {
+    return this.baseUrl + REGISTRATION_FORM_URL;
+  }
+
   @api rooms = [
     {
       key: 'lobby',
@@ -469,11 +478,9 @@ export default class CommercialShowcase extends LightningElement {
   }
 
   handleModalAction(evt) {
-    // Navigate to registration form when user confirms Book Consultation
-    const targetUrl = 'https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/registration-form';
     this.closeModal();
     setTimeout(() => {
-      window.location.href = targetUrl;
+      window.location.href = this.registrationFormUrl;
     }, 200);
   }
 }
