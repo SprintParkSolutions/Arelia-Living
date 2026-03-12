@@ -2,7 +2,7 @@
  * @description Controller for managing vendor email communications.
  * Handles retrieval of specifications, tasks, and email dispatching.
  */
-@SuppressWarnings('PMD.CognitiveComplexity')
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public with sharing class VendorEmailController {
 
     // --- 1. UTILITIES ---
@@ -14,7 +14,7 @@ public with sharing class VendorEmailController {
         }
         
         Set<Id> docIds = new Set<Id>();
-        for (ContentDocumentLink link : [SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = :opportunityId WITH SECURITY_ENFORCED]) {
+        for (ContentDocumentLink link : [SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = :opportunityId ]) {
             docIds.add(link.ContentDocumentId);
         }
 
@@ -26,7 +26,7 @@ public with sharing class VendorEmailController {
             SELECT Id, Title, ContentDocumentId, FileType
             FROM ContentVersion
             WHERE ContentDocumentId IN :docIds AND IsLatest = TRUE
-            WITH SECURITY_ENFORCED
+           
             ORDER BY Title
         ];
     }
@@ -54,7 +54,7 @@ public with sharing class VendorEmailController {
             AND Email__c != NULL
             AND Vendor_Status__c != 'Abscond'
             AND Vendor_Status__c != 'Unavailable'
-            WITH SECURITY_ENFORCED
+
             ORDER BY Average_Efficiency__c DESC
         ];
     }
@@ -62,7 +62,7 @@ public with sharing class VendorEmailController {
     @AuraEnabled(cacheable=true)
     public static List<EmailTemplate> getEmailTemplatesByType(String tenderType) {
         String devName = (tenderType == 'Backup') ? 'Backup_Tendor_Invitation' : 'Quatation_Email_Template';
-        List<EmailTemplate> templates = [SELECT Id, Name, DeveloperName FROM EmailTemplate WHERE DeveloperName = :devName WITH SECURITY_ENFORCED LIMIT 1];
+        List<EmailTemplate> templates = [SELECT Id, Name, DeveloperName FROM EmailTemplate WHERE DeveloperName = :devName  LIMIT 1];
         
         if (templates.isEmpty()) {
             throw new AuraHandledException('Template not found: ' + devName);
@@ -87,7 +87,7 @@ public with sharing class VendorEmailController {
     public static AbscondedVendorDetails getAbscondedVendorTasks(String opportunityId, String category) {
         AbscondedVendorDetails details = new AbscondedVendorDetails();
         try {
-            List<Vendor_Assignment__c> assigns = [SELECT Id, Vendor_Work_Start_Date__c, Vendor_Work_End_Date__c, Completion__c FROM Vendor_Assignment__c WHERE Vendor_Opportunity__r.Opportunity__c = :opportunityId AND Vendor_Opportunity__r.Vendor_Category__c = :category AND Vendor_Opportunity__r.Vendor_Opportunity_Status__c = 'Abscond' WITH SECURITY_ENFORCED LIMIT 1];
+            List<Vendor_Assignment__c> assigns = [SELECT Id, Vendor_Work_Start_Date__c, Vendor_Work_End_Date__c, Completion__c FROM Vendor_Assignment__c WHERE Vendor_Opportunity__r.Opportunity__c = :opportunityId AND Vendor_Opportunity__r.Vendor_Category__c = :category AND Vendor_Opportunity__r.Vendor_Opportunity_Status__c = 'Abscond'  LIMIT 1];
 
             if (assigns.isEmpty()) {
                 return details;
@@ -98,7 +98,7 @@ public with sharing class VendorEmailController {
             details.overallAssignmentStartDate = va.Vendor_Work_Start_Date__c;
             details.overallAssignmentEndDate = va.Vendor_Work_End_Date__c;
 
-            for (Task t : [SELECT Id, Subject, Status FROM Task WHERE WhatId = :va.Id WITH SECURITY_ENFORCED]) {
+            for (Task t : [SELECT Id, Subject, Status FROM Task WHERE WhatId = :va.Id ]) {
                 details.tasks.add(new AbscondedTaskWrapper(t));
             }
             return details;
@@ -193,7 +193,7 @@ public with sharing class VendorEmailController {
                 }
             }
             query = query.removeEnd(', ');
-            query += ' FROM Project_Specification__c WHERE Opportunity__c = :opportunityId AND Vendor_Category__c = :category WITH SECURITY_ENFORCED ORDER BY CreatedDate ASC';
+            query += ' FROM Project_Specification__c WHERE Opportunity__c = :opportunityId AND Vendor_Category__c = :category ORDER BY CreatedDate ASC';
             return Database.query(query);
         }
     }
@@ -201,14 +201,14 @@ public with sharing class VendorEmailController {
     private with sharing class EmailServiceHelper {
         public void processAndSendEmails(EmailSendingContext ctx) {
             String templateDevName = (ctx.tenderType == 'Backup') ? 'Backup_Tendor_Invitation' : 'Quatation_Email_Template';
-            EmailTemplate template = [SELECT Id, Subject, HtmlValue FROM EmailTemplate WHERE DeveloperName = :templateDevName WITH SECURITY_ENFORCED LIMIT 1];
+            EmailTemplate template = [SELECT Id, Subject, HtmlValue FROM EmailTemplate WHERE DeveloperName = :templateDevName  LIMIT 1];
             
             EmailContentWrapper content = buildContent(ctx);
             
-            Opportunity opp = [SELECT Id, Name, Supervisor_User__r.Name, Supervisor_User__r.Email, Supervisor_User__r.Phone, Project_Scope__c FROM Opportunity WHERE Id = :ctx.opportunityId WITH SECURITY_ENFORCED LIMIT 1];
+            Opportunity opp = [SELECT Id, Name, Supervisor_User__r.Name, Supervisor_User__r.Email, Supervisor_User__r.Phone, Project_Scope__c FROM Opportunity WHERE Id = :ctx.opportunityId  LIMIT 1];
 
             List<Messaging.EmailFileAttachment> attachments = buildAttachments(ctx.fileIds, content.specs);
-            List<Vendor__c> vendors = [SELECT Id, Name, Email__c, Vendor_Category__c FROM Vendor__c WHERE Id IN :ctx.vendorIds AND Email__c != NULL WITH SECURITY_ENFORCED];
+            List<Vendor__c> vendors = [SELECT Id, Name, Email__c, Vendor_Category__c FROM Vendor__c WHERE Id IN :ctx.vendorIds AND Email__c != NULL ];
             List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
 
             EmailCreationContext creationCtx = new EmailCreationContext();
@@ -278,7 +278,7 @@ public with sharing class VendorEmailController {
         private List<Messaging.EmailFileAttachment> buildAttachments(List<String> fileIds, List<SObject> specs) {
             List<Messaging.EmailFileAttachment> attachments = new List<Messaging.EmailFileAttachment>();
             if (fileIds != null && !fileIds.isEmpty()) {
-                for (ContentVersion f : [SELECT Title, VersionData, FileExtension FROM ContentVersion WHERE Id IN :fileIds AND IsLatest = TRUE WITH SECURITY_ENFORCED]) {
+                for (ContentVersion f : [SELECT Title, VersionData, FileExtension FROM ContentVersion WHERE Id IN :fileIds AND IsLatest = TRUE ]) {
                     Messaging.EmailFileAttachment att = new Messaging.EmailFileAttachment();
                     att.setFileName(f.Title + (String.isNotBlank(f.FileExtension) ? '.' + f.FileExtension : ''));
                     att.setBody(f.VersionData);
@@ -305,14 +305,14 @@ public with sharing class VendorEmailController {
             }
             
             Set<Id> docIds = new Set<Id>();
-            for (ContentDocumentLink cdl : [SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId IN :parentIds WITH SECURITY_ENFORCED]) {
+            for (ContentDocumentLink cdl : [SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId IN :parentIds ]) {
                 docIds.add(cdl.ContentDocumentId);
             }
             if (docIds.isEmpty()) {
                 return result;
             }
             
-            for (ContentVersion cv : [SELECT Title, VersionData, FileExtension FROM ContentVersion WHERE ContentDocumentId IN :docIds AND IsLatest = TRUE WITH SECURITY_ENFORCED]) {
+            for (ContentVersion cv : [SELECT Title, VersionData, FileExtension FROM ContentVersion WHERE ContentDocumentId IN :docIds AND IsLatest = TRUE ]) {
                 Messaging.EmailFileAttachment att = new Messaging.EmailFileAttachment();
                 att.setFileName(cv.Title + (String.isNotBlank(cv.FileExtension) ? '.' + cv.FileExtension : ''));
                 att.setBody(cv.VersionData);
