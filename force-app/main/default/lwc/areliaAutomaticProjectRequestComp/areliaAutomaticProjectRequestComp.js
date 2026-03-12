@@ -1,12 +1,15 @@
 import { LightningElement, api, track, wire } from 'lwc';
 import { CurrentPageReference } from 'lightning/navigation';
 
+import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
+import LEAD_OBJECT from '@salesforce/schema/Lead';
+import QUOTATION_TYPE_FIELD from '@salesforce/schema/Lead.Project_Request_Quotation_Type__c';
+
 import getMasterData from '@salesforce/apex/InteriorMasterService.getMasterData';
 import saveRequest from '@salesforce/apex/InteriorAutoProjectRequestService.saveRequest';
-import fetchLeadForAutoRequest
-    from '@salesforce/apex/InteriorAutoProjectRequestService.fetchLeadForAutoRequest';
-import fetchExistingRequest
-    from '@salesforce/apex/InteriorAutoProjectRequestService.fetchExistingRequest';
+import fetchLeadForAutoRequest from '@salesforce/apex/InteriorAutoProjectRequestService.fetchLeadForAutoRequest';
+import fetchExistingRequest from '@salesforce/apex/InteriorAutoProjectRequestService.fetchExistingRequest';
+
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import SITE_URL from '@salesforce/label/c.Arelia_Site_Label';
 
@@ -17,16 +20,17 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     @api leadId;
     @api quotationType;
 
+    quotationTypeLabel; // ✅ label for UI display
+    quotationTypeLabelByValue = {}; // { 'Manual': 'Custom Design' }
+
     @track currentStep = 1;
 
-    // master data
     allProjectTypes = [];
     allCategories = [];
     allRooms = [];
     allDesigns = [];
     allPlanLevels = [];
 
-    // step1 fields
     firstName = '';
     lastName = '';
     email = '';
@@ -36,7 +40,6 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     siteSpace = '';
     description = '';
 
-    // selections
     selectedProjectTypeId;
     selectedCategoryId;
 
@@ -44,59 +47,64 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     @track isAlreadySubmitted = false;
     submittedMessage = ALREADY_SUBMITTED_MSG;
 
-    /**
-     * Room qty per room record (Interior_Room__c)
-     * { roomId: qty }
-     */
     @track roomQuantities = {};
 
-    selectedPlanLevel;
+    @track instancePlanMap = {};     // { instanceKey: 'Standard' }
+    @track instanceRoomSizeMap = {}; // { instanceKey: 520 }
 
-    /**
-     * ✅ NEW: Instead of roomId, we track current room INSTANCE.
-     * Example instanceKey: `${roomId}__1`
-     */
     currentRoomInstanceKey;
 
-    /**
-     * ✅ NEW: Design per room INSTANCE (supports qty > 1)
-     * { instanceKey: { roomId, instanceIndex, designId, designName, price, quantity, lineAmount, imageUrl } }
-     */
-    @track roomDesignMap = {};
+    @track roomDesignMap = {}; // { instanceKey: { roomId, designId, planLevel, roomSizeSqft, templateSizeSqft, ratePerSqft, lineAmount } }
 
     totalBudget = 0;
 
-    // flags
     @track isImageModalOpen = false;
     modalImageUrl;
     modalTitle;
 
     isSaving = false;
 
-    // initial loading
     @track isInitLoading = true;
     hasInitLoaded = false;
 
-    hasExistingRequest = false;
+    labels = { siteUrl: SITE_URL };
+    AUTO_DEFAULT_ROOMS = true;
 
-    labels = {
-        siteUrl: SITE_URL
-    };
 
-    // ===============================
-    // CONFIG (dynamic-friendly)
-    // ===============================
-    AUTO_DEFAULT_ROOMS = true;      // auto fill qty=1 for all rooms in selected category
-    MIN_ROOMS_FOR_BHK = true;       // optional validation (kept generic)
+     // ✅ load Lead record type id
+    @wire(getObjectInfo, { objectApiName: LEAD_OBJECT })
+    leadInfo;
+
+    // ✅ load picklist values (value + label)
+    @wire(getPicklistValues, {
+        recordTypeId: '$leadInfo.data.defaultRecordTypeId',
+        fieldApiName: QUOTATION_TYPE_FIELD
+    })
+    wiredQuotationTypes({ data, error }) {
+        if (data) {
+            const map = {};
+            (data.values || []).forEach((p) => {
+                map[p.value] = p.label;
+            });
+            this.quotationTypeLabelByValue = map;
+
+            // if value already present, compute label
+            if (this.quotationType) {
+                this.quotationTypeLabel = this.quotationTypeLabelByValue[this.quotationType] || this.quotationType;
+            }
+        } else if (error) {
+            // fallback silently (don’t block UI)
+            this.quotationTypeLabelByValue = {};
+        }
+    }
 
     // -----------------------------
-    // URL HELPERS
+    // URL helpers
     // -----------------------------
     get siteBaseUrl() {
         try {
             const raw = this.labels.siteUrl;
             const sourceUrl = raw ? new URL(raw) : new URL(window.location.href);
-
             const origin = sourceUrl.origin;
             const segments = (sourceUrl.pathname || '').split('/').filter((seg) => !!seg);
             const communitySegment = segments.length ? `/${segments[0]}` : '';
@@ -117,9 +125,6 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         return `${base}${normalized}`;
     }
 
-    // -----------------------------
-    // LEAD ID
-    // -----------------------------
     connectedCallback() {
         this.ensureInitialLoad();
     }
@@ -127,16 +132,11 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
         if (!pageRef) return;
-
-        const idFromUrl =
-            (pageRef.state && pageRef.state.id) ||
-            (pageRef.state && pageRef.state.c__id);
-
+        const idFromUrl = (pageRef.state && (pageRef.state.id || pageRef.state.c__id));
         if (idFromUrl && idFromUrl !== this.leadId) {
             // eslint-disable-next-line @lwc/lwc/no-api-reassignments
             this.leadId = idFromUrl;
         }
-
         this.ensureInitialLoad();
     }
 
@@ -150,20 +150,17 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         this.loadInitialData();
     }
 
-    // -----------------------------
-    // Initial data load
-    // -----------------------------
     loadInitialData() {
         if (this.hasInitLoaded || !this.leadId) return;
 
         this.isInitLoading = true;
         this.hasInitLoaded = true;
 
-        const masterPromise = getMasterData();
-        const leadPromise = fetchLeadForAutoRequest({ leadId: this.leadId });
-        const existingPromise = fetchExistingRequest({ leadId: this.leadId });
-
-        Promise.all([masterPromise, leadPromise, existingPromise])
+        Promise.all([
+            getMasterData(),
+            fetchLeadForAutoRequest({ leadId: this.leadId }),
+            fetchExistingRequest({ leadId: this.leadId })
+        ])
             .then(([res, leadRec, existing]) => {
                 this.allProjectTypes = res.projectTypes || [];
                 this.allCategories = res.categories || [];
@@ -171,29 +168,23 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
                 this.allDesigns = res.designs || [];
                 this.allPlanLevels = res.designLevels || [];
 
-                if (leadRec) {
-                    this.applyLeadDefaults(leadRec);
-                }
+                if (leadRec) this.applyLeadDefaults(leadRec);
+                if (existing) this.applyExistingRequest(existing);
 
-                if (existing) {
-                    this.applyExistingRequest(existing);
-                }
-
-                // If category already exists (prefill) and no room qty yet -> default
                 if (this.selectedCategoryId && this.AUTO_DEFAULT_ROOMS && Object.keys(this.roomQuantities).length === 0) {
                     this.applyDefaultRoomsForCategory(this.selectedCategoryId);
                 }
             })
             .catch((err) => {
-                this.showToast(
-                    'Error',
-                    err && err.body && err.body.message ? err.body.message : 'Unable to load project data.',
-                    'error'
-                );
+                this.showToast('Error', this.errMsg(err, 'Unable to load project data.'), 'error');
             })
             .finally(() => {
                 this.isInitLoading = false;
             });
+    }
+
+    errMsg(err, fallback) {
+        return err && err.body && err.body.message ? err.body.message : fallback;
     }
 
     applyLeadDefaults(leadRec) {
@@ -205,42 +196,32 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         this.address = leadRec.Site_Location__c || '';
         this.siteSpace = leadRec.Site_Space__c || '';
         this.description = leadRec.Project_Description__c || '';
-
         this.totalBudget = leadRec.Estimated_Budget__c || 0;
 
         this.selectedProjectTypeId = leadRec.Interior_Project_Type__c || null;
         this.selectedCategoryId = leadRec.Interior_Category__c || null;
-        this.selectedPlanLevel = leadRec.Plan_Level__c || null;
 
         if (!this.quotationType && leadRec.Project_Request_Quotation_Type__c) {
-            // eslint-disable-next-line @lwc/lwc/no-api-reassignments
             this.quotationType = leadRec.Project_Request_Quotation_Type__c;
         }
-        // Block wizard on load if already submitted
+
+         // ✅ compute label for display (safe even if picklist wire loads later)
+        if (this.quotationType) {
+            this.quotationTypeLabel = this.quotationTypeLabelByValue[this.quotationType] || this.quotationType;
+        }
+
         if (leadRec.Project_Request_Submitted__c === true) {
             this.isAlreadySubmitted = true;
         }
     }
 
-    /**
-     * Existing request support:
-     * - Rooms: qtyMap
-     * - RoomDesigns: may be stored as multiple lines already OR single line with quantity > 1.
-     * We normalize it into instance-based mapping.
-     */
     applyExistingRequest(existing) {
         const qtyMap = {};
         (existing.rooms || []).forEach((r) => {
-            if (r.roomId && r.quantity && r.quantity > 0) {
-                qtyMap[r.roomId] = r.quantity;
-            }
+            if (r.roomId && r.quantity && r.quantity > 0) qtyMap[r.roomId] = r.quantity;
         });
         this.roomQuantities = qtyMap;
 
-        const designMap = {};
-        let total = 0;
-
-        // helper to generate next index for a roomId
         const nextIndexByRoom = {};
         const getNextIndex = (roomId) => {
             const cur = nextIndexByRoom[roomId] || 0;
@@ -249,48 +230,57 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             return next;
         };
 
+        const designMap = {};
+        const planMap = {};
+        const sizeMap = {};
+        let total = 0;
+
         (existing.roomDesigns || []).forEach((line) => {
             if (!line.roomId || !line.designId) return;
 
             const design = (this.allDesigns || []).find((d) => d.id === line.designId);
             const qty = line.quantity && line.quantity > 0 ? line.quantity : 1;
 
-            const price = design && design.basePrice
-                ? design.basePrice
-                : (line.lineAmount && qty ? line.lineAmount / qty : 0);
-
-            // If stored qty > 1, expand into instances
             for (let i = 0; i < qty; i += 1) {
                 const idx = getNextIndex(line.roomId);
                 const instanceKey = `${line.roomId}__${idx}`;
 
-                const lineAmount = price * 1;
+                const templateSizeSqft = line.templateSizeSqft != null ? line.templateSizeSqft : (design ? design.templateSizeSqft : null);
+                const ratePerSqft = line.ratePerSqft != null ? line.ratePerSqft : (design ? design.ratePerSqft : null);
+                const roomSizeSqft = line.roomSizeSqft != null ? line.roomSizeSqft : null;
+                const planLevel = line.planLevel != null ? line.planLevel : (design ? design.designLevel : null);
+
+                const computedAmount = this.computeAmount(roomSizeSqft, templateSizeSqft, ratePerSqft, (design ? design.finalDesignPrice : null));
 
                 designMap[instanceKey] = {
                     roomId: line.roomId,
                     instanceIndex: idx,
                     designId: line.designId,
                     designName: design ? design.name : 'Design',
-                    price,
-                    quantity: 1,
-                    lineAmount,
+                    planLevel,
+                    roomSizeSqft,
+                    templateSizeSqft,
+                    ratePerSqft,
+                    finalDesignPrice: design ? design.finalDesignPrice : null,
+                    lineAmount: computedAmount,
                     imageUrl: design ? this.resolveImageUrl(design.imageUrl) : null
                 };
-                total += lineAmount;
+
+                if (planLevel) planMap[instanceKey] = planLevel;
+                if (roomSizeSqft != null) sizeMap[instanceKey] = roomSizeSqft;
+
+                total += (computedAmount || 0);
             }
         });
 
         this.roomDesignMap = designMap;
+        this.instancePlanMap = planMap;
+        this.instanceRoomSizeMap = sizeMap;
         this.totalBudget = total;
 
-        this.hasExistingRequest =
-            Object.keys(qtyMap).length > 0 || Object.keys(designMap).length > 0;
-
-        // set default current instance
-        const instanceKeys = Object.keys(designMap);
-        if (!this.currentRoomInstanceKey) {
-            const allInst = this.roomInstances;
-            this.currentRoomInstanceKey = allInst.length ? allInst[0].instanceKey : (instanceKeys.length ? instanceKeys[0] : null);
+        const instances = this.roomInstancesView;
+        if (!this.currentRoomInstanceKey && instances.length) {
+            this.currentRoomInstanceKey = instances[0].instanceKey;
         }
     }
 
@@ -298,18 +288,7 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     // Steps
     // -----------------------------
     get steps() {
-        const labels = [
-            'Customer',
-            'Project Type',
-            'Category',
-            'Rooms',
-            'Plan',
-            'Room Designs',
-            'Preview Designs',
-            'Review',
-            'Success'
-        ];
-
+        const labels = ['Customer', 'Project Type', 'Category', 'Rooms', 'Plan', 'Room Designs', 'Preview Designs', 'Review', 'Success'];
         return labels.map((label, index) => {
             const stepNumber = index + 1;
             let cls = 'step-item';
@@ -327,11 +306,8 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     get isStep6() { return this.currentStep === 6; }
     get isStep7() { return this.currentStep === 7; }
     get isStep8() { return this.currentStep === 8; }
-    get isFirst() { return this.currentStep === 1; }
-
     get isStep9() { return this.currentStep === 9; }
     get displayStep() { return this.currentStep > 9 ? 9 : this.currentStep; }
-
 
     get nextLabel() {
         return this.currentStep === 8 ? (this.isSaving ? 'Saving…' : 'Save') : 'Next';
@@ -368,19 +344,18 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
     }
 
     get planOptions() {
+        const chosenInstance = this.currentRoomInstanceKey;
+        const selectedPlan = chosenInstance ? this.instancePlanMap[chosenInstance] : null;
+
         return (this.allPlanLevels || []).map((lvl) => ({
             label: lvl,
             value: lvl,
-            cardClass: lvl === this.selectedPlanLevel ? 'choice-card selected' : 'choice-card'
+            cardClass: lvl === selectedPlan ? 'choice-card selected' : 'choice-card'
         }));
     }
 
-    /**
-     * ✅ NEW: Expanded room instances list (qty aware)
-     * Example:
-     *  Bedroom qty=2 -> instanceKey: roomId__1, roomId__2
-     */
-    get roomInstances() {
+    // ✅ Instances list
+    get roomInstancesView() {
         const out = [];
         const roomIds = Object.keys(this.roomQuantities || {});
         roomIds.forEach((roomId) => {
@@ -392,47 +367,47 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
 
             for (let i = 1; i <= qty; i += 1) {
                 const instanceKey = `${roomId}__${i}`;
-                const sel = this.roomDesignMap[instanceKey];
+                const rd = this.roomDesignMap[instanceKey];
+
+                const planLabel = this.instancePlanMap[instanceKey] || 'Not selected';
+                const selectedDesignName = rd ? rd.designName : 'No design selected';
 
                 out.push({
                     instanceKey,
                     roomId,
-                    roomName,
                     instanceIndex: i,
-                    displayName: qty > 1 ? `${roomName} (${i}/${qty})` : `${roomName}`,
-                    selectedDesignName: sel ? sel.designName : 'No design selected',
+                    displayName: qty > 1 ? `${roomName} (${i}/${qty})` : roomName,
+                    planLabel,
+                    selectedDesignName,
                     cardClass: instanceKey === this.currentRoomInstanceKey ? 'room-sel-card active' : 'room-sel-card'
                 });
             }
         });
 
-        // ensure a current instance is set
-        if (!this.currentRoomInstanceKey && out.length) {
-            this.currentRoomInstanceKey = out[0].instanceKey;
-        }
+        if (!this.currentRoomInstanceKey && out.length) this.currentRoomInstanceKey = out[0].instanceKey;
         return out;
     }
 
-    /**
-     * ✅ Designs shown should depend on selected instance roomId + plan level
-     */
+    parseInstanceKey(instanceKey) {
+        const parts = (instanceKey || '').split('__');
+        return { roomId: parts[0], instanceIndex: parts.length > 1 ? parseInt(parts[1], 10) : 1 };
+    }
+
+    // ✅ filter designs by room + instance plan
     get currentRoomDesigns() {
         if (!this.currentRoomInstanceKey) return [];
 
-        const placeholder = 'https://via.placeholder.com/220x140?text=Design';
         const { roomId } = this.parseInstanceKey(this.currentRoomInstanceKey);
-
+        const plan = this.instancePlanMap[this.currentRoomInstanceKey];
         const selectedForInstance = this.roomDesignMap[this.currentRoomInstanceKey];
 
-        return (this.allDesigns || [])
-            .filter((d) =>
-                d.roomId === roomId &&
-                (!this.selectedPlanLevel || d.designLevel === this.selectedPlanLevel)
-            )
-            .map((d) => {
-                const isSelected = selectedForInstance && selectedForInstance.designId === d.id;
-                const fullUrl = this.resolveImageUrl(d.imageUrl);
+        const placeholder = 'https://via.placeholder.com/220x140?text=Design';
 
+        return (this.allDesigns || [])
+            .filter((d) => d.roomId === roomId && (!plan || d.designLevel === plan))
+            .map((d) => {
+                const fullUrl = this.resolveImageUrl(d.imageUrl);
+                const isSelected = selectedForInstance && selectedForInstance.designId === d.id;
                 return {
                     ...d,
                     itemClass: isSelected ? 'design-item-tile selected' : 'design-item-tile',
@@ -442,50 +417,73 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             });
     }
 
-    /**
-     * ✅ Preview tiles now per-instance (so bedroom can appear twice with different design)
-     */
-    get selectedDesignTiles() {
-        const tiles = [];
-        const placeholder = 'https://via.placeholder.com/220x140?text=Design';
+    // -----------------------------
+    // Display helpers
+    // -----------------------------
+    fmtSqft(v) {
+        return v != null && v !== '' && !Number.isNaN(Number(v)) ? `${Number(v)} sqft` : '-';
+    }
 
-        (this.roomInstances || []).forEach((inst) => {
+    fmtRate(v) {
+        return v != null && v !== '' && !Number.isNaN(Number(v)) ? `${Number(v)} /sqft` : '-';
+    }
+
+    fmtApproxCurrency(v) {
+        const n = v != null && !Number.isNaN(Number(v)) ? Number(v) : 0;
+        return `Approximate: ${n.toFixed(2)}`;
+    }
+
+    get currentRoomSize() {
+        if (!this.currentRoomInstanceKey) return null;
+        return this.instanceRoomSizeMap[this.currentRoomInstanceKey] ?? null;
+    }
+
+    get currentTemplateSizeDisplay() {
+        const rd = this.roomDesignMap[this.currentRoomInstanceKey];
+        return rd ? this.fmtSqft(rd.templateSizeSqft) : '-';
+    }
+
+    get currentRatePerSqftDisplay() {
+        const rd = this.roomDesignMap[this.currentRoomInstanceKey];
+        return rd ? this.fmtRate(rd.ratePerSqft) : '-';
+    }
+
+    get currentLineAmountDisplay() {
+        const rd = this.roomDesignMap[this.currentRoomInstanceKey];
+        return rd && rd.lineAmount != null ? this.fmtApproxCurrency(rd.lineAmount) : 'Approximate: 0.00';
+    }
+
+    // ✅ Preview tiles in correct order (instances order)
+    get selectedDesignTiles() {
+        const out = [];
+        (this.roomInstancesView || []).forEach((inst) => {
             const rd = this.roomDesignMap[inst.instanceKey];
             if (!rd) return;
 
-            const img = this.resolveImageUrl(rd.imageUrl) || placeholder;
-
-            tiles.push({
+            out.push({
                 instanceKey: inst.instanceKey,
-                roomId: inst.roomId,
                 roomName: inst.displayName,
                 designName: rd.designName,
-                imageUrl: img,
-                quantity: 1,
+                planLevel: rd.planLevel || this.instancePlanMap[inst.instanceKey] || '-',
+                roomSizeText: this.fmtSqft(rd.roomSizeSqft),
+                templateSizeText: this.fmtSqft(rd.templateSizeSqft),
+                rateText: this.fmtRate(rd.ratePerSqft),
                 lineAmount: rd.lineAmount || 0
             });
         });
-
-        return tiles;
+        return out;
     }
 
-    get roomsWithDesignCount() {
-        return Object.keys(this.roomDesignMap || {}).length;
-    }
-
-    get totalRoomQuantity() {
-        let total = 0;
-        for (const roomId in this.roomQuantities) {
-            if (!Object.prototype.hasOwnProperty.call(this.roomQuantities, roomId)) continue;
-            const qty = this.roomQuantities[roomId];
-            if (qty && qty > 0) total += qty;
-        }
-        return total;
-    }
-
-    // ---------- DISPLAY HELPERS FOR STEP 7/8 ----------
-    get selectedPlan() {
-        return this.selectedPlanLevel || '';
+    get reviewRows() {
+        return (this.selectedDesignTiles || []).map((t) => ({
+            key: t.instanceKey,
+            room: `${t.roomName} → ${t.designName}`,
+            plan: t.planLevel || '-',
+            roomSize: t.roomSizeText,
+            template: t.templateSizeText,
+            rate: t.rateText,
+            amount: t.lineAmount
+        }));
     }
 
     get selectedProjectTypeName() {
@@ -498,78 +496,47 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         return cat ? cat.name : '';
     }
 
-    /**
-     * Used in STEP 8 template: finalRoomDesignLines.length
-     * Must always return an array (never undefined)
-     */
-    get finalRoomDesignLines() {
-        const lines = [];
-        (this.selectedDesignTiles || []).forEach((t) => {
-            lines.push(`${t.roomName} → ${t.designName}`);
-        });
-        return lines;
-    }
-
     // -----------------------------
-    // Helpers
+    // Computation
     // -----------------------------
-    parseInstanceKey(instanceKey) {
-        const parts = (instanceKey || '').split('__');
-        return {
-            roomId: parts[0],
-            instanceIndex: parts.length > 1 ? parseInt(parts[1], 10) : 1
-        };
-    }
+    computeAmount(roomSizeSqft, templateSizeSqft, ratePerSqft, finalDesignPrice) {
+        const rate = ratePerSqft != null ? Number(ratePerSqft) : null;
 
-    /**
-     * When qty decreases, remove designs for removed instances.
-     */
-    syncDesignsWithRoomQty() {
-        const nextMap = { ...this.roomDesignMap };
+        if (rate != null && !Number.isNaN(rate)) {
+            const roomSize = roomSizeSqft != null && roomSizeSqft !== '' ? Number(roomSizeSqft) : null;
+            if (roomSize != null && !Number.isNaN(roomSize) && roomSize > 0) return roomSize * rate;
 
-        // remove any instance that exceeds qty
-        const qtyMap = this.roomQuantities || {};
-        Object.keys(nextMap).forEach((instanceKey) => {
-            const { roomId, instanceIndex } = this.parseInstanceKey(instanceKey);
-            const max = qtyMap[roomId] || 0;
-            if (instanceIndex > max || max <= 0) {
-                delete nextMap[instanceKey];
-            }
-        });
-
-        this.roomDesignMap = nextMap;
-
-        // ensure current instance still valid
-        if (this.currentRoomInstanceKey) {
-            const { roomId, instanceIndex } = this.parseInstanceKey(this.currentRoomInstanceKey);
-            const max = (this.roomQuantities[roomId] || 0);
-            if (!max || instanceIndex > max) {
-                const inst = this.roomInstances;
-                this.currentRoomInstanceKey = inst.length ? inst[0].instanceKey : null;
-            }
+            const tmpl = templateSizeSqft != null ? Number(templateSizeSqft) : null;
+            if (tmpl != null && !Number.isNaN(tmpl) && tmpl > 0) return tmpl * rate;
         }
 
-        this.recalcTotal();
+        const fp = finalDesignPrice != null ? Number(finalDesignPrice) : null;
+        return fp != null && !Number.isNaN(fp) ? fp : 0;
     }
 
-    /**
-     * ✅ Default rooms dynamically from Interior_Room__c list for that category.
-     * If tomorrow you add new rooms, it will automatically come.
-     */
+    recalcTotal() {
+        let total = 0;
+        Object.keys(this.roomDesignMap || {}).forEach((k) => {
+            total += (this.roomDesignMap[k].lineAmount || 0);
+        });
+        this.totalBudget = total;
+    }
+
+    // -----------------------------
+    // Defaults
+    // -----------------------------
     applyDefaultRoomsForCategory(categoryId) {
         const qtyMap = {};
-        (this.allRooms || [])
-            .filter((r) => r.categoryId === categoryId)
-            .forEach((r) => {
-                // If you add Default_Qty__c in future, use it:
-                const defaultQty = r.defaultQty && r.defaultQty > 0 ? r.defaultQty : 1;
-                qtyMap[r.id] = defaultQty;
-            });
-
+        (this.allRooms || []).filter((r) => r.categoryId === categoryId).forEach((r) => {
+            qtyMap[r.id] = 1;
+        });
         this.roomQuantities = qtyMap;
+
         this.roomDesignMap = {};
+        this.instancePlanMap = {};
+        this.instanceRoomSizeMap = {};
         this.currentRoomInstanceKey = null;
-        this.recalcTotal();
+        this.totalBudget = 0;
     }
 
     // -----------------------------
@@ -580,19 +547,15 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         this[fld] = event.target.value;
     }
 
-    handlePreviousClick() {
-        this.dispatchEvent(new CustomEvent('previous'));
-    }
-
     handleProjectTypeCardClick(event) {
         const id = event.currentTarget.dataset.id;
         this.selectedProjectTypeId = id;
 
         this.selectedCategoryId = null;
         this.roomQuantities = {};
-        this.selectedPlanLevel = null;
-
         this.roomDesignMap = {};
+        this.instancePlanMap = {};
+        this.instanceRoomSizeMap = {};
         this.currentRoomInstanceKey = null;
         this.totalBudget = 0;
     }
@@ -601,71 +564,133 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         const id = event.currentTarget.dataset.id;
         this.selectedCategoryId = id;
 
-        this.selectedPlanLevel = null;
         this.roomDesignMap = {};
+        this.instancePlanMap = {};
+        this.instanceRoomSizeMap = {};
         this.currentRoomInstanceKey = null;
+        this.totalBudget = 0;
 
-        // ✅ AUTO DEFAULT (dynamic)
-        if (this.AUTO_DEFAULT_ROOMS) {
-            this.applyDefaultRoomsForCategory(id);
-        } else {
-            this.roomQuantities = {};
-            this.recalcTotal();
-        }
+        if (this.AUTO_DEFAULT_ROOMS) this.applyDefaultRoomsForCategory(id);
     }
 
     handleRoomIncrement(event) {
         const id = event.currentTarget.dataset.id;
         const cur = this.roomQuantities[id] || 0;
         this.roomQuantities = { ...this.roomQuantities, [id]: cur + 1 };
-        this.syncDesignsWithRoomQty();
     }
 
     handleRoomDecrement(event) {
         const id = event.currentTarget.dataset.id;
         const cur = this.roomQuantities[id] || 0;
-        const next = cur - 1;
-        this.roomQuantities = { ...this.roomQuantities, [id]: next > 0 ? next : 0 };
-        this.syncDesignsWithRoomQty();
-    }
+        const nextQty = Math.max(cur - 1, 0);
+        this.roomQuantities = { ...this.roomQuantities, [id]: nextQty };
 
-    handlePlanSelect(event) {
-        const id = event.currentTarget.dataset.id;
-        this.selectedPlanLevel = id;
+        const cleanedDesignMap = { ...this.roomDesignMap };
+        const cleanedPlanMap = { ...this.instancePlanMap };
+        const cleanedSizeMap = { ...this.instanceRoomSizeMap };
 
-        // reset designs because plan changed
-        this.roomDesignMap = {};
-        this.currentRoomInstanceKey = null;
+        Object.keys(cleanedDesignMap).forEach((instanceKey) => {
+            const { roomId, instanceIndex } = this.parseInstanceKey(instanceKey);
+            const max = this.roomQuantities[roomId] || 0;
+            if (instanceIndex > max) delete cleanedDesignMap[instanceKey];
+        });
+        Object.keys(cleanedPlanMap).forEach((instanceKey) => {
+            const { roomId, instanceIndex } = this.parseInstanceKey(instanceKey);
+            const max = this.roomQuantities[roomId] || 0;
+            if (instanceIndex > max) delete cleanedPlanMap[instanceKey];
+        });
+        Object.keys(cleanedSizeMap).forEach((instanceKey) => {
+            const { roomId, instanceIndex } = this.parseInstanceKey(instanceKey);
+            const max = this.roomQuantities[roomId] || 0;
+            if (instanceIndex > max) delete cleanedSizeMap[instanceKey];
+        });
+
+        this.roomDesignMap = cleanedDesignMap;
+        this.instancePlanMap = cleanedPlanMap;
+        this.instanceRoomSizeMap = cleanedSizeMap;
+
         this.recalcTotal();
     }
 
-    handleRoomSelectForDesign(event) {
-        this.currentRoomInstanceKey = event.currentTarget.dataset.id; // instanceKey
+    // Step 5
+    handleRoomSelectForPlan(event) {
+        this.currentRoomInstanceKey = event.currentTarget.dataset.id;
     }
 
-    /**
-     * ✅ Design pick is PER INSTANCE now
-     */
-    handleRoomDesignPick(event) {
-        const designId = event.currentTarget.dataset.id;
-        const design = this.allDesigns.find((x) => x.id === designId);
-        if (!design || !this.currentRoomInstanceKey) return;
+    resetInstanceDesign(instanceKey, { clearRoomSize = false } = {}) {
+        if (!instanceKey) return;
 
-        const current = this.roomDesignMap[this.currentRoomInstanceKey];
-
-        // toggle off if same selected
-        if (current && current.designId === designId) {
-            const cloned = { ...this.roomDesignMap };
-            delete cloned[this.currentRoomInstanceKey];
-            this.roomDesignMap = cloned;
-            this.recalcTotal();
-            return;
+        // remove selected design for this instance
+        const designClone = { ...this.roomDesignMap };
+        if (designClone[instanceKey]) {
+            delete designClone[instanceKey];
+            this.roomDesignMap = designClone;
         }
 
-        const fullImg = this.resolveImageUrl(design.imageUrl);
-        const price = design.basePrice || 0;
+        // optional: clear room size too (if you want full reset)
+        if (clearRoomSize) {
+            const sizeClone = { ...this.instanceRoomSizeMap };
+            if (sizeClone[instanceKey] !== undefined) {
+                delete sizeClone[instanceKey];
+                this.instanceRoomSizeMap = sizeClone;
+            }
+        }
+
+        this.recalcTotal();
+    }
+
+    handlePlanSelectForInstance(event) {
+        const plan = event.currentTarget.dataset.id;
+        if (!this.currentRoomInstanceKey || !plan) return;
+
+        const instanceKey = this.currentRoomInstanceKey;
+        const prevPlan = this.instancePlanMap[instanceKey];
+
+        // ✅ Update plan selection
+        this.instancePlanMap = { ...this.instancePlanMap, [instanceKey]: plan };
+
+        // ✅ If plan changed, clear old design so user must re-pick
+        if (prevPlan !== plan) {
+            this.resetInstanceDesign(instanceKey, { clearRoomSize: false }); // set true if you want to clear sqft also
+        }
+    }
+
+    // Step 6
+    handleRoomSelectForDesign(event) {
+        this.currentRoomInstanceKey = event.currentTarget.dataset.id;
+    }
+
+    handleRoomSizeChange(event) {
+        if (!this.currentRoomInstanceKey) return;
+        const val = event.target.value;
+        const num = val === '' || val == null ? null : Number(val);
+
+        this.instanceRoomSizeMap = { ...this.instanceRoomSizeMap, [this.currentRoomInstanceKey]: num };
+
+        const rd = this.roomDesignMap[this.currentRoomInstanceKey];
+        if (rd) {
+            const newAmount = this.computeAmount(num, rd.templateSizeSqft, rd.ratePerSqft, rd.finalDesignPrice);
+            this.roomDesignMap = { ...this.roomDesignMap, [this.currentRoomInstanceKey]: { ...rd, roomSizeSqft: num, lineAmount: newAmount } };
+            this.recalcTotal();
+        }
+    }
+
+    handleRoomDesignPick(event) {
+        const designId = event.currentTarget.dataset.id;
+        if (!designId || !this.currentRoomInstanceKey) return;
+
+        const design = (this.allDesigns || []).find((x) => x.id === designId);
+        if (!design) return;
 
         const { roomId, instanceIndex } = this.parseInstanceKey(this.currentRoomInstanceKey);
+
+        const planLevel = this.instancePlanMap[this.currentRoomInstanceKey] || design.designLevel || null;
+        const roomSizeSqft = this.instanceRoomSizeMap[this.currentRoomInstanceKey] ?? null;
+
+        const templateSizeSqft = design.templateSizeSqft ?? null;
+        const ratePerSqft = design.ratePerSqft ?? null;
+
+        const amount = this.computeAmount(roomSizeSqft, templateSizeSqft, ratePerSqft, design.finalDesignPrice);
 
         this.roomDesignMap = {
             ...this.roomDesignMap,
@@ -674,19 +699,23 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
                 instanceIndex,
                 designId: design.id,
                 designName: design.name,
-                price,
-                quantity: 1,
-                lineAmount: price * 1,
-                imageUrl: fullImg
+                planLevel,
+                roomSizeSqft,
+                templateSizeSqft,
+                ratePerSqft,
+                finalDesignPrice: design.finalDesignPrice,
+                lineAmount: amount,
+                imageUrl: this.resolveImageUrl(design.imageUrl)
             }
         };
+
+        if (planLevel) {
+            this.instancePlanMap = { ...this.instancePlanMap, [this.currentRoomInstanceKey]: planLevel };
+        }
 
         this.recalcTotal();
     }
 
-    /**
-     * Remove selected design line (per instance)
-     */
     handleRemoveSelected(event) {
         const instanceKey = event.currentTarget.dataset.instancekey;
         const cloned = { ...this.roomDesignMap };
@@ -708,17 +737,11 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
         this.modalTitle = null;
     }
 
-    handleImgError(event) {
-        // eslint-disable-next-line no-param-reassign
-        event.target.src = 'https://via.placeholder.com/220x140?text=No+Img';
-    }
-
     // -----------------------------
-    // Next / Prev + Validations
+    // Next/Prev + validation
     // -----------------------------
     handleNext() {
-        if (this.isAlreadySubmitted) return;
-        if (this.isSaving) return;
+        if (this.isAlreadySubmitted || this.isSaving) return;
 
         if (this.currentStep === 1) {
             if (!this.firstName || !this.lastName || !this.email || !this.phone || !this.siteSpace) {
@@ -726,132 +749,97 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
                 return;
             }
         }
-
         if (this.currentStep === 2 && !this.selectedProjectTypeId) {
             this.showToast('Select project type', 'Please select a project type.', 'error');
             return;
         }
-
         if (this.currentStep === 3 && !this.selectedCategoryId) {
             this.showToast('Select category', 'Please select a category.', 'error');
             return;
         }
-
         if (this.currentStep === 4) {
             const hasRoom = Object.values(this.roomQuantities || {}).some((q) => q > 0);
             if (!hasRoom) {
                 this.showToast('Select rooms', 'Please add at least one room.', 'error');
                 return;
             }
+        }
 
-            // optional BHK validation (generic) - if you want to enforce minimum based on category name
-            if (this.MIN_ROOMS_FOR_BHK) {
-                // keep it simple: at least 1 room exists (already checked)
+        // Step 5: require plan for each instance
+        if (this.currentStep === 5) {
+            const missingPlan = (this.roomInstancesView || []).some((inst) => !this.instancePlanMap[inst.instanceKey]);
+            if (missingPlan) {
+                this.showToast('Plan missing', 'Please select plan for every room (including each quantity item).', 'error');
+                return;
             }
         }
 
-        if (this.currentStep === 5 && !this.selectedPlanLevel) {
-            this.showToast('Select plan', 'Please select a plan/level.', 'error');
-            return;
-        }
-
+        // Step 6: require design for each instance
         if (this.currentStep === 6) {
-            // ✅ Must select design for EACH INSTANCE
-            const missing = (this.roomInstances || []).some((inst) => !this.roomDesignMap[inst.instanceKey]);
-            if (missing) {
-                this.showToast('Designs missing', 'Please choose a design for every room (including each quantity item).', 'error');
+            const missingDesign = (this.roomInstancesView || []).some((inst) => !this.roomDesignMap[inst.instanceKey]);
+            if (missingDesign) {
+                this.showToast('Designs missing', 'Please choose a design for every room item.', 'error');
                 return;
             }
             this.recalcTotal();
         }
 
         if (this.currentStep === 7) {
-            // Ensure no instance missing design (in case removed in preview)
-            const missing = (this.roomInstances || []).some((inst) => !this.roomDesignMap[inst.instanceKey]);
-            if (missing) {
-                this.showToast(
-                    'Design removed',
-                    'You removed one of the room designs. Please go back to "Room Designs" and select a design for every room item.',
-                    'error'
-                );
+            const missingDesign = (this.roomInstancesView || []).some((inst) => !this.roomDesignMap[inst.instanceKey]);
+            if (missingDesign) {
+                this.showToast('Design removed', 'Please ensure every room item has a design.', 'error');
                 this.currentStep = 6;
                 return;
             }
         }
 
-        if (this.currentStep < 8) {
-            this.currentStep += 1;
-        } else if (this.currentStep === 8) {
-            this.saveData();
-        }
-
+        if (this.currentStep < 8) this.currentStep += 1;
+        else if (this.currentStep === 8) this.saveData();
     }
 
-    // handlePrev() {
-    //     if (this.currentStep > 1) this.currentStep -= 1;
-    // }
-
     handlePrev() {
-
         if (this.isAlreadySubmitted) {
             this.handleAlreadySubmittedClose();
             return;
         }
-        // ✅ If user is on Step 1, go back to parent component (Project Type page)
         if (this.currentStep === 1) {
             this.dispatchEvent(new CustomEvent('previous'));
             return;
         }
-
-        // ✅ Otherwise go to previous step inside this wizard
         this.currentStep -= 1;
-    }
-
-
-    recalcTotal() {
-        let total = 0;
-        for (const key in this.roomDesignMap) {
-            if (!Object.prototype.hasOwnProperty.call(this.roomDesignMap, key)) continue;
-            total += (this.roomDesignMap[key].lineAmount || 0);
-        }
-        this.totalBudget = total;
     }
 
     // -----------------------------
     // Save
     // -----------------------------
     saveData() {
-        if (this.isAlreadySubmitted) {
-            return;
-        }
-
-
         this.isSaving = true;
 
         const rooms = [];
-        for (const roomId in this.roomQuantities) {
-            if (!Object.prototype.hasOwnProperty.call(this.roomQuantities, roomId)) continue;
+        Object.keys(this.roomQuantities || {}).forEach((roomId) => {
             const qty = this.roomQuantities[roomId];
             if (qty && qty > 0) rooms.push({ roomId, quantity: qty });
-        }
+        });
 
-        /**
-         * ✅ Save design lines per instance
-         * quantity always 1 for each instance.
-         * (If Apex wants aggregation later, we can group by roomId+designId)
-         */
         const selectedRoomDesigns = [];
-        for (const instanceKey in this.roomDesignMap) {
-            if (!Object.prototype.hasOwnProperty.call(this.roomDesignMap, instanceKey)) continue;
+        Object.keys(this.roomDesignMap || {}).forEach((instanceKey) => {
             const rd = this.roomDesignMap[instanceKey];
-
             selectedRoomDesigns.push({
                 roomId: rd.roomId,
                 designId: rd.designId,
                 quantity: 1,
-                lineAmount: rd.lineAmount
+                lineAmount: rd.lineAmount,
+
+                planLevel: rd.planLevel,
+                roomSizeSqft: rd.roomSizeSqft,
+                templateSizeSqft: rd.templateSizeSqft,
+                ratePerSqft: rd.ratePerSqft
             });
-        }
+        });
+
+        // Store Lead.Plan_Level__c as first instance plan (optional)
+        const firstInstance = (this.roomInstancesView || [])[0];
+        const anyPlan = firstInstance ? (this.instancePlanMap[firstInstance.instanceKey] || null) : null;
 
         const payload = {
             leadId: this.leadId,
@@ -865,7 +853,7 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             description: this.description,
             projectTypeId: this.selectedProjectTypeId,
             categoryId: this.selectedCategoryId,
-            planLevel: this.selectedPlanLevel,
+            planLevel: anyPlan,
             rooms,
             selectedRoomDesigns,
             totalBudget: this.totalBudget,
@@ -879,35 +867,21 @@ export default class AreliaAutomaticProjectRequestComp extends LightningElement 
             })
             .catch((err) => {
                 this.isSaving = false;
-                this.showToast(
-                    'Error',
-                    err && err.body && err.body.message ? err.body.message : 'Unable to submit project request.',
-                    'error'
-                );
+                this.showToast('Error', this.errMsg(err, 'Unable to submit project request.'), 'error');
             });
     }
 
     // -----------------------------
-    // Toast
+    // Toast + close
     // -----------------------------
     showToast(title, message, variant) {
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
     }
 
     handleClose() {
-        // ✅ back to site home
-        if (this.labels.siteUrl) {
-            window.location.href = this.labels.siteUrl;
-            return;
-        }
+        if (this.labels.siteUrl) window.location.href = this.labels.siteUrl;
     }
-
     handleAlreadySubmittedClose() {
-        // ✅ back to site home
-        if (this.labels.siteUrl) {
-            window.location.href = this.labels.siteUrl;
-            return;
-        }
+        if (this.labels.siteUrl) window.location.href = this.labels.siteUrl;
     }
-
 }

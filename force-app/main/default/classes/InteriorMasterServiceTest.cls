@@ -77,7 +77,6 @@ private class InteriorMasterServiceTest {
             Interior_Category__c = catActive.Id,
             Interior_Room__c     = roomActive.Id,
             Design_Level__c      = level1,      // ✅ Use valid picklist value
-            Base_Price__c        = 500000,
             Description__c       = 'Test premium design',
             Active__c            = true
         );
@@ -86,7 +85,6 @@ private class InteriorMasterServiceTest {
             Interior_Category__c = catActive.Id,
             Interior_Room__c     = roomActive.Id,
             Design_Level__c      = level2,      // ✅ Use another valid picklist value
-            Base_Price__c        = 100000,
             Description__c       = 'Should not appear',
             Active__c            = false
         );
@@ -136,7 +134,6 @@ private class InteriorMasterServiceTest {
 
         InteriorMasterService.DesignDTO designDto = dto.designs[0];
         System.assertEquals('Modern Living Design',designDto.name,'Active design name mismatch');
-        System.assertEquals(500000, designDto.basePrice,'Base price mismatch');
 
         // Assert design level matches what we used from picklist (if available)
         if (level1 != null) {
