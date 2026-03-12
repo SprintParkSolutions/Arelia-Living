@@ -24,17 +24,16 @@
 }
 
 .company-logo {
-    max-width: 100px;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    filter: brightness(0) invert(0.9); 
-    /* Warm white effect on logo (keep this) */
+    width: 135px;
+    height: auto;
+
+    display: block;
 }
+
 
 .tagline {
     font-size: 0.95rem;
     color: #F2EDE8;
-    margin-top: 5px;
 }
 
 .footer-section,

@@ -14,7 +14,14 @@ import LINKEDIN_URL from '@salesforce/label/c.LinkedIn_URL';
 
 import SITE_BASE_URL from '@salesforce/label/c.Arelia_Site_Label';
 
+/* NEW LABELS */
+import FOOTER_EMAIL from '@salesforce/label/c.Footer_Email';
+import FOOTER_PHONE from '@salesforce/label/c.Footer_Phone';
+import FOOTER_LOCATION from '@salesforce/label/c.Footer_Location';
+import FOOTER_COPYRIGHT from '@salesforce/label/c.Footer_Copyright';
+
 export default class IdcFooterComponent extends LightningElement {
+
     logoUrl = IdcLogo;
     instagramIcon = InstagramIcon;
     facebookIcon = FacebookIcon;
@@ -22,6 +29,11 @@ export default class IdcFooterComponent extends LightningElement {
 
     baseUrl = SITE_BASE_URL;
 
+    /* Footer labels */
+    email = FOOTER_EMAIL;
+    phone = FOOTER_PHONE;
+    location = FOOTER_LOCATION;
+    copyright = FOOTER_COPYRIGHT;
 
     get residentialUrl() {
         return this.baseUrl + RESIDENTIAL_URL;

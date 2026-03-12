@@ -1,5 +1,6 @@
 import { LightningElement, api } from 'lwc';
-
+import SITE_BASE_URL from '@salesforce/label/c.Arelia_Site_Label';
+import REGISTRATION_FORM_URL from '@salesforce/label/c.Registration_Form_URL';
 export default class ProcessBigNumber extends LightningElement {
   @api steps = [
     {
@@ -41,6 +42,11 @@ export default class ProcessBigNumber extends LightningElement {
   ];
 
   hasObserved = false;
+  baseUrl = SITE_BASE_URL;
+
+  get registrationFormUrl() {
+    return this.baseUrl + REGISTRATION_FORM_URL;
+  }
 
   get stepsWithIndex() {
     return this.steps.map((s, idx) => {
@@ -80,7 +86,6 @@ export default class ProcessBigNumber extends LightningElement {
   }
 
   handleStart() {
-    window.location.href =
-      'https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/registration-form';
+    window.location.href = this.registrationFormUrl;
   }
 }

@@ -504,7 +504,15 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Footer_Phone</shortDescription>
-        <value>+1 (123) 456-7890</value>
+        <value>+1 (123) 456-7890, +1 (234) 567-891</value>
+    </labels>
+    <labels>
+        <fullName>Footer_Working_Hours</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Footer Working Hours</shortDescription>
+        <value>Mon - Fri: 9:00 AM - 6:00 PM;
+Sat: By Appointment</value>
     </labels>
     <labels>
         <fullName>Hospitality_URL</fullName>
@@ -681,6 +689,13 @@
         <protected>false</protected>
         <shortDescription>Registration_Enrollment_Template_DevName</shortDescription>
         <value>Arelia_Living_Registration_Enrollment_Template</value>
+    </labels>
+    <labels>
+        <fullName>Registration_Form_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Registration_Form_URL</shortDescription>
+        <value>registration-form</value>
     </labels>
     <labels>
         <fullName>Registration_Verification_From_Address</fullName>
