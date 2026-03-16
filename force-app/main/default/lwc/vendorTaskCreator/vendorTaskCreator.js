@@ -10,11 +10,26 @@ import hasExistingTasks from '@salesforce/apex/TaskBulkController.hasExistingTas
 import getExistingTasks from '@salesforce/apex/TaskBulkController.getExistingTasks';
 import getTaskFiles from '@salesforce/apex/TaskBulkController.getTaskFiles';
 
-import OWNER_ID_FIELD from '@salesforce/schema/Vendor_Assignment__c.OwnerId'; 
+import OWNER_ID_FIELD from '@salesforce/schema/Vendor_Assignment__c.OwnerId';
+
+import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
+import TASK_OBJECT from '@salesforce/schema/Task';
+import STATUS_FIELD from '@salesforce/schema/Task.Status';
 
 export default class VendorTaskCreator extends LightningElement {
-    @api recordId;
+    // FIX 1: Reactive recordId to prevent "Blank Screen"
+    _recordId;
+    @api 
+    get recordId() { return this._recordId; }
+    set recordId(value) {
+        this._recordId = value;
+        if (value) {
+            this.init(); // Auto-start whenever ID becomes available
+        }
+    }
+
     @track isLoading = true;
+    @track showExistingButton = false; 
     
     showLanding = false;
     showCreation = false;
@@ -24,35 +39,65 @@ export default class VendorTaskCreator extends LightningElement {
     @track taskList = []; 
     @track previewData = [];
 
+    // Helper to view raw data if fields are still blank
+    @track debugInfo = ''; 
+
     @wire(getRecord, { recordId: '$recordId', fields: [OWNER_ID_FIELD] })
     vendorRecord;
 
     get vendorOwnerId() { return getFieldValue(this.vendorRecord.data, OWNER_ID_FIELD); }
 
-    get statusOptions() {
-        return [
-            { label: 'Not Started', value: 'Not Started' },
-            { label: 'In Progress', value: 'In Progress' },
-            { label: 'Completed', value: 'Completed' },
-            { label: 'Waiting on someone else', value: 'Waiting on someone else' },
-            { label: 'Deferred', value: 'Deferred' }
-        ];
+    // get statusOptions() {
+    //     return [
+    //         { label: 'Not Started', value: 'Not Started' },
+    //         { label: 'In Progress', value: 'In Progress' },
+    //         { label: 'Completed', value: 'Completed' },
+    //         { label: 'Waiting on someone else', value: 'Waiting on someone else' },
+    //         { label: 'Deferred', value: 'Deferred' }
+    //     ];
+    // }
+
+    // ---------------- Dynamic Picklist ---------------- //
+
+    @wire(getObjectInfo, { objectApiName: TASK_OBJECT })
+    taskMetadata;
+
+    @wire(getPicklistValues, {
+        recordTypeId: '$taskMetadata.data.defaultRecordTypeId',
+        fieldApiName: STATUS_FIELD
+    })
+    wiredStatusValues({ error, data }) {
+        if (data) {
+            this.statusOptions = data.values.map(item => ({
+                label: item.label,
+                value: item.value
+            }));
+        } else if (error) {
+            console.error('Error fetching Status picklist', error);
+        }
     }
 
-    connectedCallback() { this.init(); }
-
+    // Initialize only when we have an ID
     async init() {
+        if (!this._recordId) return;
+
+        this.isLoading = true;
         try {
-            const exists = await hasExistingTasks({ parentId: this.recordId });
+            const exists = await hasExistingTasks({ parentId: this._recordId });
+            this.showExistingButton = exists;
+
             if (exists) {
                 this.showLanding = true;
+                this.showCreation = false;
+                this.showPreview = false;
                 this.currentStep = 'start';
             } else {
+                this.showLanding = false;
                 this.initCreation();
             }
         } catch (error) {
             console.error('Init Error', error);
-            this.showToast('Error', 'Init failed', 'error');
+            this.showToast('Error', 'Init failed: ' + error.body?.message, 'error');
         } finally {
             this.isLoading = false;
         }
@@ -88,15 +133,19 @@ export default class VendorTaskCreator extends LightningElement {
     }
 
     handleCreateAndProceed() {
+        // Validate inputs
         const allValid = [...this.template.querySelectorAll('lightning-input, lightning-combobox')]
             .reduce((validSoFar, inputCmp) => { inputCmp.reportValidity(); return validSoFar && inputCmp.checkValidity(); }, true);
 
-        if (!allValid) return;
+        if (!allValid) {
+            this.showToast('Error', 'Please complete all required fields', 'error');
+            return;
+        }
 
         this.isLoading = true;
         const tasksToInsert = this.taskList.map(row => ({
             sobjectType: 'Task',
-            WhatId: this.recordId,
+            WhatId: this._recordId,
             OwnerId: this.vendorOwnerId,
             Subject: row.Subject,
             Status: row.Status,
@@ -108,16 +157,16 @@ export default class VendorTaskCreator extends LightningElement {
         createTasks({ newTasks: tasksToInsert })
             .then(() => {
                 this.showToast('Success', 'Tasks created.', 'success');
+                this.showExistingButton = true;
                 this.taskList = [];
                 this.goToPreview();
             })
             .catch(error => {
-                this.showToast('Error', error.body.message, 'error');
+                this.showToast('Error', error.body?.message || error.message, 'error');
                 this.isLoading = false;
             });
     }
 
-    // --- UPDATED PREVIEW LOGIC FOR MULTIPLE FILES ---
     async goToPreview() {
         this.isLoading = true;
         this.showLanding = false;
@@ -126,34 +175,38 @@ export default class VendorTaskCreator extends LightningElement {
         this.currentStep = 'review';
 
         try {
-            const tasks = await getExistingTasks({ parentId: this.recordId });
-            const taskIds = tasks.map(t => t.Id);
+            const tasks = await getExistingTasks({ parentId: this._recordId });
             
-            // Fetch returns Map<Id, List<FileData>>
+            // Debugging
+            console.log('Raw Apex Data:', JSON.stringify(tasks));
+
+            const taskIds = tasks.map(t => t.Id);
             const fileMap = await getTaskFiles({ parentIds: taskIds });
 
             this.previewData = tasks.map((t, index) => {
-                // Get the raw list from Apex, default to empty array if none
+                // Normalize keys to lowercase to handle case sensitivity safely
+                const flatT = {};
+                Object.keys(t).forEach(key => { flatT[key.toLowerCase()] = t[key]; });
+
                 const rawFiles = fileMap[t.Id] || [];
-                
-                // Process the list into UI-friendly objects with Image URLs
                 const processedFileList = rawFiles.map(fd => ({
-                    key: fd.documentId, // Unique key for iteration
+                    key: fd.documentId,
                     fileName: fd.fileName,
-                    // Standard Salesforce Image Preview URL
                     imageUrl: `/sfc/servlet.shepherd/version/download/${fd.versionId}`
                 }));
 
                 return {
                     Id: t.Id,
-                    Subject: t.Subject || t.subject,
-                    Status: t.Status || t.status,
-                    Start_Date__c: t.Start_Date__c || t.start_date__c,
-                    ActivityDate: t.ActivityDate || t.activitydate,
-                    Assigned_Percentage__c: t.Assigned_Percentage__c || t.assigned_percentage__c,
-                    serialNumber: index + 1,
+                    // Fixed: Switched from flatT['subject'] to flatT.subject
+                    Subject: flatT.subject,
+                    Status: flatT.status,
                     
-                    // New Array property to hold multiple files
+                    // Fixed: Dot notation for custom fields
+                    Start_Date__c: flatT.start_date__c || flatT.startdate__c,
+                    ActivityDate: flatT.activitydate || flatT.duedate__c,
+                    Assigned_Percentage__c: flatT.assigned_percentage__c || flatT.percentage__c,
+                    
+                    serialNumber: index + 1,
                     fileList: processedFileList,
                     hasFiles: processedFileList.length > 0
                 };
@@ -168,13 +221,14 @@ export default class VendorTaskCreator extends LightningElement {
     }
 
     handlePreviewChange(event) {
-        this.previewData[event.target.dataset.index][event.target.dataset.field] = event.target.value;
+        const index = event.target.dataset.index;
+        const field = event.target.dataset.field;
+        this.previewData[index][field] = event.target.value;
     }
 
     handlePreviewUpload(event) {
         const files = event.detail.files;
         if (files.length > 0) {
-            // We just reload the whole preview. Apex will fetch the new complete list.
             this.showToast('Success', 'Files uploaded.', 'success');
             this.goToPreview(); 
         }
@@ -197,7 +251,7 @@ export default class VendorTaskCreator extends LightningElement {
                 this.closeAction();
             })
             .catch(error => {
-                this.showToast('Error', error.body.message, 'error');
+                this.showToast('Error', error.body?.message || error.message, 'error');
                 this.isLoading = false;
             });
     }
