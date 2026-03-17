@@ -17,6 +17,8 @@ import TASK_OBJECT from '@salesforce/schema/Task';
 import STATUS_FIELD from '@salesforce/schema/Task.Status';
 
 export default class VendorTaskCreator extends LightningElement {
+    @track statusOptions = [];
+    
     // FIX 1: Reactive recordId to prevent "Blank Screen"
     _recordId;
     @api 
