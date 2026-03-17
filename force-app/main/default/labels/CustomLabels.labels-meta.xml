@@ -349,7 +349,7 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Arelia Site Label</shortDescription>
-        <value>https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/</value>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/Arelia/s/</value>
     </labels>
     <labels>
         <fullName>Budget_Review_Page_Name</fullName>
@@ -688,7 +688,7 @@ Sat: By Appointment</value>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Registration_Enrollment_Template_DevName</shortDescription>
-        <value>Arelia_Living_Registration_Enrollment_Template</value>
+        <value>Arelia_Registration_Enrollment_Template</value>
     </labels>
     <labels>
         <fullName>Registration_Form_URL</fullName>
