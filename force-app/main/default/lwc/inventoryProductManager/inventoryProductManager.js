@@ -17,11 +17,11 @@ import getSavedCart from '@salesforce/apex/OpportunityQuotePDFController.getSave
 export default class InventoryProductManager extends LightningElement {
     @api recordId;
 
-    /* ================= OBJECT INFO ================= */
+  
    @track roomTypes = [];
 @track categoriesByRoom = {};
     
-
+showScrollTop = false;
 
 @track oppSummary;
 
@@ -50,7 +50,7 @@ goToStep1() {
     this.loadCatalogConfig();
 }
 
-    /* ================= MAIN STATE ================= */
+   
     @track _products = [];
     @track visibleProducts = [];
     @track cartItems = [];
@@ -64,7 +64,7 @@ goToStep1() {
     @track isCartOpen = false;
 
     /* ================= STEP UX ================= */
-    @track currentStep = 0; // 👈 START FROM STEP 0
+    @track currentStep = 0; 
 
 get isStep0() { 
     return this.currentStep === 0; 
@@ -590,6 +590,17 @@ Product_Category__c: this.selectedCategory || prod?.Product_Category__c || 'Othe
         .finally(() => {
             this.isLoading = false;
         });
+}
+handleCartScroll(event) {
+    const shouldShow = event.target.scrollTop > 150;
+    if (shouldShow !== this.showScrollTop) {
+        this.showScrollTop = shouldShow;
+    }
+}
+
+scrollCartToTop() {
+    const el = this.template.querySelector('.cart-body');
+    el?.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
     /* ================= GENERATE QUOTE ================= */

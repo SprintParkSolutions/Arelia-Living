@@ -41,6 +41,7 @@ export default class ProcessBigNumber extends LightningElement {
   ];
 
   hasObserved = false;
+  showRegistrationPopup = false;
 
   get stepsWithIndex() {
     return this.steps.map((s, idx) => {
@@ -53,7 +54,6 @@ export default class ProcessBigNumber extends LightningElement {
   }
 
   renderedCallback() {
-    // init observer once
     if (this.hasObserved) return;
     this.hasObserved = true;
 
@@ -64,7 +64,6 @@ export default class ProcessBigNumber extends LightningElement {
       (entries, observer) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            // trigger the CSS reveal
             root.classList.add('in-view');
             observer.unobserve(entry.target);
           }
@@ -80,7 +79,10 @@ export default class ProcessBigNumber extends LightningElement {
   }
 
   handleStart() {
-    window.location.href =
-      'https://sprintpark--dev4.sandbox.my.site.com/AreliaLiving/s/registration-form';
+    this.showRegistrationPopup = true;
+  }
+
+  handleClosePopup() {
+    this.showRegistrationPopup = false;
   }
 }

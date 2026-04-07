@@ -4,7 +4,7 @@
  * Also handles synchronization of status fields to parent Lead/Opportunity records.
  */
 @SuppressWarnings('PMD.CognitiveComplexity,PMD.ExcessiveParameterList,PMD.ApexCRUDViolation')
-public with sharing class SiteVisitReportHandler {
+public without sharing class SiteVisitReportHandler {
 
     private static Id cachedOrgWideEmailId;
 
@@ -13,19 +13,13 @@ public with sharing class SiteVisitReportHandler {
      * @param reportIds List of Site_Visit_Report__c record IDs
      */
     public static void sendApprovalEmails(List<Id> reportIds) {
-        if (reportIds == null || reportIds.isEmpty()) {
-            return;
-        }
+        if (reportIds == null || reportIds.isEmpty()) {return;}
 
         List<Site_Visit_Report__c> reports = fetchReportsWithDetails(reportIds);
-        if (reports.isEmpty()) {
-            return;
-        }
+        if (reports.isEmpty()) { return;}
 
         List<String> recipients = collectRecipients();
-        if (recipients.isEmpty()) {
-            return;
-        }
+        if (recipients.isEmpty()) {return;}
 
         Map<String, EmailTemplate> templates = getEmailTemplatesMap();
         List<Messaging.SingleEmailMessage> emails = buildEmailMessages(reports, recipients, templates);
@@ -42,12 +36,11 @@ public with sharing class SiteVisitReportHandler {
     private static List<Site_Visit_Report__c> fetchReportsWithDetails(List<Id> reportIds) {
         return [SELECT Id, Name, Site_Visit_Date__c, Site_Visit_Time_Slot__c, Site_Visit_Report_Status__c,
                    Estimated_Completion_Date__c, Estimated_Completion_Months__c, Total_Estimated_Cost__c,
-                   Opportunity__c, Opportunity__r.Name,
+                   Opportunity__c, Opportunity__r.Name,Negotiate__c,Negotation_Reason__c,
                    Supervisor_User__r.Name, Supervisor_User__r.Phone,
                    Lead__r.FirstName, Lead__r.LastName, Lead__r.Email, Lead__r.Phone, Lead__r.Company,
                    Lead__r.Estimated_Start_Date__c, Lead__r.Status, Lead__r.Approval_Status__c,
-                   RecordType.DeveloperName
-            FROM Site_Visit_Report__c WHERE Id IN :reportIds];
+                   RecordType.DeveloperName FROM Site_Visit_Report__c WHERE Id IN :reportIds];
     }
 
     private static List<String> collectRecipients() {
@@ -61,15 +54,14 @@ public with sharing class SiteVisitReportHandler {
         Map<String, EmailTemplate> templateMap = new Map<String, EmailTemplate>();
         Set<String> neededTemplates = new Set<String>{
             Label.Arelia_Living_Opportunity_Re_Visit_Site_Manager_Approval_Email_Template,
-            Label.Arelia_Living_Lead_Conversion_Approval_Email_Template
+            Label.Arelia_Living_Lead_Conversion_Approval_Email_Template,
+            Label.Arelia_Living_Lead_Site_Manager_Review_Approval_Email_Template,
+            Label.Arelia_Living_Opportunity_Site_Manager_Review_Approval_Email_Template
+
         };
 
-        List<EmailTemplate> templates = [
-            SELECT Id, DeveloperName, Subject, HtmlValue
-            FROM EmailTemplate
-            WHERE DeveloperName IN :neededTemplates
-            WITH USER_MODE
-        ];
+        List<EmailTemplate> templates = [SELECT Id, DeveloperName, Subject, HtmlValue
+            FROM EmailTemplate WHERE DeveloperName IN :neededTemplates];
 
         for (EmailTemplate et : templates) {
             templateMap.put(et.DeveloperName, et);
@@ -81,31 +73,42 @@ public with sharing class SiteVisitReportHandler {
     // Email Construction
     // -------------------------------------------------------------------------
 
-    private static List<Messaging.SingleEmailMessage> buildEmailMessages(
-        List<Site_Visit_Report__c> reports,
-        List<String> recipients,
-        Map<String, EmailTemplate> templates
-    ) {
+    private static List<Messaging.SingleEmailMessage> buildEmailMessages(List<Site_Visit_Report__c> reports,
+                        List<String> recipients,Map<String, EmailTemplate> templates)
+    {
         List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
 
         for (Site_Visit_Report__c report : reports) {
-            String templateName = (report.RecordType.DeveloperName == 'Opportunity_Site_Visit_Report')
-                ? Label.Arelia_Living_Opportunity_Re_Visit_Site_Manager_Approval_Email_Template
-                : Label.Arelia_Living_Lead_Conversion_Approval_Email_Template;
 
+            // ✅ Identify “Negotiation second-time approval”
+            Boolean isNegotiationReapproval = report.Negotiate__c == true && String.isNotBlank(report.Negotation_Reason__c);
+            String templateName;
+
+            // ✅ If negotiation is present, send a DIFFERENT template
+            if (isNegotiationReapproval) {
+                templateName = (report.RecordType.DeveloperName == 'Opportunity_Site_Visit_Report')
+                    ? Label.Arelia_Living_Opportunity_Site_Manager_Review_Approval_Email_Template
+                    : Label.Arelia_Living_Lead_Site_Manager_Review_Approval_Email_Template;
+
+            } else {
+                // ✅ Existing “first-time approval” templates (your current logic)
+                templateName = (report.RecordType.DeveloperName == 'Opportunity_Site_Visit_Report')
+                    ? Label.Arelia_Living_Opportunity_Re_Visit_Site_Manager_Approval_Email_Template
+                    : Label.Arelia_Living_Lead_Conversion_Approval_Email_Template;
+            }
             EmailTemplate selectedTemplate = templates.get(templateName);
             if (selectedTemplate != null) {
                 emails.add(createSingleEmail(report, recipients, selectedTemplate));
             }
         }
+
         return emails;
     }
 
-    private static Messaging.SingleEmailMessage createSingleEmail(
-        Site_Visit_Report__c report,
-        List<String> recipients,
-        EmailTemplate template
-    ) {
+
+    private static Messaging.SingleEmailMessage createSingleEmail(Site_Visit_Report__c report,
+        List<String> recipients, EmailTemplate template)
+    {
         String htmlBody = populateTemplate(template.HtmlValue, report);
         String subject = populateSubject(template.Subject, report);
 
@@ -128,12 +131,17 @@ public with sharing class SiteVisitReportHandler {
     }
 
     private static void sendEmailBatch(List<Messaging.SingleEmailMessage> emails) {
-        try {
-            Messaging.sendEmail(emails);
-        } catch (Exception ex) {
-             System.debug('Exception occurred: ' + ex.getMessage());
-            // Exception suppressed to satisfy AvoidDebugStatements PMD rule.
-            // In a real scenario, use a logging framework here.
+        if (emails == null || emails.isEmpty()) { return; }
+
+        Messaging.SendEmailResult[] results = Messaging.sendEmail(emails, false);
+        // If any failed, throw one error so you can see it in debug logs
+        for (Messaging.SendEmailResult r : results) {
+            if (!r.isSuccess()) {
+                String msg = (r.getErrors() != null && !r.getErrors().isEmpty())
+                    ? r.getErrors()[0].getMessage()
+                    : 'Unknown email error';
+                throw new AuraHandledException('Email failed: ' + msg);
+            }
         }
     }
 
@@ -159,7 +167,6 @@ public with sharing class SiteVisitReportHandler {
         for (User u : [
             SELECT Email FROM User
             WHERE UserRole.Name LIKE '%Manager%' AND IsActive = true AND Email != null
-            WITH USER_MODE
         ]) {
             managerEmails.add(u.Email.trim());
         }
@@ -173,7 +180,6 @@ public with sharing class SiteVisitReportHandler {
         List<OrgWideEmailAddress> addresses = [
             SELECT Id FROM OrgWideEmailAddress
             WHERE Address = :Label.Arelia_OWD
-            WITH USER_MODE
             LIMIT 1
         ];
         if (!addresses.isEmpty()) {
@@ -188,7 +194,7 @@ public with sharing class SiteVisitReportHandler {
         Set<Id> docIds = new Set<Id>();
         for (ContentDocumentLink cdl : [
             SELECT ContentDocumentId FROM ContentDocumentLink
-            WHERE LinkedEntityId = :reportId WITH USER_MODE
+            WHERE LinkedEntityId = :reportId 
         ]) {
             docIds.add(cdl.ContentDocumentId);
         }
@@ -196,7 +202,7 @@ public with sharing class SiteVisitReportHandler {
         if (!docIds.isEmpty()) {
             for (ContentVersion cv : [
                 SELECT Id, Title, FileExtension, VersionData FROM ContentVersion
-                WHERE ContentDocumentId IN :docIds AND IsLatest = true WITH USER_MODE
+                WHERE ContentDocumentId IN :docIds AND IsLatest = true 
             ]) {
                 Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
                 efa.setFileName(cv.Title + '.' + cv.FileExtension);
@@ -206,7 +212,7 @@ public with sharing class SiteVisitReportHandler {
         }
 
         for (Attachment att : [
-            SELECT Id, Name, Body FROM Attachment WHERE ParentId = :reportId WITH USER_MODE
+            SELECT Id, Name, Body FROM Attachment WHERE ParentId = :reportId 
         ]) {
             Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
             efa.setFileName(att.Name);
@@ -241,6 +247,8 @@ public with sharing class SiteVisitReportHandler {
             .replace('{{{Site_Visit_Report__c.Estimated_Completion_Date__c}}}', formatDate(report.Estimated_Completion_Date__c))
             .replace('{{{Site_Visit_Report__c.Estimated_Completion_Months__c}}}', safeString(report.Estimated_Completion_Months__c))
             .replace('{{{Site_Visit_Report__c.Total_Estimated_Cost__c}}}', safeString(report.Total_Estimated_Cost__c))
+            .replace('{{{Site_Visit_Report__c.Negotiate__c}}}', safeString(report.Negotiate__c))
+            .replace('{{{Site_Visit_Report__c.Negotation_Reason__c}}}', safeString(report.Negotation_Reason__c))
             .replace('{{{siteVisitRecordPageLink}}}', link);
     }
 
@@ -279,28 +287,28 @@ public with sharing class SiteVisitReportHandler {
      * @param newList List of updated records.
      * @param oldMap Map of old records by ID.
      */
+
     public static void afterUpdate(List<Site_Visit_Report__c> newList, Map<Id, Site_Visit_Report__c> oldMap) {
         if (newList == null || newList.isEmpty() || oldMap == null) { return; }
 
         List<Site_Visit_Report__c> reportsForSync = new List<Site_Visit_Report__c>();
-        List<Id> approvedIds = new List<Id>();
+        Set<Id> emailReportIds = new Set<Id>();
 
         for (Site_Visit_Report__c newRec : newList) {
             if (newRec == null) { continue; }
             Site_Visit_Report__c oldRec = oldMap.get(newRec.Id);
 
-            // 1. Files
+            // 1. Files (unchanged)
             SiteVisitReportFileService.attachFilesToLead(newRec.Id);
 
-            // 2. Identify Sync Candidates
+            // 2. Sync candidates (unchanged)
             if (isSyncRequired(newRec, oldRec)) {
                 reportsForSync.add(newRec);
             }
 
-            // 3. Identify Approval Candidates
-            if (oldRec != null && newRec.Site_Visit_Report_Status__c == 'Approved'
-                && oldRec.Site_Visit_Report_Status__c != 'Approved') {
-                approvedIds.add(newRec.Id);
+            // 3. ✅ Email candidates (FIXED)
+            if (oldRec != null && shouldSendManagerEmail(newRec, oldRec)) {
+                emailReportIds.add(newRec.Id);
             }
         }
 
@@ -308,13 +316,38 @@ public with sharing class SiteVisitReportHandler {
             syncParentsFromReports(reportsForSync);
         }
 
-        if (!approvedIds.isEmpty()) {
-            SiteVisitReportHandler.sendApprovalEmails(approvedIds);
+        if (!emailReportIds.isEmpty()) {
+            SiteVisitReportHandler.sendApprovalEmails(new List<Id>(emailReportIds));
         }
 
-        // Part 4: Existing downstream call (unchanged)
+        // Part 4 (unchanged)
         SiteVisitApprovalController.handleAfterUpdate(newList, oldMap);
     }
+
+    private static Boolean shouldSendManagerEmail(Site_Visit_Report__c n, Site_Visit_Report__c o) {
+        // A) First time approved (existing behavior)
+        Boolean firstTimeApproved =
+            n.Site_Visit_Report_Status__c == 'Approved' &&
+            o.Site_Visit_Report_Status__c != 'Approved';
+
+        // B) Negotiation re-approval email:
+        //    status is already Approved, but negotiation checkbox/reason changed
+        Boolean negotiationNowPresent =
+            n.Negotiate__c == true &&
+            String.isNotBlank(n.Negotation_Reason__c); // <-- change if your API name differs
+
+        Boolean negotiationChanged =
+            (n.Negotiate__c != o.Negotiate__c) ||
+            (n.Negotation_Reason__c != o.Negotation_Reason__c); // <-- change if your API name differs
+
+        Boolean negotiationReApproval =
+            (n.Site_Visit_Report_Status__c == 'Approved') &&
+            negotiationNowPresent &&
+            negotiationChanged;
+
+        return firstTimeApproved || negotiationReApproval;
+    }
+
 
     private static Boolean isSyncRequired(Site_Visit_Report__c newRec, Site_Visit_Report__c oldRec) {
         Boolean statusChanged = (oldRec == null)
@@ -366,7 +399,7 @@ public with sharing class SiteVisitReportHandler {
         }
         Map<Id, String> rtMap = new Map<Id, String>();
         if (!rtIds.isEmpty()) {
-            for (RecordType rt : [SELECT Id, DeveloperName FROM RecordType WHERE Id IN :rtIds WITH USER_MODE]) {
+            for (RecordType rt : [SELECT Id, DeveloperName FROM RecordType WHERE Id IN :rtIds ]) {
                 rtMap.put(rt.Id, rt.DeveloperName);
             }
         }
@@ -389,7 +422,7 @@ public with sharing class SiteVisitReportHandler {
         }
         if (!leadMap.isEmpty()) {
             try {
-                Database.update(leadMap.values(), AccessLevel.USER_MODE);
+                Database.update(leadMap.values());
             } catch (Exception ex) {
                  System.debug('Exception occurred: ' + ex.getMessage());
             }
@@ -412,7 +445,7 @@ public with sharing class SiteVisitReportHandler {
         }
         if (!oppMap.isEmpty()) {
             try {
-                Database.update(oppMap.values(), AccessLevel.USER_MODE);
+                Database.update(oppMap.values());
             } catch (Exception ex) {
                  System.debug('Exception occurred: ' + ex.getMessage());
             }

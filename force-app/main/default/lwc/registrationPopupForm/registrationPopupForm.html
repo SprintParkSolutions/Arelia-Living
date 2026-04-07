@@ -62,14 +62,14 @@
                             <template if:true={isStep1}>
                                 <div class="slds-grid slds-wrap slds-gutters_small">
                                     <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                        <lightning-input label="First Name" name="firstName" value={firstName}
-                                            onchange={handleInputChange} required>
+                                        <lightning-input label="First Name" name="firstName" data-id="firstNameInput"
+                                            value={firstName} onchange={handleInputChange} required>
                                         </lightning-input>
                                     </div>
 
                                     <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                        <lightning-input label="Last Name" name="lastName" value={lastName}
-                                            onchange={handleInputChange} required>
+                                        <lightning-input label="Last Name" name="lastName" data-id="lastNameInput"
+                                            value={lastName} onchange={handleInputChange} required>
                                         </lightning-input>
                                     </div>
 
@@ -80,12 +80,11 @@
                                     </div>
 
                                     <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                        <lightning-input label="Company Name (Optional)" name="companyName" value={companyName}
-                                            onchange={handleInputChange}>
+                                        <lightning-input label="Company Name (Optional)" name="companyName"
+                                            value={companyName} onchange={handleInputChange}>
                                         </lightning-input>
                                         <div class="field-help">If not provided, we'll use <b>Self</b>.</div>
                                     </div>
-
 
                                     <div class="slds-col slds-size_1-of-1">
                                         <div class="phone-row">
@@ -110,8 +109,8 @@
                             <template if:true={isStep2}>
                                 <div class="verification-section">
                                     <p class="section-help">
-                                        Click <strong>Send Code</strong>. We’ll email a 6-digit code. Enter it and click
-                                        <strong>Verify Code</strong> before completing registration.
+                                        We’ve sent a 6-digit verification code to your email. Enter it and click
+                                        <strong>Verify Code</strong> to continue.
                                     </p>
 
                                     <div class="summary-block">
@@ -155,7 +154,7 @@
                                             <span>Resend available in {resendTimer} seconds.</span>
                                         </template>
                                         <template if:false={resendTimerActive}>
-                                            <span>Didn’t receive the code? Click <b>Send Code</b> again.</span>
+                                            <span>Didn’t receive the code? You can <b>Resend Code</b> now.</span>
                                         </template>
                                     </div>
                                 </div>

@@ -1,25 +1,26 @@
 import { LightningElement, api, wire, track } from 'lwc';
 import { CurrentPageReference } from 'lightning/navigation';
-import { getRecord } from 'lightning/uiRecordApi';
+import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
 import { refreshApex } from '@salesforce/apex';
-
-// Apex Methods
 import getAllStages from '@salesforce/apex/AreliaPathController.getAllStages';
 import getPathStatus from '@salesforce/apex/AreliaPathController.getPathStatus';
 
+// Import fields
+import CATALOGUE_LINK_SENT_FIELD from '@salesforce/schema/Opportunity.Catalogue_Link_Sent__c';
+
 const FIELDS = [
-    // --- NEW FIELDS ---
-    'Opportunity.Architecture_Client_Approval_Sent__c',
-    'Opportunity.Architecture_Manager_Approval__c',
-    'Opportunity.Catalogue_Link_Sent__c',
-    // --- EXISTING FIELDS ---
-    'Opportunity.Client_Agreement_Sent__c',
-    'Opportunity.Client_Agreement_Signed__c',
-    'Opportunity.All_Vendors_Agreement_Completed__c',
-    'Opportunity.StageName'
+    'Opportunity.StageName',
+    'Opportunity.Catalogue_Link_Sent__c'
 ];
+
+const CATALOGUE_STAGES = [
+    'Catalogue Link Sent', 
+    'Catalogue Received', 
+    'Catalogue Manager Approval'
+];
+
 export default class AreliaPath extends LightningElement {
-   @api 
+    @api 
     get recordId() { return this._recordId; }
     set recordId(value) {
         this._recordId = value;
@@ -38,7 +39,11 @@ export default class AreliaPath extends LightningElement {
 
     _allStages = [];
     _currentPathStatus; 
+    _catalogueSent = false;
     wiredPathResult;
+    
+    // Flag to trigger scrolling only when steps change
+    _stepsChanged = false;
 
     @wire(CurrentPageReference)
     wiredPageRef(pageRef) {
@@ -70,7 +75,6 @@ export default class AreliaPath extends LightningElement {
             }
             this.checkVisibility();
         } catch (e) {
-            // ESLint requires a comment or logic here
             console.warn('Could not parse Record ID from URL', e);
         }
     }
@@ -93,6 +97,17 @@ export default class AreliaPath extends LightningElement {
         }
     }
 
+    @wire(getRecord, { recordId: '$effectiveRecordId', fields: FIELDS })
+    wiredRecordWatcher({ error, data }) {
+        if (data) {
+            this._catalogueSent = getFieldValue(data, CATALOGUE_LINK_SENT_FIELD);
+            refreshApex(this.wiredPathResult);
+            this.tryBuildSteps();
+        } else if (error) {
+            console.error('Error loading record data', error);
+        }
+    }
+
     @wire(getPathStatus, { oppId: '$effectiveRecordId' })
     wiredPathStatus(result) {
         this.wiredPathResult = result;
@@ -112,29 +127,23 @@ export default class AreliaPath extends LightningElement {
         }
     }
 
-    @wire(getRecord, { recordId: '$effectiveRecordId', fields: FIELDS })
-    wiredRecordWatcher({ data }) {
-        if (data) {
-            refreshApex(this.wiredPathResult);
-        }
-    }
-
     tryBuildSteps() {
         if (!this._allStages || this._allStages.length === 0 || !this._currentPathStatus) {
             return;
         }
 
+        let visibleStages = [...this._allStages];
         const currentActiveValue = this._currentPathStatus;
         
-        // --- VISIBILITY FILTER ---
-        const specialStages = ['Negotiation/Review', 'Resumed'];
-        let visibleStages;
-
-        if (specialStages.includes(currentActiveValue)) {
+        const exceptionStages = ['Negotiation/Review', 'Resumed'];
+        if (exceptionStages.includes(currentActiveValue)) {
             visibleStages = this._allStages;
         } else {
-            // Filter out special stages if we are in normal flow
-            visibleStages = this._allStages.filter(stage => !specialStages.includes(stage.value));
+            visibleStages = visibleStages.filter(stage => !exceptionStages.includes(stage.value));
+        }
+
+        if (!this._catalogueSent) {
+            visibleStages = visibleStages.filter(stage => !CATALOGUE_STAGES.includes(stage.value));
         }
 
         const activeIndex = visibleStages.findIndex(s => s.value === currentActiveValue);
@@ -143,6 +152,9 @@ export default class AreliaPath extends LightningElement {
         this.steps = visibleStages.map((stage, index) => {
             return this.buildStepObject(stage.label, index, targetIndex);
         });
+
+        // FLAG: Signal that we need to scroll after render
+        this._stepsChanged = true;
     }
 
     buildStepObject(label, index, activeIndex) {
@@ -167,5 +179,39 @@ export default class AreliaPath extends LightningElement {
 
     handleRefresh() {
         refreshApex(this.wiredPathResult);
+    }
+
+    // --- NEW: SCROLL LOGIC ---
+    renderedCallback() {
+        if (this._stepsChanged && this.isReady) {
+            this._stepsChanged = false; // Reset flag so we don't scroll constantly
+            
+            // Allow DOM to paint
+            // eslint-disable-next-line @lwc/lwc/no-async-operation
+            requestAnimationFrame(() => {
+                this.scrollToActiveStep();
+            });
+        }
+    }
+
+    scrollToActiveStep() {
+        const container = this.template.querySelector('.slds-path__scroller');
+        const activeItem = this.template.querySelector('.slds-is-current');
+
+        if (container && activeItem) {
+            // Calculate center position
+            const containerWidth = container.offsetWidth;
+            const itemLeft = activeItem.offsetLeft;
+            const itemWidth = activeItem.offsetWidth;
+
+            // Scroll to center the active item
+            // Position = Item's Left Offset - (Half Container Width) + (Half Item Width)
+            const scrollPos = itemLeft - (containerWidth / 2) + (itemWidth / 2);
+
+            container.scrollTo({
+                left: scrollPos,
+                behavior: 'smooth'
+            });
+        }
     }
 }

@@ -6,10 +6,18 @@ import updateLead from '@salesforce/apex/Arelia_ManualProjectRequestController.u
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import Arelia_Site_Label from '@salesforce/label/c.Arelia_Site_Label';
 
+// ✅ NEW (for picklist value -> label)
+import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
+import LEAD_OBJECT from '@salesforce/schema/Lead';
+import QUOTATION_TYPE_FIELD from '@salesforce/schema/Lead.Project_Request_Quotation_Type__c';
 
 export default class AreliaManualProjectRequestComp extends LightningElement {
     @api leadId;
-    @api quotationType;
+    @api quotationType; // API value from parent (Manual / Automatic)
+
+    // ✅ NEW: label shown in UI
+    @track quotationTypeLabel = '';
+    quotationTypeLabelByValue = {}; // { 'Manual': 'Custom Design', ... }
 
     @track firstName = '';
     @track lastName = '';
@@ -60,6 +68,43 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
         { label: '+971 (UAE)', value: '+971' }
     ];
 
+    // ✅ NEW: get Lead record type id
+    @wire(getObjectInfo, { objectApiName: LEAD_OBJECT })
+    leadInfo;
+
+    // ✅ NEW: load quotation type picklist (value + label)
+    @wire(getPicklistValues, {
+        recordTypeId: '$leadInfo.data.defaultRecordTypeId',
+        fieldApiName: QUOTATION_TYPE_FIELD
+    })
+    wiredQuotationTypes({ data, error }) {
+        if (data) {
+            const map = {};
+            (data.values || []).forEach((p) => {
+                map[p.value] = p.label;
+            });
+            this.quotationTypeLabelByValue = map;
+
+            // compute label immediately if quotationType already received
+            if (this.quotationType) {
+                this.quotationTypeLabel =
+                    this.quotationTypeLabelByValue[this.quotationType] || this.quotationType;
+            }
+        } else if (error) {
+            this.quotationTypeLabelByValue = {};
+            this.quotationTypeLabel = this.quotationType || '';
+        }
+    }
+
+    // ✅ OPTIONAL: if parent changes quotationType after render, keep label in sync
+    @api
+    setQuotationType(value) {
+        // eslint-disable-next-line @lwc/lwc/no-api-reassignments
+        this.quotationType = value;
+        this.quotationTypeLabel =
+            this.quotationTypeLabelByValue[value] || value;
+    }
+
     // 🔹 Dynamic Type_Of_Project__c picklist
     @wire(getTypeOfProjectPicklistValues)
     wiredTypePicklist({ data, error }) {
@@ -69,7 +114,6 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
                 value: label
             }));
 
-            // If Lead already has a type, ensure scope options are in sync
             if (this.typeOfProject) {
                 this.projectScopeOptions = this.scopeMap[this.typeOfProject] || [];
             }
@@ -99,6 +143,13 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
             return;
         }
         this.hasLoaded = true;
+
+        // ✅ compute label even before lead loads (quotationType comes from parent)
+        if (this.quotationType && !this.quotationTypeLabel) {
+            this.quotationTypeLabel =
+                this.quotationTypeLabelByValue[this.quotationType] || this.quotationType;
+        }
+
         this.loadLeadDetails();
     }
 
@@ -122,7 +173,6 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
                 this.siteLocation = result.Site_Location__c || '';
                 this.siteSpace = result.Site_Space__c || '';
 
-                // Split phone into countryCode + number if possible
                 if (this.phone) {
                     const match = this.phone.match(/^(\+\d+)\s?(.*)/);
                     if (match) {
@@ -134,9 +184,14 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
                     }
                 }
 
-                // If type already has a value, set scope options from static map
                 if (this.typeOfProject) {
                     this.projectScopeOptions = this.scopeMap[this.typeOfProject] || [];
+                }
+
+                // ✅ keep label updated (safe)
+                if (this.quotationType) {
+                    this.quotationTypeLabel =
+                        this.quotationTypeLabelByValue[this.quotationType] || this.quotationType;
                 }
             })
             .catch((error) => {
@@ -206,7 +261,7 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
             siteSpace: siteSpaceValue,
             projectDescription: this.projectDescription,
             siteLocation: this.siteLocation,
-            quotationType: this.quotationType // from parent (Manual / Automatic)
+            quotationType: this.quotationType // ✅ still send API value to apex
         };
 
         updateLead({ payload })
@@ -237,16 +292,11 @@ export default class AreliaManualProjectRequestComp extends LightningElement {
                     })
                 );
             });
-
     }
-
 
     handleCloseSuccess() {
-        // this.showSuccess = false;
-        // this.showForm = true;
         window.location.href = Arelia_Site_Label;
     }
-
 
     goToPrevious() {
         this.dispatchEvent(new CustomEvent('previous'));

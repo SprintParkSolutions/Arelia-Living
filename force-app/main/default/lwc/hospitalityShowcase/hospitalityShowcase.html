@@ -2,7 +2,10 @@
   <section class="rs-root" aria-labelledby="rs-title">
     <div class="wrap">
       <h2 id="rs-title" class="rs-hero">Hospitality <span>Portfolio</span></h2>
-      <p class="rs-lead">Explore hospitality spaces — click any card to open a focused gallery and see our commercial deliveries.</p>
+      <p class="rs-lead">
+        Explore hospitality spaces — click any card to open a focused gallery and see our commercial
+        deliveries.
+      </p>
 
       <div class="rs-grid">
         <template for:each={rooms} for:item="room">
@@ -14,7 +17,7 @@
                 </video>
               </template>
               <template if:false={room.isVideoPlaceholder}>
-                <img src={room.placeholder} alt={room.title} class="rs-img"/>
+                <img src={room.placeholder} alt={room.title} class="rs-img" />
               </template>
             </button>
 
@@ -53,13 +56,11 @@
               <button class="car-nav car-prev" onclick={prevImage} aria-label="Previous image">&#10094;</button>
 
               <div class="car-stage" part="car-stage">
-                <!-- render video or image depending on media type -->
                 <template if:true={currentIsVideo}>
-                  <!-- video element src is set/managed in JS -->
                   <video class="car-img" controls autoplay playsinline muted onloadedmetadata={onMediaLoaded}></video>
                 </template>
                 <template if:false={currentIsVideo}>
-                  <img src={currentImage} alt={currentCaption} class="car-img"/>
+                  <img src={currentImage} alt={currentCaption} class="car-img" />
                 </template>
                 <p class="car-caption">{currentCaption}</p>
               </div>
@@ -70,10 +71,12 @@
               <div class="thumb-strip" role="list" aria-label="Image thumbnails">
                 <template if:true={activeRoom}>
                   <template for:each={activeRoom.images} for:item="img" for:index="idx">
-                    <!-- img is an object: { src, isVideo } -->
-                    <button key={img.src} class="thumb-btn" data-idx={idx} onclick={handleThumbClick} role="listitem" aria-label="View media">
+                    <button key={img.src} class="thumb-btn" data-idx={idx} onclick={handleThumbClick} role="listitem"
+                      aria-label="View media">
                       <template if:true={img.isVideo}>
-                        <video muted playsinline preload="metadata"><source src={img.src} /></video>
+                        <video muted playsinline preload="metadata">
+                          <source src={img.src} />
+                        </video>
                       </template>
                       <template if:false={img.isVideo}>
                         <img src={img.src} alt="Thumbnail" />
@@ -98,13 +101,16 @@
                 <button class="rs-primary" data-key={activeRoom.key} onclick={handleModalAction}>
                   Book Consultation
                 </button>
-                <button class="rs-secondary" onclick={closeModal}>Close</button>
               </div>
             </aside>
-
           </div>
         </div>
       </div>
     </template>
   </section>
+
+  <!-- Registration Popup -->
+  <template if:true={showRegistrationPopup}>
+    <c-registration-popup-form onclosepopup={handleClosePopup}></c-registration-popup-form>
+  </template>
 </template>

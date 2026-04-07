@@ -5,26 +5,24 @@ import sendVerificationEmail from '@salesforce/apex/RegistrationFormController.s
 import registerLead from '@salesforce/apex/RegistrationFormController.registerLead';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NAME_REGEX = /^[A-Za-z\s]+$/;
+const PHONE_REGEX = /^[0-9]{10}$/;
 const RESEND_COOLDOWN_SECONDS = 60;
-const OTP_VALIDITY_MS = 60 * 1000; // 60 seconds
+const OTP_VALIDITY_MS = 60 * 1000;
 
 const STEP_DETAILS = 1;
 const STEP_VERIFY = 2;
 
 export default class RegistrationPopupForm extends LightningElement {
-    // Popup and steps
-    @track isOpen = true;       // popup open by default
+    @track isOpen = true;
     @track currentStep = STEP_DETAILS;
 
-    // Form fields
     @track firstName = '';
     @track lastName = '';
     @track email = '';
     @track phone = '';
     @track companyName = '';
 
-
-    // OTP and state
     @track otpInput = '';
     @track emailVerified = false;
     @track isSendingCode = false;
@@ -34,6 +32,7 @@ export default class RegistrationPopupForm extends LightningElement {
     timerId;
 
     countryCode = '+91';
+
     countryCodeOptions = [
         { label: '+91 India', value: '+91' },
         { label: '+1 United States', value: '+1' },
@@ -45,7 +44,6 @@ export default class RegistrationPopupForm extends LightningElement {
     otpExpiresAt;
     @track showSuccessScreen = false;
 
-    // ---------- Step getters ----------
     get isStep1() {
         return this.currentStep === STEP_DETAILS;
     }
@@ -54,25 +52,6 @@ export default class RegistrationPopupForm extends LightningElement {
         return this.currentStep === STEP_VERIFY;
     }
 
-    get step1Class() {
-        return 'step-item ' +
-            (this.currentStep === STEP_DETAILS
-                ? 'active'
-                : this.currentStep > STEP_DETAILS
-                    ? 'completed'
-                    : '');
-    }
-
-    get step2Class() {
-        return 'step-item ' +
-            (this.currentStep === STEP_VERIFY
-                ? 'active'
-                : this.currentStep > STEP_VERIFY
-                    ? 'completed'
-                    : '');
-    }
-
-    // ---------- Other getters ----------
     get disableVerifyButton() {
         return !this.generatedOtp || !this.otpInput || this.emailVerified;
     }
@@ -82,72 +61,87 @@ export default class RegistrationPopupForm extends LightningElement {
     }
 
     get sendCodeButtonLabel() {
-        if (!this.generatedOtp) {
-            return 'Send Code';
-        }
         return this.resendTimerActive ? `Resend in ${this.resendTimer}s` : 'Resend Code';
     }
 
     get isEmailFormatValid() {
-        const value = (this.email || '').trim();
-        return EMAIL_REGEX.test(value);
+        return EMAIL_REGEX.test((this.email || '').trim());
     }
 
     get isPhoneValid() {
-        const digits = this.getPhoneDigits();
-        return digits.length === 10;
+        return PHONE_REGEX.test((this.phone || '').trim());
     }
 
     get isSendCodeDisabled() {
-        return this.isSendingCode || this.resendTimerActive || !this.isEmailFormatValid;
+        return this.isSendingCode || this.resendTimerActive || this.emailVerified || !this.isEmailFormatValid;
     }
 
     get isRegisterDisabled() {
         return this.isSubmitting || !this.emailVerified || !this.isPhoneValid;
     }
 
+    get step1Class() {
+        return this.currentStep === STEP_DETAILS ? 'step-item active' : 'step-item completed';
+    }
+
+    get step2Class() {
+        return this.currentStep === STEP_VERIFY ? 'step-item active' : 'step-item';
+    }
+
     disconnectedCallback() {
         this.clearResendTimer();
     }
 
-    // ---------- Modal control ----------
     closeModal() {
         this.isOpen = false;
         this.showSuccessScreen = false;
         this.clearResendTimer();
         this.resetForm();
         this.currentStep = STEP_DETAILS;
+
+        this.dispatchEvent(
+            new CustomEvent('closepopup', {
+                bubbles: true,
+                composed: true
+            })
+        );
     }
 
-    // ---------- Step navigation ----------
     handleNextFromDetails() {
+        const firstOk = this.validateFirstName();
+        const lastOk = this.validateLastName();
         const emailOk = this.validateEmailField();
         const phoneOk = this.validatePhoneField();
 
-        if (!this.firstName || !this.lastName) {
-            this.showToast('Error', 'First Name,Last Name, Email and Phone are required.', 'error');
-            return;
-        }
-
-        if (!emailOk || !phoneOk) {
+        if (!firstOk || !lastOk || !emailOk || !phoneOk) {
             return;
         }
 
         this.currentStep = STEP_VERIFY;
+
+        Promise.resolve().then(() => {
+            this.handleSendCode(true);
+        });
     }
 
     handleBackToDetails() {
         this.currentStep = STEP_DETAILS;
+        this.generatedOtp = null;
+        this.otpExpiresAt = null;
+        this.otpInput = '';
+        this.emailVerified = false;
+        this.clearResendTimer();
     }
 
-    // ---------- Input handlers ----------
     handleInputChange(event) {
         const { name, value } = event.target;
 
         if (name === 'firstName') {
             this.firstName = value;
+            this.validateFirstName();
         } else if (name === 'lastName') {
             this.lastName = value;
+            this.validateLastName();
         } else if (name === 'email') {
             this.email = value;
             this.validateEmailField();
@@ -157,7 +151,6 @@ export default class RegistrationPopupForm extends LightningElement {
         } else if (name === 'companyName') {
             this.companyName = value;
         }
-
     }
 
     handleCountryChange(event) {
@@ -168,14 +161,14 @@ export default class RegistrationPopupForm extends LightningElement {
         this.otpInput = event.target.value;
     }
 
-    // ---------- OTP logic ----------
-    handleSendCode() {
-        if (!this.validateEmailField()) {
+    handleSendCode(auto = false) {
+        if (!this.validateEmailField() || this.emailVerified || (!auto && this.resendTimerActive) || this.isSendingCode) {
             return;
         }
 
         this.isSendingCode = true;
         this.emailVerified = false;
+        this.otpInput = '';
 
         this.generatedOtp = this.generateOtp();
         this.otpExpiresAt = Date.now() + OTP_VALIDITY_MS;
@@ -221,6 +214,7 @@ export default class RegistrationPopupForm extends LightningElement {
 
         if (this.otpInput === this.generatedOtp) {
             this.emailVerified = true;
+            this.clearResendTimer();
             this.showToast('Success', 'Email verified successfully.', 'success');
         } else {
             this.emailVerified = false;
@@ -228,12 +222,13 @@ export default class RegistrationPopupForm extends LightningElement {
         }
     }
 
-    // ---------- Submit ----------
     handleSubmit() {
+        const firstOk = this.validateFirstName();
+        const lastOk = this.validateLastName();
         const emailOk = this.validateEmailField();
         const phoneOk = this.validatePhoneField();
 
-        if (!emailOk || !phoneOk) {
+        if (!firstOk || !lastOk || !emailOk || !phoneOk) {
             return;
         }
 
@@ -242,29 +237,20 @@ export default class RegistrationPopupForm extends LightningElement {
             return;
         }
 
-        if (!this.firstName || !this.lastName) {
-            this.showToast('Error', 'First Name and Last Name are required.', 'error');
-            return;
-        }
-
         this.isSubmitting = true;
 
-        const fullPhone = this.countryCode
-            ? `${this.countryCode} ${this.phone}`
-            : this.phone;
-
+        const fullPhone = this.countryCode ? `${this.countryCode} ${this.phone}` : this.phone;
         const firstName = (this.firstName || '').trim();
-        const lastName  = (this.lastName || '').trim();
+        const lastName = (this.lastName || '').trim();
 
         const payload = {
             firstName: firstName,
             lastName: lastName,
             email: this.email,
             phone: fullPhone,
-             companyName:
-                (this.companyName && this.companyName.trim())
+            companyName: (this.companyName && this.companyName.trim())
                 ? this.companyName.trim()
-                : `Self-${firstName} ${lastName}`.trim(),
+                : `Self-${firstName} ${lastName}`.trim()
         };
 
         registerLead({ payload })
@@ -280,15 +266,46 @@ export default class RegistrationPopupForm extends LightningElement {
             });
     }
 
-    handleCloseSuccess() {
-        this.showSuccessScreen = false;
-        this.closeModal();
+    validateFirstName() {
+        const input = this.template.querySelector('[data-id="firstNameInput"]');
+        const value = (this.firstName || '').trim();
+        let message = '';
+
+        if (!value) {
+            message = 'First name is required.';
+        } else if (!NAME_REGEX.test(value)) {
+            message = 'First name cannot contain numbers or special characters.';
+        }
+
+        if (input) {
+            input.setCustomValidity(message);
+            input.reportValidity();
+        }
+
+        return message === '';
+    }
+
+    validateLastName() {
+        const input = this.template.querySelector('[data-id="lastNameInput"]');
+        const value = (this.lastName || '').trim();
+        let message = '';
+
+        if (!value) {
+            message = 'Last name is required.';
+        } else if (!NAME_REGEX.test(value)) {
+            message = 'Last name cannot contain numbers or special characters.';
+        }
+
+        if (input) {
+            input.setCustomValidity(message);
+            input.reportValidity();
+        }
+
+        return message === '';
     }
 
     validateEmailField() {
-        // Try to find the input (it exists only on Step 1)
         const input = this.template.querySelector('[data-id="emailInput"]');
-
         const value = (this.email || '').trim();
         let message = '';
 
@@ -298,47 +315,38 @@ export default class RegistrationPopupForm extends LightningElement {
             message = 'Enter a valid email address (e.g. name@example.com).';
         }
 
-        // When we are on Step 1, show the error on the field
         if (input) {
             input.setCustomValidity(message);
             input.reportValidity();
         }
-        return !message;
+
+        return message === '';
     }
 
     validatePhoneField() {
-        // Input exists only on Step 1
         const input = this.template.querySelector('[data-id="phoneInput"]');
-
-        const digits = this.getPhoneDigits();
+        const value = (this.phone || '').trim();
         let message = '';
 
-        if (!digits) {
+        if (!value) {
             message = 'Mobile number is required.';
-        } else if (digits.length !== 10) {
-            message = 'Enter a 10-digit mobile number.';
+        } else if (!/^[0-9]+$/.test(value)) {
+            message = 'Mobile number must contain digits only.';
+        } else if (!PHONE_REGEX.test(value)) {
+            message = 'Enter a valid 10-digit mobile number.';
         }
 
-        // Show field-level error only when the input is in the DOM (Step 1)
         if (input) {
             input.setCustomValidity(message);
             input.reportValidity();
         }
 
-        // On Step 2 this still validates based on stored value in this.phone
-        return !message;
+        return message === '';
     }
 
-
-    getPhoneDigits() {
-        return (this.phone || '').replace(/\D/g, '');
-    }
-
-    // ---------- Timer ----------
     startResendCountdown() {
         this.clearResendTimer();
         this.resendTimer = RESEND_COOLDOWN_SECONDS;
-
         this.timerId = window.setInterval(() => {
             if (this.resendTimer <= 1) {
                 this.clearResendTimer();
@@ -356,7 +364,6 @@ export default class RegistrationPopupForm extends LightningElement {
         this.resendTimer = 0;
     }
 
-    // ---------- Utility ----------
     generateOtp() {
         const code = Math.floor(100000 + Math.random() * 900000);
         return String(code);
@@ -392,5 +399,10 @@ export default class RegistrationPopupForm extends LightningElement {
                 variant
             })
         );
+    }
+
+    handleCloseSuccess() {
+        this.showSuccessScreen = false;
+        this.closeModal();
     }
 }

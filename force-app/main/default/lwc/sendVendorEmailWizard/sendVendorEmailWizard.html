@@ -1,10 +1,3 @@
-<!--
-  @description       : 
-  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
-  @group             : 
-  @last modified on  : 12-10-2025
-  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
--->
 <template>
   <div class="container">
     <template if:true={isLoading}>
@@ -63,11 +56,7 @@
                     field-name="Name"
                   ></lightning-output-field>
                 </div>
-                <div class="slds-col slds-size_1-of-2 slds-p-around_x-small">
-                  <lightning-output-field
-                    field-name="Project_Scope__c"
-                  ></lightning-output-field>
-                </div>
+                
               </div>
             </lightning-record-view-form>
             <h3 class="slds-text-heading_small slds-m-top_medium">
@@ -197,15 +186,7 @@
                     </div>
                   </div>
                 </template>
-                <template if:false={showSpecificationTable}>
-                  <div
-                    class="slds-m-top_medium slds-text-color_weak"
-                    style="color: crimson"
-                  >
-                    No project specifications found for this category.
-                  </div>
                 </template>
-              </template>
 
               <div class="slds-m-top_medium">
                 <h3 class="slds-text-heading_small">Available Vendors</h3>

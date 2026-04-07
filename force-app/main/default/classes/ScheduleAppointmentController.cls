@@ -7,6 +7,7 @@
  * @createdDate 2025-05-21
  * @version     1.1  (Adds slot availability check to block already-booked slots)
  */
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public with sharing class ScheduleAppointmentController {
 
     /**
@@ -181,6 +182,7 @@ public with sharing class ScheduleAppointmentController {
         String subject = template.Subject
             .replace('{{{appointmentDate}}}', formattedDate)
             .replace('{{{timeSlot}}}', timeSlot)
+            .replace('{{{appointmentType}}}', appointmentType)
             .replace('{{{leadName}}}', leadName);
 
         Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
@@ -212,6 +214,7 @@ public with sharing class ScheduleAppointmentController {
         String subject = template.Subject
             .replace('{{{appointmentDate}}}', formattedDate)
             .replace('{{{timeSlot}}}', timeSlot)
+            .replace('{{{appointmentType}}}', appointmentType)
             .replace('{{{leadName}}}', leadName);
 
         Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();

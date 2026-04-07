@@ -257,16 +257,42 @@ public without sharing class ProjectTriggerHandler {
             .replace('{{{Project__c.Name}}}', safe(proj != null ? proj.Name : ''))
             .replace('{{{Project__c.Project_Code__c}}}', safe(proj != null ? proj.Project_Code__c : ''))
             .replace('{{{Project__c.Status__c}}}', safe(proj != null ? proj.Status__c : ''))
-            .replace('{{{Project__c.Project_Request_Quotation_Type__c}}}', safe(proj != null ? proj.Project_Request_Quotation_Type__c : ''))
+            .replace('{{{Project__c.Project_Request_Quotation_Type__c}}}',safe(proj != null ? getPicklistLabel(Project__c.Project_Request_Quotation_Type__c, proj.Project_Request_Quotation_Type__c): ''))
             .replace('{{{Project__r.Client__r.Name}}}', safe(contact != null ? contact.Name : ''))
             .replace('{{{Project__r.Client__r.Password__c}}}', safe(contact != null ? contact.Password__c : ''))
             .replace('{{{Project__r.Client__r.Email}}}', safe(contact != null ? contact.Email : ''))           
-            .replace('{{{Project__c.Project_Request_Quotation_Type__c}}}', safe(proj != null ? proj.Project_Request_Quotation_Type__c : ''))
             .replace('{{{Project__r.Supervisor_User__r.Name}}}', safe(sup != null ? sup.Name : ''));
         if (base.contains('{{{ManagerName}}}')) {
             base = base.replace('{{{ManagerName}}}', safe(managerName));
         }
         return base;
+    }
+
+    /**
+     * @description
+     * Returns the picklist label for a stored API value.
+     * If no matching label is found, returns the original value.
+     *
+     * @param fieldRef Picklist field reference.
+     * @param apiValue Stored API value from record.
+     * @return Picklist label or original value.
+     */
+    private static String getPicklistLabel(Schema.SObjectField fieldRef, String apiValue) {
+        if (fieldRef == null || String.isBlank(apiValue)) {
+            return '';
+        }
+
+        try {
+            for (Schema.PicklistEntry entry : fieldRef.getDescribe().getPicklistValues()) {
+                if (entry.getValue() == apiValue) {
+                    return entry.getLabel();
+                }
+            }
+        } catch (Exception e) {
+            System.debug(LoggingLevel.ERROR, 'Error getting picklist label: ' + e.getMessage());
+        }
+
+        return apiValue;
     }
 
     /**

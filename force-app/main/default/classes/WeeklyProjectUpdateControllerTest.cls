@@ -1,152 +1,139 @@
 @IsTest
 private class WeeklyProjectUpdateControllerTest {
 
-    /* ==========================================
-       TEST SETUP (COMMON DATA)
-    ========================================== */
     @TestSetup
-    static void setup() {
+    static void setupData() {
+        // Run as admin to avoid Mixed DML when creating setup objects (Templates/Users)
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            
+            // 1. Create Supervisor using Utility
+            User supervisor = TestDataUtility.createSupervisorUser('weeklyUs');
 
-        // 1️⃣ Supervisor User
-        User supervisor = TestDataUtility.createSupervisorUser('weeklyUser');
+            // 2. Create Client (Contact) using Utility
+            Contact client = TestDataUtility.createContact('WeeklyClient', 'client@weekly.com', 'pwd123');
 
-        // 2️⃣ Client Account
-        Account acc = new Account(Name = 'Weekly Client');
-        insert acc;
+            // 3. Create Project using Utility
+            Project__c proj = TestDataUtility.createProject('Weekly Update Project', 10000, client.Id);
+            
+            // Update additional fields required by the Weekly Update logic
+            proj.Client_Email__c = 'client@weekly.com';
+            proj.Start_Date__c = Date.today().addDays(-14); // Exactly 2 weeks ago
+            proj.Supervisor_User__c = supervisor.Id;
+            update proj;
 
-        // 3️⃣ Project
-        Project__c proj = new Project__c(
-            Name = 'Weekly Update Project',
-            Client__c = acc.Id,
-            Client_Email__c = 'client@weekly.com',
-            Start_Date__c = Date.today().addDays(-7),
-            Status__c = 'Active',
-            Project_Status__c = 'In Progress',
-            Supervisor_User__c = supervisor.Id
-        );
-        insert proj;
-
-        // 4️⃣ Email Template
-        EmailTemplate tpl = new EmailTemplate(
-            Name = 'Weekly Project Update',
-            DeveloperName = 'Weekly_Project_Update_Template',
-            FolderId = UserInfo.getUserId(),
-            TemplateType = 'custom',
-            Subject = 'Update {{{ProjectName}}} - Week {{{WeekNumber}}}',
-            HtmlValue =
-                'Hello {{{ClientName}}}<br/>' +
-                '{{{WeeklySummary}}}<br/>' +
-                '{{{FileLinks}}}'
-        );
-        insert tpl;
-    }
-
-    // ==========================================
-    // 1. Supervisor Project Getter
-    // ==========================================
-    @IsTest
-    static void testGetSupervisorProjects() {
-
-        User supervisor = [
-            SELECT Id
-            FROM User
-            WHERE Username LIKE '%weeklyUser%'
-            LIMIT 1
-        ];
-
-        System.runAs(supervisor) {
-            Test.startTest();
-            List<Project__c> projects =
-                WeeklyProjectUpdateController.getSupervisorProjects();
-            Test.stopTest();
-
-            Assert.areEqual(1, projects.size());
+            // 4. Create Email Template using Utility
+            TestDataUtility.createSpecificEmailTemplate(
+                'Weekly_Project_Update_Template',
+                'Weekly Project Update',
+                'Update {{{ProjectName}}} - Week {{{WeekNumber}}}',
+                'Hello {{{ClientName}}}<br/>{{{WeeklySummary}}}<br/>{{{FileLinks}}}'
+            );
         }
     }
 
     // ==========================================
-    // 2. Weekly Email – No Files
+    // 1. Test Project Retrieval
     // ==========================================
     @IsTest
-    static void testSendWeeklyEmail_NoFiles() {
+    static void testGetSupervisorProjects() {
+        User supervisor = [SELECT Id FROM User WHERE Alias = 'weeklyUs' LIMIT 1];
 
-        Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
+        System.runAs(supervisor) {
+            Test.startTest();
+            List<Project__c> projects = WeeklyProjectUpdateController.getSupervisorProjects();
+            Test.stopTest();
 
-        Test.startTest();
-        WeeklyProjectUpdateController.sendWeeklyEmail(
-            proj.Id,
-            'Weekly progress update',
-            null
-        );
-        Test.stopTest();
-
-        Assert.areEqual(1, Limits.getEmailInvocations());
+            Assert.areEqual(1, projects.size(), 'Should return exactly 1 project assigned to the supervisor');
+            Assert.areEqual('Weekly Update Project', projects[0].Name, 'The project name should match');
+        }
     }
 
     // ==========================================
-    // 3. Weekly Email – With File
+    // 2. Test Email Sending with ALL File Types
     // ==========================================
     @IsTest
-    static void testSendWeeklyEmail_WithFile() {
-
+    static void testSendWeeklyEmailAllFileTypes() {
         Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
 
-        ContentVersion cv = new ContentVersion(
-            Title = 'photo',
-            PathOnClient = 'photo.jpg',
-            VersionData = Blob.valueOf('img'),
-            IsMajorVersion = true
-        );
-        insert cv;
+        // Create specific file types to cover the HTML logic in the Controller (Image, Video, Document)
+        ContentVersion imgCv = new ContentVersion(Title='photo', PathOnClient='photo.jpg', VersionData=Blob.valueOf('img'), IsMajorVersion=true);
+        ContentVersion vidCv = new ContentVersion(Title='video', PathOnClient='video.mp4', VersionData=Blob.valueOf('vid'), IsMajorVersion=true);
+        insert new List<ContentVersion>{ imgCv, vidCv };
+        
+        // Use utility to create a PDF document
+        ContentVersion pdfCv = TestDataUtility.createContentVersion('doc', 'doc content');
 
-        cv = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id];
+        // Extract Document IDs to pass to the controller
+        List<Id> documentIds = new List<Id>();
+        for(ContentVersion cv : [SELECT ContentDocumentId FROM ContentVersion]) {
+            documentIds.add(cv.ContentDocumentId);
+        }
 
         Test.startTest();
-        WeeklyProjectUpdateController.sendWeeklyEmail(
-            proj.Id,
-            'With image',
-            new List<Id>{ cv.ContentDocumentId }
-        );
+        Integer initialEmails = Limits.getEmailInvocations();
+        
+        // Execute Action
+        WeeklyProjectUpdateController.sendWeeklyEmail(proj.Id, 'Great progress this week!', documentIds);
+        
+        Integer finalEmails = Limits.getEmailInvocations();
         Test.stopTest();
 
-        Assert.areEqual(1, Limits.getEmailInvocations());
+        Assert.areEqual(initialEmails + 1, finalEmails, 'One email should have been sent containing all file type links');
     }
 
     // ==========================================
-    // 4. Missing Client Email (Exception)
+    // 3. Test Email Sending with Fallback Conditions
     // ==========================================
     @IsTest
-    static void testSendWeeklyEmail_MissingClientEmail() {
+    static void testSendWeeklyEmailFallbackConditions() {
+        // Remove Start Date and Supervisor to test null-fallback logic (WeekNo = 1, UserInfo.getName())
+        Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
+        proj.Start_Date__c = null;
+        proj.Supervisor_User__c = null; 
+        update proj;
 
+        Test.startTest();
+        Integer initialEmails = Limits.getEmailInvocations();
+        
+        // Execute Action with null files
+        WeeklyProjectUpdateController.sendWeeklyEmail(proj.Id, 'Weekly progress', null); 
+        
+        Integer finalEmails = Limits.getEmailInvocations();
+        Test.stopTest();
+
+        Assert.areEqual(initialEmails + 1, finalEmails, 'Email should be sent successfully even if Dates or Supervisor are missing');
+    }
+
+    // ==========================================
+    // 4. Test Error Handling (Missing Client Email)
+    // ==========================================
+    @IsTest
+    static void testSendWeeklyEmailMissingClientEmail() {
         Project__c proj = [SELECT Id FROM Project__c LIMIT 1];
         proj.Client_Email__c = null;
         update proj;
 
         Test.startTest();
         try {
-            WeeklyProjectUpdateController.sendWeeklyEmail(
-                proj.Id,
-                'Should fail',
-                null
-            );
-            Assert.fail();
+            WeeklyProjectUpdateController.sendWeeklyEmail(proj.Id, 'This should fail', null);
+            Assert.fail('Expected an AuraHandledException because the client email is null');
         } catch (Exception e) {
-            Assert.isTrue(e.getTypeName().contains('AuraHandledException'));
+            Assert.isTrue(e.getTypeName().contains('AuraHandledException'), 'Exception should be of type AuraHandledException');
         }
         Test.stopTest();
     }
 
     // ==========================================
-    // 5. Org-Wide Email Getter
+    // 5. Test Org-Wide Email Address Retrieval
     // ==========================================
     @IsTest
     static void testGetOWD() {
-
         Test.startTest();
         Id owdId = WeeklyProjectUpdateController.getOWD();
         Test.stopTest();
 
-        // OWD may be null in test context – valid
-        Assert.isTrue(true);
+        // OWD might be null depending on the Sandbox setup. 
+        // We assert true to guarantee the query executes cleanly without breaking.
+        Assert.isTrue(true, 'The getOWD method executed successfully');
     }
 }

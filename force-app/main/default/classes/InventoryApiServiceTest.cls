@@ -1,5 +1,4 @@
 @IsTest
-@SuppressWarnings('PMD.ApexAssertionsShouldIncludeMessage')
 private class InventoryApiServiceTest {
 
     @TestSetup
@@ -49,24 +48,24 @@ private class InventoryApiServiceTest {
         Map<String, Object> result = InventoryApiService.getCatalogConfig(opp.Id);
         Test.stopTest();
 
-        Assert.isNotNull(result, 'Result map should not be null');
+        Assert.isNotNull(result, 'The result map returned from getCatalogConfig should not be null');
 
         // 1. Validate Rooms List
         // Should find 'Dining Hall' (from p1, p2) and 'Reception' (from p4) which are 'Home'
         List<String> rooms = (List<String>) result.get('rooms'); 
-        Assert.isNotNull(rooms, 'Rooms list should not be null');
-        Assert.isTrue(rooms.contains('Dining Hall'), 'Should contain Home room: Dining Hall');
-        Assert.isTrue(rooms.contains('Reception'), 'Should contain Home room: Reception');
-        Assert.isFalse(rooms.contains('Living Room'), 'Should NOT contain Office room: Living Room');
+        Assert.isNotNull(rooms, 'The "rooms" list in the config result should not be null');
+        Assert.isTrue(rooms.contains('Dining Hall'), 'The room list should contain "Dining Hall" as it matches the project type');
+        Assert.isTrue(rooms.contains('Reception'), 'The room list should contain "Reception" as it matches the project type');
+        Assert.isFalse(rooms.contains('Living Room'), 'The room list should NOT contain "Living Room" as it belongs to a different project type (Office)');
 
         // 2. Validate Categories Map
         Map<String, List<String>> catMap = (Map<String, List<String>>) result.get('categoriesByRoom');
-        Assert.isNotNull(catMap, 'Category map should not be null');
+        Assert.isNotNull(catMap, 'The "categoriesByRoom" map should not be null');
         
         // Check Dining Hall categories
-        Assert.isTrue(catMap.containsKey('Dining Hall'));
+        Assert.isTrue(catMap.containsKey('Dining Hall'), 'The category map should contain a key for "Dining Hall"');
         List<String> diningCats = catMap.get('Dining Hall');
-        Assert.isTrue(diningCats.contains('Painting & Wall Finishing'), 'Should contain Painting category');
+        Assert.isTrue(diningCats.contains('Painting & Wall Finishing'), 'The Dining Hall categories should contain "Painting & Wall Finishing"');
     }
 
     @IsTest
@@ -74,9 +73,9 @@ private class InventoryApiServiceTest {
         Test.startTest();
         try {
             InventoryApiService.getCatalogConfig(null);
-            Assert.fail('Should throw exception for null Id');
+            Assert.fail('The method should have thrown an Exception for a null Opportunity Id');
         } catch (Exception e) {
-            Assert.isTrue(e.getTypeName().contains('AuraHandledException'), 'Should be AuraHandledException');
+            Assert.isTrue(e.getTypeName().contains('AuraHandledException'), 'The exception thrown should be of type AuraHandledException');
         }
         Test.stopTest();
     }
@@ -93,9 +92,9 @@ private class InventoryApiServiceTest {
         Opportunity result = InventoryApiService.getOpportunitySummary(opp.Id);
         Test.stopTest();
 
-        Assert.isNotNull(result, 'Should return Opportunity record');
-        Assert.areEqual('Home', result.Type_of_Project__c, 'Project Type should match Home');
-        Assert.areEqual('testclient@example.com', result.Email__c, 'Email should match');
+        Assert.isNotNull(result, 'The service should return a valid Opportunity record');
+        Assert.areEqual('Home', result.Type_of_Project__c, 'The Opportunity Type_of_Project__c should match the setup data ("Home")');
+        Assert.areEqual('testclient@example.com', result.Email__c, 'The Opportunity Email__c should match the setup data');
     }
 
     // ==========================================
@@ -109,12 +108,12 @@ private class InventoryApiServiceTest {
         List<Interior_Product__c> results = InventoryApiService.getProducts('Dining Hall', 'Painting & Wall Finishing');
         Test.stopTest();
 
-        Assert.isNotNull(results, 'Should return a list');
-        Assert.areEqual(2, results.size(), 'Should return exactly 2 matching records');
+        Assert.isNotNull(results, 'The getProducts method should return a list, not null');
+        Assert.areEqual(2, results.size(), 'The query should return exactly 2 matching records for Dining Hall/Painting');
         
         // Verify sorting (ORDER BY Name ASC)
-        Assert.areEqual('Accent Wall', results[0].Name, 'Should be sorted by Name ASC');
-        Assert.areEqual('Textured Paint', results[1].Name);
+        Assert.areEqual('Accent Wall', results[0].Name, 'The first result should be "Accent Wall" (sorted by Name ASC)');
+        Assert.areEqual('Textured Paint', results[1].Name, 'The second result should be "Textured Paint" (sorted by Name ASC)');
     }
 
     @IsTest
@@ -123,8 +122,8 @@ private class InventoryApiServiceTest {
         List<Interior_Product__c> results = InventoryApiService.getProducts('Kitchen', 'Appliances');
         Test.stopTest();
 
-        Assert.isNotNull(results, 'Should return empty list, not null');
-        Assert.areEqual(0, results.size(), 'Should find 0 records');
+        Assert.isNotNull(results, 'The method should return an empty list rather than null when no records match');
+        Assert.areEqual(0, results.size(), 'The list size should be 0 for non-matching parameters');
     }
 
     @IsTest
@@ -133,7 +132,7 @@ private class InventoryApiServiceTest {
         List<Interior_Product__c> results = InventoryApiService.getProducts('Dining Hall', 'Flooring & Tiling');
         Test.stopTest();
 
-        Assert.areEqual(0, results.size(), 'Should strictly match both fields');
+        Assert.areEqual(0, results.size(), 'The list size should be 0 because the category does not match the room in setup data');
     }
 
     @IsTest
@@ -142,6 +141,6 @@ private class InventoryApiServiceTest {
         List<Interior_Product__c> results = InventoryApiService.getProducts(null, null);
         Test.stopTest();
 
-        Assert.areEqual(0, results.size(), 'Should return empty list for null parameters');
+        Assert.areEqual(0, results.size(), 'The list size should be 0 when null parameters are passed');
     }
 }

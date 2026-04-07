@@ -56,11 +56,18 @@ public without sharing class SiteVisitApprovalController {
                 !safeBool(oldRec.Management_Approval__c) && safeBool(newRec.Management_Approval__c);
 
             Boolean negotiatedNow =
-                !safeBool(oldRec.Negotiate__c) && safeBool(newRec.Negotiate__c);
+    !safeBool(oldRec.Negotiate__c) && safeBool(newRec.Negotiate__c);
 
-            if (managerApprovedNow || negotiatedNow) {
-                reportsToProcess.add(newRec);
-            }
+// ✅ NEW: fire again when reason changes while negotiate=true
+Boolean negotiationReasonChanged =
+    safeBool(newRec.Negotiate__c) &&
+    (String.valueOf(oldRec.Negotation_Reason__c) != String.valueOf(newRec.Negotation_Reason__c)) &&
+    String.isNotBlank(newRec.Negotation_Reason__c);
+
+if (managerApprovedNow || negotiatedNow || negotiationReasonChanged) {
+    reportsToProcess.add(newRec);
+}
+
         }
 
         // Delegate to email sender only when there is something to process.

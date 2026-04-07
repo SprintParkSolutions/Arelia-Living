@@ -8,9 +8,12 @@
     box-sizing: border-box;
 
     /* overlay variables (scoped) */
-    --overlay-bg: rgba(34, 28, 22, 0.48);      /* warm darker glass (default) */
-    --overlay-text: #fff;                      /* text color for darker overlay */
-    --overlay-accent: rgba(245,245,220,0.95);  /* alternative light card color */
+    --overlay-bg: rgba(34, 28, 22, 0.48);
+    /* warm darker glass (default) */
+    --overlay-text: #fff;
+    /* text color for darker overlay */
+    --overlay-accent: rgba(245, 245, 220, 0.95);
+    /* alternative light card color */
 }
 
 /* make the component full-bleed */
@@ -31,9 +34,11 @@
 .image-container {
     position: relative;
     width: 100%;
-    height: 781.19px; /* fixed height per your request */
+    height: 781.19px;
+    /* fixed height per your request */
     overflow: hidden;
-    background: #000; /* fallback while video loads */
+    background: #000;
+    /* fallback while video loads */
 }
 
 /* ===== VIDEO ===== */
@@ -48,7 +53,7 @@
     z-index: 0;
     transform: scale(0.995);
     opacity: 0;
-    transition: transform 900ms cubic-bezier(.2,.9,.2,1), opacity 900ms ease;
+    transition: transform 900ms cubic-bezier(.2, .9, .2, 1), opacity 900ms ease;
     will-change: transform, opacity;
     pointer-events: none;
 }
@@ -63,7 +68,8 @@
     position: absolute;
     bottom: 20%;
     left: 50%;
-    transform: translateX(-50%) translateY(20px); /* initial slide */
+    transform: translateX(-50%) translateY(20px);
+    /* initial slide */
     text-align: center;
     width: min(90%, 920px);
     padding: 22px 26px;
@@ -71,12 +77,12 @@
     backdrop-filter: blur(2px) saturate(110%);
     -webkit-backdrop-filter: blur(2px) saturate(110%);
     border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 12px 40px rgba(16,24,32,0.18);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 12px 40px rgba(16, 24, 32, 0.18);
     z-index: 2;
     opacity: 0;
     transition:
-        transform 650ms cubic-bezier(.2,.9,.2,1),
+        transform 650ms cubic-bezier(.2, .9, .2, 1),
         opacity 650ms ease,
         box-shadow 350ms ease;
     will-change: transform, opacity;
@@ -112,7 +118,7 @@
 .hero-sub {
     margin: 0 0 18px 0;
     font-size: 16px;
-    color: rgba(255,255,255,0.88);
+    color: rgba(255, 255, 255, 0.88);
     font-family: Inter, Arial, sans-serif;
     opacity: 0;
     transform: translateY(6px);
@@ -127,8 +133,10 @@
 /* CTA button - style tuned for darker overlay */
 .unique-button {
     display: inline-block;
-    background: linear-gradient(180deg, #e8d9b7 0%, #d5c49a 100%); /* soft gold */
-    color: #3a3a2e; /* deep warm grey text */
+    background: linear-gradient(180deg, #e8d9b7 0%, #d5c49a 100%);
+    /* soft gold */
+    color: #3a3a2e;
+    /* deep warm grey text */
     border: none;
     padding: 12px 30px;
     border-radius: 8px;
@@ -155,13 +163,21 @@
 }
 
 @keyframes btn-pulse {
-    0% { transform: translateY(-4px) scale(1); }
-    50% { transform: translateY(-5px) scale(1.01); }
-    100% { transform: translateY(-4px) scale(1); }
+    0% {
+        transform: translateY(-4px) scale(1);
+    }
+
+    50% {
+        transform: translateY(-5px) scale(1.01);
+    }
+
+    100% {
+        transform: translateY(-4px) scale(1);
+    }
 }
 
 .unique-button:focus {
-    box-shadow: 0 0 0 4px rgba(168,180,165,0.18), 0 12px 30px rgba(10,20,30,0.12);
+    box-shadow: 0 0 0 4px rgba(168, 180, 165, 0.18), 0 12px 30px rgba(10, 20, 30, 0.12);
 }
 
 /* ===== If you prefer a light/beige overlay instead, uncomment the following and comment the --overlay-bg in :host above */
@@ -171,25 +187,48 @@
 
 /* ===== Responsive Tuning ===== */
 @media (max-width: 1200px) {
-    .caption-overlay { width: min(94%, 840px); padding: 18px; }
-    .hero-title { font-size: 24px; }
-    .hero-sub { font-size: 15px; }
+    .caption-overlay {
+        width: min(94%, 840px);
+        padding: 18px;
+    }
+
+    .hero-title {
+        font-size: 24px;
+    }
+
+    .hero-sub {
+        font-size: 15px;
+    }
 }
 
 @media (max-width: 768px) {
-    .image-container { height: clamp(260px, calc(100vw * 0.473145), 480px); }
+    .image-container {
+        height: clamp(260px, calc(100vw * 0.473145), 480px);
+    }
+
     .caption-overlay {
         bottom: 10%;
         width: 92%;
         padding: 12px 14px;
         border-radius: 10px;
     }
-    .hero-title { font-size: 18px; }
-    .hero-sub { font-size: 14px; margin-bottom: 12px; }
-    .unique-button { padding: 10px 18px; font-size: 14px; }
-    .cover-video { object-position: center top; }
+
+    .hero-title {
+        font-size: 18px;
+    }
+
+    .hero-sub {
+        font-size: 14px;
+        margin-bottom: 12px;
+    }
+
+    .unique-button {
+        padding: 10px 18px;
+        font-size: 14px;
+    }
+
+    .cover-video {
+        object-position: center top;
+    }
 
 }
-
-/* NOTE: Avoid changing global html/body in component CSS (scoped). If you still need to hide page horizontal scrollbars,
-   add a global CSS file in your site template or add a small script that modifies document.documentElement.style. */

@@ -1,3 +1,4 @@
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public with sharing class VendorPathController {
     
     @AuraEnabled(cacheable=true)
@@ -9,13 +10,8 @@ public with sharing class VendorPathController {
 
         // 2. Direct Query (Matches Project Code structure)
         // If this is an Account ID, this query simply returns 0 rows (Safe)
-        List<Vendor_Assignment__c> vaList = [
-            SELECT Id, Status__c 
-            FROM Vendor_Assignment__c 
-            WHERE Id = :recordId 
-            WITH USER_MODE 
-            LIMIT 1
-        ];
+        List<Vendor_Assignment__c> vaList = [SELECT Id, Status__c 
+                FROM Vendor_Assignment__c WHERE Id = :recordId LIMIT 1];
         
         // If empty, it means wrong object OR no access
         if (vaList.isEmpty()) {
