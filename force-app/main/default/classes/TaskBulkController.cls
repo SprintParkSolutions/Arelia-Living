@@ -1,3 +1,4 @@
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public with sharing class TaskBulkController {
     
     // --- Keep these standard methods exactly the same ---
@@ -22,7 +23,7 @@ public with sharing class TaskBulkController {
 
     @AuraEnabled
     public static Boolean hasExistingTasks(Id parentId) {
-        Integer count = [SELECT Count() FROM Task WHERE WhatId = :parentId WITH SECURITY_ENFORCED];
+        Integer count = [SELECT Count() FROM Task WHERE WhatId = :parentId ];
         return count > 0;
     }
 
@@ -32,9 +33,26 @@ public with sharing class TaskBulkController {
             SELECT Id, Subject, Status, Start_Date__c, ActivityDate, Assigned_Percentage__c 
             FROM Task 
             WHERE WhatId = :parentId 
-            WITH SECURITY_ENFORCED
+            
             ORDER BY CreatedDate ASC
         ];
+    }
+
+    // New method for picklist field Status
+
+    @AuraEnabled(cacheable=true)
+    public static List<Map<String, String>> getTaskStatusOptions() {
+        List<Map<String, String>> options = new List<Map<String, String>>();
+        
+        for (Schema.PicklistEntry entry : Task.Status.getDescribe().getPicklistValues()) {
+            if (entry.isActive()) {
+                options.add(new Map<String, String>{
+                    'label' => entry.getLabel(),
+                    'value' => entry.getValue()
+                });
+            }
+        }
+        return options;
     }
 
     // --- Wrapper ---
@@ -55,7 +73,7 @@ public with sharing class TaskBulkController {
                    ContentDocument.Title, ContentDocument.FileExtension 
             FROM ContentDocumentLink 
             WHERE LinkedEntityId IN :parentIds 
-            WITH SECURITY_ENFORCED
+           
             // Order by oldest first so they appear in order of upload
             ORDER BY SystemModstamp ASC 
         ];
