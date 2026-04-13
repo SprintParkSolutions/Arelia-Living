@@ -1,0 +1,17 @@
+<html>
+<head>
+	<title></title>
+</head>
+<body style="font-family: Arial, sans-serif; height: auto; min-height: auto;">
+<p>Dear Manager,</p>
+
+<p>Please review the attached PDF for Opportunity: <b>[OPPORTUNITY_NAME]</b>.</p>
+
+<p><b>Payment Terms:</b></p>
+[PAYMENT_TERMS_TABLE]
+
+<p>Please click the link below to take action:</p>
+
+<p><a href="[APPROVAL_LINK_URL]" style="background-color: #0070d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">REVIEW &amp; APPROVE</a></p>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 03-16-2026
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
+<template>
+    <div class="scroll-target">
+    <section class="ba-root">
+
+        <div class="ba-tabs">
+            <template for:each={displayCategories} for:item="cat">
+                <button
+                    key={cat.label}
+                    class={cat.tabClass}
+                    data-category={cat.label}
+                    onclick={handleCategoryClick}>
+                    {cat.label}
+                </button>
+            </template>
+        </div>
+
+        <div class="ba-container">
+
+            <img
+                src={currentCategory.before}
+                alt="Before Design"
+                class="ba-image ba-background" />
+
+            <div class="ba-overlay-wrapper" style={overlayStyle}>
+                <img
+                    src={currentCategory.after}
+                    alt="After Design"
+                    class="ba-image ba-after" />
+            </div>
+
+            <div
+                class="ba-handle"
+                style={handleStyle}
+                onmousedown={startDrag}
+                ontouchstart={startDrag}>
+                <div class="ba-handle-inner">
+                    <span class="arrow left-arrow">&#10094;</span>
+                    <span class="bar"></span>
+                    <span class="arrow right-arrow">&#10095;</span>
+                </div>
+            </div>
+
+            <div class={afterLabelClass}>AFTER</div>
+            <div class={beforeLabelClass}>BEFORE</div>
+        </div>
+
+        <div style="display:none;" aria-hidden="true">
+            <template for:each={preloadUrls} for:item="url">
+                <img key={url} src={url} alt="preload" />
+            </template>
+        </div>
+        <figcaption class="ba-caption">Drag the handle to compare renovation results</figcaption>
+    </section>
+    </div>
+</template>

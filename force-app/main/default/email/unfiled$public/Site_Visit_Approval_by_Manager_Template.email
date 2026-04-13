@@ -1,0 +1,19 @@
+<html>
+<head>
+	<title></title>
+</head>
+<body style="height: auto; min-height: auto;">Hello {{{Site_Visit_Report__c.Supervisor_User__r.Name}}},<br />
+<br />
+<br />
+Great News! The Site Visit Report submitted for the following lead has been approved by the manager.
+<ul>
+	<li><strong>Lead Name::</strong>&nbsp;{{{Site_Visit_Report__c.Lead__r.Name}}}</li>
+	<li><strong>Site Visit Report Name:</strong>:&nbsp;{{{Site_Visit_Report__c.Name}}}</li>
+</ul>
+<br />
+Now it is ready to convert the lead.<br />
+<br />
+<br />
+Thanks,<br />
+Arelia Manager</body>
+</html>

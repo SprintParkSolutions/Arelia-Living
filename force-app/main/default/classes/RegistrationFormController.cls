@@ -3,6 +3,7 @@
  * @description    : Handles registration form operations - email verification and lead creation.
  * @author         : Arelia Living
  */
+@SuppressWarnings('PMD.CognitiveComplexity')
 public without sharing class RegistrationFormController {
 
     private static Id cachedWelcomeTemplateId;
@@ -95,6 +96,7 @@ public without sharing class RegistrationFormController {
             msg.setHtmlBody(htmlBody);
         } else {
             msg.setPlainTextBody(textBody);
+            //System.debug('Hello');
         }
 
         return msg;
@@ -123,27 +125,50 @@ public without sharing class RegistrationFormController {
      * @param payload Map containing firstName, lastName, email, phone.
      * @return Id of the created Lead.
      */
+    
     @AuraEnabled
     public static Id registerLead(Map<String, Object> payload) {
         validatePayload(payload);
 
-        String firstName = (String)payload.get('firstName');
-        String lastName  = (String)payload.get('lastName');
-        String email     = (String)payload.get('email');
-        String phone     = (String)payload.get('phone');
+        String firstName   = (String)payload.get('firstName');
+        String lastName    = (String)payload.get('lastName');
+        String email       = (String)payload.get('email');
+        String phone       = (String)payload.get('phone');
+        String companyName = (String)payload.get('companyName');
 
         validateNameFields(firstName, lastName);
         validateEmail(email);
 
-        Lead leadToInsert = buildLead(firstName, lastName, email, phone);
+        Lead leadToInsert = buildLead(firstName, lastName, email, phone, companyName);
 
         assertCanCreateLead();
-        // Insert in system mode so guest can create Lead (with explicit CRUD check above)
-        Database.insert(leadToInsert, AccessLevel.SYSTEM_MODE);
 
+        // ✅ DMLOptions to allow duplicates (same as UI "Similar Records Exist" warning)
+        Database.DMLOptions dmo = new Database.DMLOptions();
+        dmo.DuplicateRuleHeader.allowSave = true;           // do not block on duplicates
+        dmo.DuplicateRuleHeader.runAsCurrentUser = true;    // evaluate like UI/current user
+
+        // ✅ Most reliable insert signature: Database.insert(list, dmlOptions, accessLevel)
+        Database.SaveResult[] srList = Database.insert(new List<Lead>{ leadToInsert }, dmo,AccessLevel.SYSTEM_MODE);
+
+        if (srList == null || srList.isEmpty() || !srList[0].isSuccess()) {
+            // surface the real error message back to LWC
+            String msg = 'Failed to register. Please try again.';
+            if (srList != null && !srList.isEmpty() && srList[0].getErrors() != null && srList[0].getErrors().size() > 0) {
+                msg = srList[0].getErrors()[0].getMessage();
+            }
+            throw new AuraHandledException(msg);
+        }
+
+        Id leadId = srList[0].getId();
+
+        // keep your existing email logic
+        leadToInsert.Id = leadId;
         sendWelcomeEmailSafely(leadToInsert);
-        return leadToInsert.Id;
+
+        return leadId;
     }
+
 
     /**
      * @description Validates that payload is not null or empty.
@@ -175,13 +200,15 @@ public without sharing class RegistrationFormController {
      * @return Lead record (not yet inserted).
      */
     @SuppressWarnings('PMD.ExcessiveParameterList')
-    private static Lead buildLead(String firstName,String lastName,String email,String phone)
+    private static Lead buildLead(String firstName,String lastName,String email,String phone, String companyName)
     {
+        String finalCompany = String.isBlank(companyName) ? 'Self-'+firstName+' '+lastName : companyName.trim();
         return new Lead(
             FirstName = firstName != null ? firstName.trim() : null,
             LastName  = lastName != null ? lastName.trim() : null,
             Email     = email != null ? email.trim() : null,
-            Phone     = phone
+            Phone     = phone,
+            Company   = finalCompany
         );
     }
 
@@ -192,7 +219,11 @@ public without sharing class RegistrationFormController {
      */
     private static void sendWelcomeEmailSafely(Lead leadRecord) {
         try {
+             // 1) Customer welcome email
             sendWelcomeEmail(leadRecord);
+
+            // 2) Internal notification to enrollment team
+            sendEnrollmentNotification(leadRecord);
         } catch (Exception ex) {
             System.debug('Custom Exception occurred: ' + ex.getMessage());
             // Intentionally ignore email failure – registration succeeded.
@@ -218,14 +249,86 @@ public without sharing class RegistrationFormController {
         }
 
         // Build link: label + ?id=<leadId>
-        String projectRequestLink =
-            System.Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
+        String projectRequestLink = Label.Arelia_Site_Label + Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
 
         // Build recipient name
         String leadName = ((leadRecord.FirstName != null ? leadRecord.FirstName + ' ' : '')
                         + leadRecord.LastName);
 
-        // Build token data (new object to avoid long parameter list)
+        WelcomeTokenData data = new WelcomeTokenData();
+        data.name        = leadName;
+        data.email       = leadRecord.Email;
+        data.phone       = leadRecord.Phone;
+        data.projectLink = projectRequestLink;
+
+        String subject  = template.Subject;
+        String textBody = template.Body;
+        String htmlBody = template.HtmlValue;
+
+        subject  = replaceWelcomeTokens(subject,  data);
+        textBody = replaceWelcomeTokens(textBody, data);
+        htmlBody = replaceWelcomeTokens(htmlBody, data);
+
+        Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
+
+        // 🔹 IMPORTANT: relate email to the Lead so it appears in Activity
+        msg.setTargetObjectId(leadRecord.Id);
+        msg.setTreatTargetObjectAsRecipient(true); // Lead is the actual recipient
+
+        // (Optional, but fine to keep)
+        msg.setToAddresses(new List<String>{ leadRecord.Email });
+
+        if (String.isNotBlank(subject)) {
+            msg.setSubject(subject);
+        }
+
+        if (String.isNotBlank(htmlBody)) {
+            msg.setHtmlBody(htmlBody);
+        } else {
+            msg.setPlainTextBody(textBody);
+        }
+
+        msg.setSaveAsActivity(true);   // now this will WORK because TargetObjectId is set
+        setOrgWideAddressForGuest(msg);
+
+        Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
+    }
+
+
+
+    /**
+     * @description Sends an internal notification email to Arelia Enrollment members
+     * using a separate email template. Recipients are taken from the custom label
+     * Arelia_Living_Enrollment_Members (comma-separated emails).
+     * @param leadRecord Newly registered Lead.
+     */
+    private static void sendEnrollmentNotification(Lead leadRecord) {
+        // Basic guard
+        if (leadRecord == null || leadRecord.Id == null) {
+            return;
+        }
+
+        // Parse enrollment email addresses from label
+        List<String> enrollmentEmails = getEnrollmentEmails();
+        if (enrollmentEmails.isEmpty()) {
+            // No configured recipients – nothing to do
+            return;
+        }
+
+        // Get enrollment template
+        EmailTemplate template = getEnrollmentTemplate();
+        if (template == null) {
+            // No template configured – nothing to do
+            return;
+        }
+
+        String projectRequestLink = Label.Arelia_Site_Label + Label.Arelia_Project_Request_Page_URL + '?id=' + leadRecord.Id;
+
+        // Build customer name
+        String leadName = ((leadRecord.FirstName != null ? leadRecord.FirstName + ' ' : '')
+                        + leadRecord.LastName);
+
+        // Reuse the same DTO used for welcome email
         WelcomeTokenData data = new WelcomeTokenData();
         data.name        = leadName;
         data.email       = leadRecord.Email;
@@ -237,13 +340,14 @@ public without sharing class RegistrationFormController {
         String textBody = template.Body;
         String htmlBody = template.HtmlValue;
 
-        // Replace tokens in subject and bodies
+        // Replace custom tokens
         subject  = replaceWelcomeTokens(subject,  data);
         textBody = replaceWelcomeTokens(textBody, data);
         htmlBody = replaceWelcomeTokens(htmlBody, data);
 
+        // Build message
         Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
-        msg.setToAddresses(new List<String>{ leadRecord.Email });
+        msg.setToAddresses(enrollmentEmails);
 
         if (String.isNotBlank(subject)) {
             msg.setSubject(subject);
@@ -256,11 +360,17 @@ public without sharing class RegistrationFormController {
             msg.setPlainTextBody(textBody);
         }
 
-        msg.setSaveAsActivity(true);
+        // Optional: log as activity on Lead (if you want)
+        msg.setTargetObjectId(leadRecord.Id);
+        msg.setTreatTargetObjectAsRecipient(false);
+        msg.setSaveAsActivity(true); // set true if you want a task on the Lead
+
+        // For guest user, still use OrgWide address
         setOrgWideAddressForGuest(msg);
 
         Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
     }
+
 
     /** Small DTO to prevent long-parameter-list PMD issue */
     private class WelcomeTokenData {
@@ -334,15 +444,29 @@ public without sharing class RegistrationFormController {
             return null;
         }
 
-        List<EmailTemplate> templates = [
-            SELECT Id, Subject, Body, HtmlValue
-            FROM EmailTemplate
-            WHERE DeveloperName = :devName
-            LIMIT 1
-        ];
+        List<EmailTemplate> templates = [SELECT Id, Subject, Body, HtmlValue FROM EmailTemplate
+            WHERE DeveloperName = :devName LIMIT 1];
 
         return templates.isEmpty() ? null : templates[0];
     }
+
+    /**
+     * @description Returns the enrollment notification email template configured via
+     * custom label Registration_Enrollment_Template_DevName.
+     */
+    @SuppressWarnings('PMD.ApexCRUDViolation')
+    private static EmailTemplate getEnrollmentTemplate() {
+        String devName = System.Label.Registration_Enrollment_Template_DevName;
+        if (String.isBlank(devName)) {
+            return null;
+        }
+
+        List<EmailTemplate> templates = [SELECT Id, Subject, Body, HtmlValue FROM EmailTemplate
+            WHERE DeveloperName = :devName LIMIT 1];
+
+        return templates.isEmpty() ? null : templates[0];
+    }
+
 
     /**
      * @description Returns the verification email template configured via
@@ -360,12 +484,8 @@ public without sharing class RegistrationFormController {
             return null;
         }
 
-        List<EmailTemplate> templates = [
-            SELECT Id, Subject, Body, HtmlValue
-            FROM EmailTemplate
-            WHERE DeveloperName = :devName
-            LIMIT 1
-        ];
+        List<EmailTemplate> templates = [SELECT Id, Subject, Body, HtmlValue FROM EmailTemplate
+            WHERE DeveloperName = :devName LIMIT 1];
 
         if (templates.isEmpty()) {
             return null;
@@ -377,7 +497,6 @@ public without sharing class RegistrationFormController {
 
     /**
      * @description Sets Org-Wide Email Address Id for guest users using
-     * custom label Registration_Verification_From_Address.
      * @param msg Email message to update.
      */
     private static void setOrgWideAddressForGuest(Messaging.SingleEmailMessage msg) {
@@ -392,15 +511,38 @@ public without sharing class RegistrationFormController {
     }
 
     /**
-     * @description Returns Org-Wide Email Address Id configured in
-     * custom label Registration_Verification_From_Address.
-     * @return Org-Wide Email Address Id or null when not configured.
+     * @description Gets Org-Wide Email Address ID used for outbound emails.
      */
     private static Id getOrgWideEmailAddressId() {
-        String idStr = System.Label.Registration_Verification_From_Address;
-        if (String.isBlank(idStr)) {
-            return null;
-        }
-        return (Id)idStr.trim();
+        List<OrgWideEmailAddress> oweaList = [SELECT Id FROM OrgWideEmailAddress
+            WHERE Address = :Label.Arelia_OWD AND IsAllowAllProfiles = true LIMIT 1];
+        return oweaList.isEmpty() ? null : oweaList[0].Id;
     }
+
+    /**
+     * @description Parses comma-separated enrollment member emails from
+     * custom label Arelia_Living_Enrollment_Members.
+     * @return List of trimmed email addresses.
+     */
+    private static List<String> getEnrollmentEmails() {
+        List<String> result = new List<String>();
+
+        String raw = System.Label.Arelia_Living_Enrollment_Members;
+        if (String.isBlank(raw)) {
+            return result;
+        }
+
+        for (String part : raw.split(',')) {
+            if (String.isNotBlank(part)) {
+                String email = part.trim();
+                // Very light validation – same as other checks
+                if (email.contains('@') && email.contains('.')) {
+                    result.add(email);
+                }
+            }
+        }
+
+        return result;
+    }
+
 }

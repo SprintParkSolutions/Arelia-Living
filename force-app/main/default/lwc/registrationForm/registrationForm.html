@@ -23,19 +23,29 @@
                                 <lightning-input label="First Name" name="firstName" value={firstName}
                                     onchange={handleInputChange} required>
                                 </lightning-input>
+                                <div class="slds-text-color_error slds-text-body_small">{firstNameError}</div>
                             </div>
 
                             <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                                 <lightning-input label="Last Name" name="lastName" value={lastName}
                                     onchange={handleInputChange} required>
                                 </lightning-input>
+                                <div class="slds-text-color_error slds-text-body_small">{lastNameError}</div>
                             </div>
 
-                            <div class="slds-col slds-size_1-of-1">
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                                 <lightning-input label="Email" name="email" data-id="emailInput" type="email"
                                     value={email} onchange={handleInputChange} required>
                                 </lightning-input>
                             </div>
+
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                <lightning-input label="Company Name (Optional)" name="companyName" value={companyName}
+                                    onchange={handleInputChange}>
+                                </lightning-input>
+                                <div class="field-help">If not provided, we'll use <b>Self</b>.</div>
+                            </div>
+
 
                             <div class="slds-col slds-size_1-of-1">
                                 <div class="phone-row">
@@ -58,9 +68,10 @@
                     <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2 section-block">
                         <h2 class="section-title">Email Verification</h2>
                         <p class="section-help">
-                            Click <strong>Send Code</strong>. We’ll email a 6-digit code. Enter it and click
-                            <strong>Verify Code</strong> before submitting the form.
+                            Click <strong>Send Code</strong> to receive a 6-digit code. Enter it and click
+                            <strong>Verify Code</strong>. After verification, you can register.
                         </p>
+
 
                         <div class="summary-block">
                             <div class="summary-label">Email to verify</div>
@@ -79,7 +90,7 @@
 
                             <div class="slds-col slds-size_1-of-1">
                                 <div class="verification-buttons">
-                                    <lightning-button label={sendCodeButtonLabel} variant="neutral"
+                                    <lightning-button label={sendCodeButtonLabel} variant="brand"
                                         onclick={handleSendCode} disabled={isSendCodeDisabled}>
                                     </lightning-button>
 
@@ -101,8 +112,9 @@
                                 <span>Resend available in {resendTimer} seconds.</span>
                             </template>
                             <template if:false={resendTimerActive}>
-                                <span>Didn’t receive the code? Click <b>Send Code</b> again.</span>
+                                <span>Didn’t receive the code? Click <b>Resend Code</b>.</span>
                             </template>
+
                         </div>
                     </div>
                 </div>
