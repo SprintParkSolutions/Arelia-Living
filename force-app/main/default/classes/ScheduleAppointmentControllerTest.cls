@@ -1,33 +1,37 @@
-@isTest
+@IsTest
+@SuppressWarnings('PMD.CognitiveComplexity,PMD.MethodNamingConventions')
 public class ScheduleAppointmentControllerTest {
 
     @testSetup
     static void setupData() {
-        // 1. Create Supervisor User
         User supervisor = TestDataUtility.createSupervisorUser('SupUser');
-        
-        // Ensure Supervisor has the required Phone field populated
         supervisor.Phone = '555-123-4567';
         update supervisor;
 
-        // 2. Create Email Templates (in runAs to avoid Mixed DML)
         System.runAs(new User(Id = UserInfo.getUserId())) {
             List<EmailTemplate> templates = new List<EmailTemplate>();
-            
+
             EmailTemplate t1 = new EmailTemplate();
             t1.DeveloperName = Label.Arelia_Living_Lead_Site_Visiting_Email_Template;
-            t1.Name = 'Lead Template';
-            t1.Subject = 'Lead Visit {{{appointmentDate}}}';
-            t1.HtmlValue = 'Hi {{{Recipient.Name}}}, visit on {{{appointmentDate}}} at {{{timeSlot}}}';
+            t1.Name = 'Lead Appointment Template';
+            t1.Subject = 'Lead Visit {{{appointmentDate}}} {{{appointmentType}}}';
+            t1.HtmlValue =
+                'Hi {{{Recipient.Name}}}, ' +
+                'visit on {{{appointmentDate}}} at {{{timeSlot}}}. ' +
+                'Type {{{appointmentType}}}. ' +
+                'Supervisor {{{Supervisor_User__c.Name}}} / {{{Supervisor_User__c.Email}}} / {{{Supervisor_User__c.Phone}}}. ' +
+                'Link {{{appointmentApprovalLink}}}';
             t1.TemplateType = 'text';
             t1.FolderId = UserInfo.getUserId();
             templates.add(t1);
 
             EmailTemplate t2 = new EmailTemplate();
             t2.DeveloperName = Label.Arelia_Living_Supervisor_Site_Visiting_Email_Template;
-            t2.Name = 'Supervisor Template';
-            t2.Subject = 'Sup Visit {{{appointmentDate}}}';
-            t2.HtmlValue = 'Hi {{{Recipient.Name}}}, lead visit {{{leadName}}} on {{{appointmentDate}}}';
+            t2.Name = 'Supervisor Appointment Template';
+            t2.Subject = 'Supervisor Visit {{{appointmentDate}}} {{{appointmentType}}}';
+            t2.HtmlValue =
+                'Hi {{{Recipient.Name}}}, lead {{{leadName}}} visit on {{{appointmentDate}}} at {{{timeSlot}}}. ' +
+                'Type {{{appointmentType}}}, email {{{leadEmail}}}';
             t2.TemplateType = 'text';
             t2.FolderId = UserInfo.getUserId();
             templates.add(t2);
@@ -35,177 +39,326 @@ public class ScheduleAppointmentControllerTest {
             insert templates;
         }
 
-        // 3. Create Lead assigned to Supervisor
         Lead l = new Lead(
             FirstName = 'Test',
             LastName = 'Lead',
             Company = 'Test Company',
             Email = 'test@lead.com',
             Supervisor_User__c = supervisor.Id,
-            Status = 'Open'
+            Status = 'Open - Not Contacted'
         );
         insert l;
     }
 
-    @isTest
-    static void testScheduleSuccess() {
-        Lead l = [SELECT Id, Supervisor_User__c FROM Lead LIMIT 1];
-        
-        String futureDate = String.valueOf(Date.today().addDays(5));
-        
-        // FIX: Dynamically fetch a VALID slot and type from the system to avoid Restricted Picklist errors
+    private static String getAnyValidSlot() {
         List<String> validSlots = ScheduleAppointmentController.getTimeSlotsPicklistValues();
+        return validSlots.isEmpty() ? '9AM-10AM' : validSlots[0];
+    }
+
+    private static String getAnyValidType() {
         List<String> validTypes = ScheduleAppointmentController.getAppointmentTypesPicklistValues();
-        
-        // Fallback to defaults if list is somehow empty (unlikely)
-        String slot = validSlots.isEmpty() ? '9AM-10AM' : validSlots[0];
-        String type = validTypes.isEmpty() ? 'In Person' : validTypes[0];
+        return validTypes.isEmpty() ? 'New' : validTypes[0];
+    }
+
+    private static String getFollowupType() {
+        List<String> validTypes = ScheduleAppointmentController.getAppointmentTypesPicklistValues();
+        for (String val : validTypes) {
+            if (val != null && val.toLowerCase().contains('follow')) {
+                return val;
+            }
+        }
+        return validTypes.isEmpty() ? 'Followup' : validTypes[0];
+    }
+
+    private static Lead createLeadWithSupervisor(String emailValue) {
+        User supervisor = [
+            SELECT Id
+            FROM User
+            WHERE Phone = '555-123-4567'
+            LIMIT 1
+        ];
+
+        Lead l = new Lead(
+            FirstName = 'Extra',
+            LastName = 'Lead',
+            Company = 'Extra Company',
+            Email = emailValue,
+            Supervisor_User__c = supervisor.Id,
+            Status = 'Open - Not Contacted'
+        );
+        insert l;
+        return l;
+    }
+
+    @IsTest
+    static void testScheduleSuccess_NewAppointment() {
+        Lead l = [SELECT Id, Supervisor_User__c FROM Lead LIMIT 1];
+
+        String futureDate = String.valueOf(Date.today().addDays(5));
+        String slot = getAnyValidSlot();
+        String typeValue = getAnyValidType();
 
         Test.startTest();
         ScheduleAppointmentController.scheduleAppointmentAndSendEmails(
-            l.Id, 
-            l.Supervisor_User__c, 
-            futureDate, 
-            slot, 
-            type
+            l.Id,
+            l.Supervisor_User__c,
+            futureDate,
+            slot,
+            typeValue
         );
         Test.stopTest();
 
-        // Verify Lead was updated
-        Lead updatedLead = [SELECT Appointment_Date__c, Appointment_Time_Slots__c, Appointment_Confirmation_Type__c, Appointment_Sent_date__c FROM Lead WHERE Id = :l.Id];
-        System.assertEquals(Date.today().addDays(5), updatedLead.Appointment_Date__c, 'Appointment Date should be updated');
-        System.assertEquals(slot, updatedLead.Appointment_Time_Slots__c, 'Time Slot should be updated');
-        System.assertEquals(type, updatedLead.Appointment_Confirmation_Type__c, 'Confirmation Type should be updated');
-        System.assertEquals(System.today(), updatedLead.Appointment_Sent_date__c, 'Sent Date should be today');
+        Lead updatedLead = [
+            SELECT Appointment_Date__c,
+                   Appointment_Time_Slots__c,
+                   Appointment_Confirmation_Type__c,
+                   Appointment_Sent_date__c,
+                   Appointment_Completed__c
+            FROM Lead
+            WHERE Id = :l.Id
+        ];
+
+        System.assertEquals(Date.today().addDays(5), updatedLead.Appointment_Date__c, 'Appointment date should be updated');
+        System.assertEquals(slot, updatedLead.Appointment_Time_Slots__c, 'Appointment slot should be updated');
+        System.assertEquals(typeValue, updatedLead.Appointment_Confirmation_Type__c, 'Appointment type should be updated');
+        System.assertEquals(false, updatedLead.Appointment_Completed__c, 'Appointment completed status should be false');
+        System.assertEquals(Date.today(), updatedLead.Appointment_Sent_date__c, 'Appointment sent date should be today');
     }
 
-    @isTest
+    @IsTest
+    static void testScheduleSuccess_FollowupAppointment() {
+        Lead l = [SELECT Id, Supervisor_User__c FROM Lead LIMIT 1];
+
+        String slot = getAnyValidSlot();
+        String followupType = getFollowupType();
+
+        Test.startTest();
+        ScheduleAppointmentController.scheduleAppointmentAndSendEmails(
+            l.Id,
+            l.Supervisor_User__c,
+            String.valueOf(Date.today().addDays(7)),
+            slot,
+            followupType
+        );
+        Test.stopTest();
+
+        Lead updatedLead = [
+            SELECT Appointment_Date__c,
+                   Appointment_Time_Slots__c,
+                   Appointment_Confirmation_Type__c,
+                   Appointment_Sent_date__c
+            FROM Lead
+            WHERE Id = :l.Id
+        ];
+
+        System.assertEquals(Date.today().addDays(7), updatedLead.Appointment_Date__c, 'Appointment date should be updated');
+        System.assertEquals(slot, updatedLead.Appointment_Time_Slots__c, 'Appointment slot should be updated');
+        System.assertEquals(followupType, updatedLead.Appointment_Confirmation_Type__c, 'Appointment type should be updated');
+        System.assertEquals(Date.today(), updatedLead.Appointment_Sent_date__c, 'Appointment sent date should be today');
+    }
+
+    @IsTest
     static void testSlotConflict() {
         Lead l1 = [SELECT Id, Supervisor_User__c FROM Lead LIMIT 1];
-        
-        // FIX: Dynamically fetch valid slot
-        List<String> validSlots = ScheduleAppointmentController.getTimeSlotsPicklistValues();
-        String conflictSlot = validSlots.isEmpty() ? '2PM-3PM' : validSlots[0];
+        String conflictSlot = getAnyValidSlot();
 
-        // Create a SECOND lead for the conflict
         Lead l2 = new Lead(
             FirstName = 'Conflict',
             LastName = 'Lead',
             Company = 'Conflict Co',
             Email = 'conflict@test.com',
-            Supervisor_User__c = l1.Supervisor_User__c, 
-            Appointment_Status__c = 'Approved', 
+            Supervisor_User__c = l1.Supervisor_User__c,
+            Appointment_Status__c = 'Approved',
             Appointment_Date__c = Date.today().addDays(3),
-            Appointment_Time_Slots__c = conflictSlot
+            Appointment_Time_Slots__c = conflictSlot,
+            Status = 'Open - Not Contacted'
         );
         insert l2;
 
         Test.startTest();
+        Boolean exceptionThrown = false;
         try {
-            // Try to schedule l1 for the same time
             ScheduleAppointmentController.scheduleAppointmentAndSendEmails(
-                l1.Id, 
-                l1.Supervisor_User__c, 
-                String.valueOf(Date.today().addDays(3)), 
-                conflictSlot, 
-                'Virtual' // Type doesn't matter for this check as it fails before update
+                l1.Id,
+                l1.Supervisor_User__c,
+                String.valueOf(Date.today().addDays(3)),
+                conflictSlot,
+                getAnyValidType()
             );
-            System.assert(false, 'Should have thrown exception due to conflict');
-        } catch(AuraHandledException e) {
-            System.assert(true, 'Expected AuraHandledException was thrown');
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
         }
         Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'Scheduling should fail due to slot conflict');
     }
 
-    @isTest
+    @IsTest
     static void testInputValidationMissingFields() {
         Lead l = [SELECT Id, Supervisor_User__c FROM Lead LIMIT 1];
-        
-        // Helper to get a valid slot string
-        List<String> validSlots = ScheduleAppointmentController.getTimeSlotsPicklistValues();
-        String validSlot = validSlots.isEmpty() ? '9AM-10AM' : validSlots[0];
+        String validSlot = getAnyValidSlot();
 
         Test.startTest();
-        // 1. Missing Date
-        try {
-            ScheduleAppointmentController.scheduleAppointmentAndSendEmails(l.Id, l.Supervisor_User__c, null, validSlot, 'Type');
-            System.assert(false, 'Should fail missing date');
-        } catch(AuraHandledException e) {
-            System.assert(true, 'Expected AuraHandledException for missing date');
-        }
 
-        // 2. Missing Slot
-        try {
-            ScheduleAppointmentController.scheduleAppointmentAndSendEmails(l.Id, l.Supervisor_User__c, '2025-01-01', null, 'Type');
-            System.assert(false, 'Should fail missing slot');
-        } catch(AuraHandledException e) {
-            System.assert(true, 'Expected AuraHandledException for missing slot');
-        }
-
-        // 3. Missing Type
-        try {
-            ScheduleAppointmentController.scheduleAppointmentAndSendEmails(l.Id, l.Supervisor_User__c, '2025-01-01', validSlot, null);
-            System.assert(false, 'Should fail missing type');
-        } catch(AuraHandledException e) {
-            System.assert(true, 'Expected AuraHandledException for missing type');
-        }
-        Test.stopTest();
-    }
-
-    @isTest
-    static void testInputValidationPastDate() {
-        Lead l = [SELECT Id, Supervisor_User__c FROM Lead LIMIT 1];
-        String pastDate = String.valueOf(Date.today().addDays(-1));
-        
-        List<String> validSlots = ScheduleAppointmentController.getTimeSlotsPicklistValues();
-        String validSlot = validSlots.isEmpty() ? '9AM-10AM' : validSlots[0];
-
-        Test.startTest();
+        Boolean missingDateThrown = false;
         try {
             ScheduleAppointmentController.scheduleAppointmentAndSendEmails(
-                l.Id, l.Supervisor_User__c, pastDate, validSlot, 'In Person'
+                l.Id, l.Supervisor_User__c, null, validSlot, getAnyValidType()
             );
-            System.assert(false, 'Should fail on past date');
-        } catch(AuraHandledException e) {
-            System.assert(true, 'Expected AuraHandledException for past date');
+        } catch (AuraHandledException e) {
+            missingDateThrown = true;
         }
+
+        Boolean missingSlotThrown = false;
+        try {
+            ScheduleAppointmentController.scheduleAppointmentAndSendEmails(
+                l.Id, l.Supervisor_User__c, String.valueOf(Date.today().addDays(2)), null, getAnyValidType()
+            );
+        } catch (AuraHandledException e) {
+            missingSlotThrown = true;
+        }
+
+        Boolean missingTypeThrown = false;
+        try {
+            ScheduleAppointmentController.scheduleAppointmentAndSendEmails(
+                l.Id, l.Supervisor_User__c, String.valueOf(Date.today().addDays(2)), validSlot, null
+            );
+        } catch (AuraHandledException e) {
+            missingTypeThrown = true;
+        }
+
         Test.stopTest();
+
+        System.assertEquals(true, missingDateThrown, 'Scheduling should fail due to missing date');
+        System.assertEquals(true, missingSlotThrown, 'Scheduling should fail due to missing time slot');
+        System.assertEquals(true, missingTypeThrown, 'Scheduling should fail due to missing appointment type');
     }
 
-    @isTest
-    static void testDataValidationMissingSupervisor() {
-        List<String> validSlots = ScheduleAppointmentController.getTimeSlotsPicklistValues();
-        String validSlot = validSlots.isEmpty() ? '9AM-10AM' : validSlots[0];
+    @IsTest
+    static void testInputValidationPastDate() {
+        Lead l = [SELECT Id, Supervisor_User__c FROM Lead LIMIT 1];
 
-        // Create a lead WITHOUT a supervisor
+        Test.startTest();
+        Boolean exceptionThrown = false;
+        try {
+            ScheduleAppointmentController.scheduleAppointmentAndSendEmails(
+                l.Id,
+                l.Supervisor_User__c,
+                String.valueOf(Date.today().addDays(-1)),
+                getAnyValidSlot(),
+                getAnyValidType()
+            );
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'Scheduling should fail due to past date');
+    }
+
+    @IsTest
+    static void testDataValidationMissingSupervisor() {
         Lead orphanedLead = new Lead(
             FirstName = 'Orphan',
             LastName = 'Lead',
             Company = 'Orphan Co',
-            Email = 'orphan@test.com'
+            Email = 'orphan@test.com',
+            Status = 'Open - Not Contacted'
         );
         insert orphanedLead;
 
         Test.startTest();
+        Boolean exceptionThrown = false;
         try {
             ScheduleAppointmentController.scheduleAppointmentAndSendEmails(
-                orphanedLead.Id, null, String.valueOf(Date.today().addDays(2)), validSlot, 'Type'
+                orphanedLead.Id,
+                null,
+                String.valueOf(Date.today().addDays(2)),
+                getAnyValidSlot(),
+                getAnyValidType()
             );
-            System.assert(false, 'Should fail due to missing supervisor');
-        } catch(AuraHandledException e) {
-            System.assert(true, 'Expected exception due to missing supervisor'); 
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
         }
         Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'Scheduling should fail due to missing supervisor');
     }
-    
-    @isTest
+
+    @IsTest
+    static void testDataValidationMissingLeadEmail() {
+        Lead l = createLeadWithSupervisor(null);
+
+        Test.startTest();
+        Boolean exceptionThrown = false;
+        try {
+            ScheduleAppointmentController.scheduleAppointmentAndSendEmails(
+                l.Id,
+                l.Supervisor_User__c,
+                String.valueOf(Date.today().addDays(4)),
+                getAnyValidSlot(),
+                getAnyValidType()
+            );
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'Scheduling should fail due to missing lead email');
+    }
+
+    @IsTest
+    static void testTodayInvalidTimeFormat() {
+        Lead l = createLeadWithSupervisor('badformat@test.com');
+
+        Test.startTest();
+        Boolean exceptionThrown = false;
+        try {
+            ScheduleAppointmentController.scheduleAppointmentAndSendEmails(
+                l.Id,
+                l.Supervisor_User__c,
+                String.valueOf(Date.today()),
+                'INVALID_SLOT',
+                getAnyValidType()
+            );
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'Scheduling should fail due to invalid time slot format');
+    }
+
+    @IsTest
+    static void testTodayPastTimeSlot() {
+        Lead l = createLeadWithSupervisor('pastslot@test.com');
+
+        Test.startTest();
+        Boolean exceptionThrown = false;
+        try {
+            ScheduleAppointmentController.scheduleAppointmentAndSendEmails(
+                l.Id,
+                l.Supervisor_User__c,
+                String.valueOf(Date.today()),
+                '12AM-1AM',
+                getAnyValidType()
+            );
+        } catch (AuraHandledException e) {
+            exceptionThrown = true;
+        }
+        Test.stopTest();
+
+        System.assertEquals(true, exceptionThrown, 'Scheduling should fail due to past time slot');
+    }
+
+    @IsTest
     static void testPicklistHelpers() {
         Test.startTest();
         List<String> slots = ScheduleAppointmentController.getTimeSlotsPicklistValues();
         List<String> types = ScheduleAppointmentController.getAppointmentTypesPicklistValues();
         Test.stopTest();
-        
-        System.assertNotEquals(null, slots, 'Time Slots should return a list');
-        System.assertNotEquals(null, types, 'Appointment Types should return a list');
+
+        System.assertNotEquals(null, slots, 'Time slots picklist values should be returned');
+        System.assertNotEquals(null, types, 'Appointment types picklist values should be returned');
     }
 }

@@ -398,4 +398,228 @@ public without sharing class LeadEmailHandler {
 
         return result;
     }
+
+    /**
+    * Called after Lead insert.
+    * Sends:
+    * 1) Welcome email to customer
+    * 2) Enrollment notification email to enrollment members
+    *
+    * Uses the same template labels currently used in RegistrationFormController:
+    * - Registration_Welcome_Template_DevName
+    * - Registration_Enrollment_Template_DevName
+    */
+    public static void sendRegistrationEmailsOnCreate(List<Lead> leadRecords) {
+        if (leadRecords == null || leadRecords.isEmpty()) {
+            return;
+        }
+
+        try {
+            List<Messaging.SingleEmailMessage> emailMessages = new List<Messaging.SingleEmailMessage>();
+
+            EmailTemplate welcomeTemplate = getRegistrationWelcomeTemplate();
+            EmailTemplate enrollmentTemplate = getRegistrationEnrollmentTemplate();
+            List<String> enrollmentEmails = getRegistrationEnrollmentEmails();
+
+            for (Lead leadRecord : leadRecords) {
+                if (leadRecord == null || leadRecord.Id == null) {
+                    continue;
+                }
+
+                String projectRequestLink =
+                    Label.Arelia_Site_Label +
+                    Label.Arelia_Project_Request_Page_URL +
+                    '?id=' + leadRecord.Id;
+
+                String leadName =
+                    ((leadRecord.FirstName != null ? leadRecord.FirstName + ' ' : '') +
+                    (leadRecord.LastName != null ? leadRecord.LastName : '')).trim();
+
+                RegistrationTokenData data = new RegistrationTokenData();
+                data.name = leadName;
+                data.email = leadRecord.Email;
+                data.phone = leadRecord.Phone;
+                data.projectLink = projectRequestLink;
+
+                // 1) Customer welcome email
+                if (welcomeTemplate != null && String.isNotBlank(leadRecord.Email)) {
+                    Messaging.SingleEmailMessage customerEmail =
+                        prepareRegistrationWelcomeEmail(leadRecord, welcomeTemplate, data);
+                    if (customerEmail != null) {
+                        emailMessages.add(customerEmail);
+                    }
+                }
+
+                // 2) Enrollment team email
+                if (enrollmentTemplate != null && !enrollmentEmails.isEmpty()) {
+                    Messaging.SingleEmailMessage enrollmentEmail =
+                        prepareRegistrationEnrollmentEmail(leadRecord, enrollmentTemplate, enrollmentEmails, data);
+                    if (enrollmentEmail != null) {
+                        emailMessages.add(enrollmentEmail);
+                    }
+                }
+            }
+
+            if (!emailMessages.isEmpty()) {
+                sendEmails(emailMessages);
+            }
+
+        } catch (Exception ex) {
+            throw new AuraHandledException(
+                'Failed to send registration emails: ' + ex.getMessage()
+            );
+        }
+    }
+
+    private static Messaging.SingleEmailMessage prepareRegistrationWelcomeEmail(
+        Lead leadRecord,
+        EmailTemplate template,
+        RegistrationTokenData data
+    ) {
+        if (leadRecord == null || leadRecord.Id == null || String.isBlank(leadRecord.Email) || template == null) {
+            return null;
+        }
+
+        String subject  = replaceRegistrationTokens(template.Subject, data);
+        String textBody = replaceRegistrationTokens(template.Body, data);
+        String htmlBody = replaceRegistrationTokens(template.HtmlValue, data);
+
+        Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
+        msg.setTargetObjectId(leadRecord.Id);
+        msg.setTreatTargetObjectAsRecipient(true);
+        msg.setToAddresses(new List<String>{ leadRecord.Email });
+
+        if (String.isNotBlank(subject)) {
+            msg.setSubject(subject);
+        }
+
+        if (String.isNotBlank(htmlBody)) {
+            msg.setHtmlBody(htmlBody);
+        } else {
+            msg.setPlainTextBody(textBody);
+        }
+
+        msg.setSaveAsActivity(true);
+
+        Id orgWideId = getDefaultOrgWideEmailAddressId();
+        if (orgWideId != null) {
+            msg.setOrgWideEmailAddressId(orgWideId);
+        }
+
+        return msg;
+    }
+
+    private static Messaging.SingleEmailMessage prepareRegistrationEnrollmentEmail(
+        Lead leadRecord,
+        EmailTemplate template,
+        List<String> enrollmentEmails,
+        RegistrationTokenData data
+    ) {
+        if (leadRecord == null || leadRecord.Id == null || template == null || enrollmentEmails == null || enrollmentEmails.isEmpty()) {
+            return null;
+        }
+
+        String subject  = replaceRegistrationTokens(template.Subject, data);
+        String textBody = replaceRegistrationTokens(template.Body, data);
+        String htmlBody = replaceRegistrationTokens(template.HtmlValue, data);
+
+        Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
+        msg.setToAddresses(enrollmentEmails);
+        msg.setTargetObjectId(leadRecord.Id);
+        msg.setTreatTargetObjectAsRecipient(false);
+
+        if (String.isNotBlank(subject)) {
+            msg.setSubject(subject);
+        }
+
+        if (String.isNotBlank(htmlBody)) {
+            msg.setHtmlBody(htmlBody);
+        } else {
+            msg.setPlainTextBody(textBody);
+        }
+
+        msg.setSaveAsActivity(true);
+
+        Id orgWideId = getDefaultOrgWideEmailAddressId();
+        if (orgWideId != null) {
+            msg.setOrgWideEmailAddressId(orgWideId);
+        }
+
+        return msg;
+    }
+
+    private class RegistrationTokenData {
+        String name;
+        String email;
+        String phone;
+        String projectLink;
+    }
+
+    private static String replaceRegistrationTokens(String source, RegistrationTokenData data) {
+        if (String.isBlank(source)) {
+            return source;
+        }
+
+        String result = source;
+        result = result.replace('{{{Recipient.Name}}}',  data.name == null ? '' : data.name);
+        result = result.replace('{{{Recipient.Email}}}', data.email == null ? '' : data.email);
+        result = result.replace('{{{Recipient.Phone}}}', data.phone == null ? '' : data.phone);
+        result = result.replace('{{{ProjectRequestLink}}}', data.projectLink == null ? '' : data.projectLink);
+
+        return result;
+    }
+
+    @SuppressWarnings('PMD.ApexCRUDViolation')
+    private static EmailTemplate getRegistrationWelcomeTemplate() {
+        String devName = Label.Registration_Welcome_Template_DevName;
+        if (String.isBlank(devName)) {
+            return null;
+        }
+
+        List<EmailTemplate> templates = [
+            SELECT Id, Subject, Body, HtmlValue
+            FROM EmailTemplate
+            WHERE DeveloperName = :devName
+            LIMIT 1
+        ];
+
+        return templates.isEmpty() ? null : templates[0];
+    }
+
+    @SuppressWarnings('PMD.ApexCRUDViolation')
+    private static EmailTemplate getRegistrationEnrollmentTemplate() {
+        String devName = Label.Registration_Enrollment_Template_DevName;
+        if (String.isBlank(devName)) {
+            return null;
+        }
+
+        List<EmailTemplate> templates = [
+            SELECT Id, Subject, Body, HtmlValue
+            FROM EmailTemplate
+            WHERE DeveloperName = :devName
+            LIMIT 1
+        ];
+
+        return templates.isEmpty() ? null : templates[0];
+    }
+
+    private static List<String> getRegistrationEnrollmentEmails() {
+        List<String> result = new List<String>();
+
+        String raw = Label.Arelia_Living_Enrollment_Members;
+        if (String.isBlank(raw)) {
+            return result;
+        }
+
+        for (String part : raw.split(',')) {
+            if (String.isNotBlank(part)) {
+                String email = part.trim();
+                if (email.contains('@') && email.contains('.')) {
+                    result.add(email);
+                }
+            }
+        }
+
+        return result;
+    }
 }

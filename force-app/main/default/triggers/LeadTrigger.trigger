@@ -4,20 +4,27 @@
  *              - On Update:
  *                  • When Project_Request_Submitted__c becomes true -> email enrollment/management
  *                  • When Approval_Status__c becomes 'Approved' -> email Lead
+ *                  • When appointment fields change -> send appointment emails
  *              - On Supervisor assignment change, call assignment handler in bulk.
- * @version     3.0
+ * @version     4.0
  */
-trigger LeadTrigger on Lead (before insert, after insert, after update) {// NOPMD
+trigger LeadTrigger on Lead (before insert, after insert, after update) { // NOPMD
+
+    if (Trigger.isAfter && Trigger.isInsert) {
+        LeadEmailHandler.sendRegistrationEmailsOnCreate(Trigger.new);
+    }
+
     if (Trigger.isAfter && Trigger.isUpdate) {
 
         List<Lead> submittedLeads = new List<Lead>();
         List<Lead> approvedLeads  = new List<Lead>();
         List<Lead> leadsForSupervisorAssignment = new List<Lead>();
+        List<Lead> appointmentLeads = new List<Lead>();
 
         for (Lead leadRecord : Trigger.new) {
             Lead oldRecord = Trigger.oldMap.get(leadRecord.Id);
 
-            // 1️⃣ When record is submitted: Project_Request_Submitted__c goes from false -> true
+            // 1. Submission logic
             Boolean wasSubmitted = (oldRecord != null && oldRecord.Project_Request_Submitted__c == true);
             Boolean isSubmitted  = (leadRecord.Project_Request_Submitted__c == true);
 
@@ -25,42 +32,49 @@ trigger LeadTrigger on Lead (before insert, after insert, after update) {// NOPM
                 submittedLeads.add(leadRecord);
             }
 
-            // 2️⃣ When record is approved: Approval_Status__c goes from not Approved -> Approved
+            // 2. Approval logic
             String oldStatus = (oldRecord == null) ? null : oldRecord.Approval_Status__c;
             String newStatus = leadRecord.Approval_Status__c;
 
             if (newStatus == 'Approved' &&
                 oldStatus != 'Approved' &&
-                String.isNotBlank(leadRecord.Email))
-            {
+                String.isNotBlank(leadRecord.Email)) {
                 approvedLeads.add(leadRecord);
             }
 
-            // 3️⃣ Supervisor assignment logic – collect for bulk call
+            // 3. Supervisor assignment logic
             if (String.isNotBlank(leadRecord.Supervisor_User__c)) {
                 String oldSupervisorId = (oldRecord == null) ? null : oldRecord.Supervisor_User__c;
                 if (leadRecord.Supervisor_User__c != oldSupervisorId) {
                     leadsForSupervisorAssignment.add(leadRecord);
                 }
             }
+
+            // 4. Appointment email logic
+            if (LeadAppointmentEmailHandler.shouldSendAppointmentEmail(leadRecord, oldRecord)) {
+                appointmentLeads.add(leadRecord);
+            }
         }
 
-        // 🔹 Bulk email for submission
         if (!submittedLeads.isEmpty()) {
             LeadEmailHandler.sendEnrollmentEmailOnSubmission(submittedLeads);
         }
 
-        // 🔹 Bulk email for approval
         if (!approvedLeads.isEmpty()) {
             LeadEmailHandler.sendLeadEmailOnApproval(approvedLeads);
         }
 
-        // 🔹 Bulk supervisor assignment handling
         if (!leadsForSupervisorAssignment.isEmpty()) {
             LeadAssignmentEmailHandler.handleSupervisorAssignment(
                 leadsForSupervisorAssignment,
                 Trigger.oldMap
             );
         }
+
+        if (!appointmentLeads.isEmpty()) {
+            LeadAppointmentEmailHandler.sendAppointmentEmailsOnUpdate(appointmentLeads);
+        }
+
+        WhatsAppChatRelinker.onAfterUpdate(Trigger.new, Trigger.oldMap);
     }
 }
