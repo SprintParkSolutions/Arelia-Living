@@ -136,11 +136,8 @@ public without sharing class LeadAssignmentEmailHandler {
      * @return The OrgWideEmailAddress Id if found; otherwise, null.
      */
     private static Id getDefaultOrgWideEmailAddressId() {
-        List<OrgWideEmailAddress> oweaList = [
-            SELECT Id FROM OrgWideEmailAddress
-            WHERE Address =: Label.Arelia_OWD AND IsAllowAllProfiles = true
-            LIMIT 1
-        ];
+        List<OrgWideEmailAddress> oweaList = [SELECT Id FROM OrgWideEmailAddress
+                    WHERE Address =: Label.Arelia_OWD LIMIT 1];
         return oweaList.isEmpty() ? null : oweaList[0].Id;
     }
 }

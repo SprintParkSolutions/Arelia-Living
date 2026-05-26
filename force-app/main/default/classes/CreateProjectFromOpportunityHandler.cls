@@ -18,11 +18,8 @@
     
         // ---------- Orchestrator: AFTER INSERT (send customer email) ----------
         public static void handleAfterInsert(List<Opportunity> newList) {
-            System.debug('CreateProjectFromOpportunityHandler.handleAfterInsert START, size=' +
-                        (newList == null ? 0 : newList.size()));
     
             if (newList == null || newList.isEmpty()) {
-                System.debug('Send email 23:: No opportunities in trigger; exiting.');
                 return;
             }
     
@@ -35,18 +32,10 @@
             }
     
             // Query only fields required for email sending
-            List<Opportunity> opps = [SELECT Id,
-                    Email__c,
-                    Primary_Contact__c,
-                    Primary_Contact__r.Email,
-                    Supervisor_User__c,
-                    Supervisor_User__r.Email                  
-                FROM Opportunity
-                WHERE Id IN :oppIdsWithPrimaryContact
-            ];
-            System.debug('Send email 44::opps data::'+opps);
+            List<Opportunity> opps = [SELECT Id,Email__c,Primary_Contact__c,Primary_Contact__r.Email,
+                        Supervisor_User__c,Supervisor_User__r.Email                  
+                        FROM Opportunity WHERE Id IN :oppIdsWithPrimaryContact];
             if (opps.isEmpty()) {
-                System.debug('Send email 45:: Query returned no opportunities; exiting.');
                 return;
             }
     
@@ -54,79 +43,78 @@
             List<Messaging.SingleEmailMessage> mails = new List<Messaging.SingleEmailMessage>();
     
             Id owdId = getDefaultOrgWideEmailAddressId();
-            System.debug('OrgWideEmailAddress Id resolved as: ' + owdId);
     
-            List<EmailTemplate> templateList = [
-                SELECT Id
-                FROM EmailTemplate
-                WHERE DeveloperName = :Label.Arelia_Living_Architect_3D_Design_Approval_Email
-                LIMIT 1
-            ];
+            List<EmailTemplate> templateList = [SELECT Id FROM EmailTemplate
+                WHERE DeveloperName = :Label.Arelia_Living_Architect_3D_Design_Approval_Email LIMIT 1];
             if (templateList.isEmpty()) {
-                System.debug('Send email 56:: No template found for DeveloperName = ' +
-                            Label.Arelia_Living_Architect_3D_Design_Approval_Email);
                 return;
             }
             Id templateId = templateList[0].Id;
     
             for (Opportunity oppData : opps) {
 
-    if (oppData == null ||
-        oppData.Primary_Contact__c == null ||
-        oppData.Primary_Contact__r == null ||
-        String.isBlank(oppData.Primary_Contact__r.Email)) {
-        continue;
-    }
+                if (oppData == null ||
+                    oppData.Primary_Contact__c == null ||
+                    oppData.Primary_Contact__r == null ||
+                    String.isBlank(oppData.Primary_Contact__r.Email)) {
+                    continue;
+                }
 
-    Messaging.SingleEmailMessage emailMessage = new Messaging.SingleEmailMessage();
-    emailMessage.setTemplateId(templateId);
+                Messaging.SingleEmailMessage emailMessage = new Messaging.SingleEmailMessage();
+                emailMessage.setTemplateId(templateId);
 
-    // Required for template
-    emailMessage.setTargetObjectId(oppData.Primary_Contact__c);
-    emailMessage.setWhatId(oppData.Id);
+                // Required for template
+                emailMessage.setTargetObjectId(oppData.Primary_Contact__c);
+                emailMessage.setWhatId(oppData.Id);
 
-    if (owdId != null) {
-        emailMessage.setOrgWideEmailAddressId(owdId);
-    }
+                if (owdId != null) {
+                    emailMessage.setOrgWideEmailAddressId(owdId);
+                }
 
-    emailMessage.setSaveAsActivity(true);
+                emailMessage.setSaveAsActivity(true);
 
-    // ===============================
-    // CC ADDRESSES (Supervisor + Label)
-    // ===============================
-    List<String> ccAddresses = new List<String>();
+                // ===============================
+                // CC ADDRESSES (Supervisor + Labels)
+                // ===============================
+                List<String> ccAddresses = new List<String>();
 
-    // Supervisor Email
-    if (oppData.Supervisor_User__r != null &&
-        String.isNotBlank(oppData.Supervisor_User__r.Email)) {
-        ccAddresses.add(oppData.Supervisor_User__r.Email.trim());
-    }
+                // Supervisor Email
+                if (oppData.Supervisor_User__r != null &&
+                    String.isNotBlank(oppData.Supervisor_User__r.Email)) {
+                    ccAddresses.add(oppData.Supervisor_User__r.Email.trim());
+                }
 
-    // Label Emails (comma or semicolon separated)
-    String labelEmails = Label.Arelia_Living_Enrollment_Members;
-    if (String.isNotBlank(labelEmails)) {
-        for (String e : labelEmails.split('[,;]')) {
-            if (String.isNotBlank(e)) {
-                ccAddresses.add(e.trim());
+                // Label Emails (comma or semicolon separated)
+                String enrollmentLabelEmails = Label.Arelia_Living_Enrollment_Members;
+                if (String.isNotBlank(enrollmentLabelEmails)) {
+                    for (String e : enrollmentLabelEmails.split('[,;]')) {
+                        if (String.isNotBlank(e)) {
+                            ccAddresses.add(e.trim());
+                        }
+                    }
+                }
+
+                // Label Emails (comma or semicolon separated)
+                String managementLabelEmails = Label.Arelia_Living_Management_Members;
+                if (String.isNotBlank(managementLabelEmails)) {
+                    for (String e : managementLabelEmails.split('[,;]')) {
+                        if (String.isNotBlank(e)) {
+                            ccAddresses.add(e.trim());
+                        }
+                    }
+                }
+
+                // Remove duplicates
+                ccAddresses = new List<String>(new Set<String>(ccAddresses));
+
+                if (!ccAddresses.isEmpty()) {
+                    emailMessage.setCcAddresses(ccAddresses);
+                }
+
+                mails.add(emailMessage);
             }
-        }
-    }
-
-    // Remove duplicates
-    ccAddresses = new List<String>(new Set<String>(ccAddresses));
-
-    if (!ccAddresses.isEmpty()) {
-        emailMessage.setCcAddresses(ccAddresses);
-    }
-
-    mails.add(emailMessage);
-}
-    
-                
-    
-    
+            
             try {
-                System.debug('Send email 79:: Sending ' + mails.size() + ' email(s)...');
                 List<Messaging.SendEmailResult> results = Messaging.sendEmail(mails, false);
     
                 for (Integer i = 0; i < results.size(); i++) {
@@ -157,7 +145,7 @@
         public static void handleAfterUpdate(List<Opportunity> newList, Map<Id, Opportunity> oldMap) {
             if (newList == null || newList.isEmpty()) {return;}
     
-                // ---------------------------------------------
+            // ---------------------------------------------
             // NEW: Send email when Primary_Contact__c is set by Flow
             // (old value = null, new value != null)
             // ---------------------------------------------
@@ -380,11 +368,9 @@
             if (oppToProject == null || oppToProject.isEmpty()) {return;}
      
             List<ContentDocumentLink> toInsert = new List<ContentDocumentLink>();
-            for (ContentDocumentLink link : [
-                SELECT ContentDocumentId, LinkedEntityId
-                FROM ContentDocumentLink
-                WHERE LinkedEntityId IN :oppToProject.keySet()
-            ]) {
+            for (ContentDocumentLink link : [SELECT ContentDocumentId, LinkedEntityId
+                                FROM ContentDocumentLink WHERE LinkedEntityId IN :oppToProject.keySet()])
+            {
                 Id projectId = oppToProject.get(link.LinkedEntityId);
                 if (projectId == null) {continue;}
      

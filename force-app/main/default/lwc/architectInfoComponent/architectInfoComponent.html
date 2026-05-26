@@ -1,0 +1,59 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 05-11-2026
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
+<template>
+    <lightning-card title="Architect Info">
+        <div class="slds-p-around_medium">
+            <h2 class="slds-text-heading_small slds-m-bottom_medium"><strong>Architect Contact Details</strong></h2>
+            
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+            </template>
+            
+            <div class="slds-form slds-form_stacked">
+                <lightning-input 
+                    label="Architect Name" 
+                    value={architectName} 
+                    onchange={handleChange} 
+                    data-field="name" 
+                    required>
+                </lightning-input>
+                
+                <lightning-input 
+                    type="email" 
+                    label="Architect Email" 
+                    value={architectEmail} 
+                    onchange={handleChange} 
+                    data-field="email" 
+                    pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$" 
+                    message-when-pattern-mismatch="Please Enter Valid Mail Address" 
+                    required>
+                </lightning-input>
+                
+                <lightning-input 
+                    type="tel" 
+                    label="Architect Contact Number" 
+                    value={architectPhone} 
+                    onchange={handleChange} 
+                    data-field="phone" 
+                    pattern="^[0-9]{10}$" 
+                    message-when-pattern-mismatch="Please Enter Valid Contact Number" 
+                    required>
+                </lightning-input>
+            </div>
+            
+            <div class="slds-m-top_medium slds-text-align_right">
+                <lightning-button 
+                    variant="brand" 
+                    label="Submit" 
+                    onclick={handleSubmit} 
+                    disabled={isLoading}>
+                </lightning-button>
+            </div>
+        </div>
+    </lightning-card>
+</template>

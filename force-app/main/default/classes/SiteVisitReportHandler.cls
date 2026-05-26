@@ -149,8 +149,8 @@ public without sharing class SiteVisitReportHandler {
     // Utilities & Formatting
     // -------------------------------------------------------------------------
 
-    private static List<String> getManagementEmails() {
-        String mgmtEmails = Label.Arelia_Living_Enrollment_Members;
+    public static List<String> getManagementEmails() {
+        String mgmtEmails = Label.Arelia_Living_Management_Members;
         List<String> emails = new List<String>();
         if (String.isNotBlank(mgmtEmails)) {
             for (String email : mgmtEmails.split(',')) {
@@ -164,11 +164,9 @@ public without sharing class SiteVisitReportHandler {
 
     private static List<String> getManagerEmailsByRole() {
         List<String> managerEmails = new List<String>();
-        for (User u : [
-            SELECT Email FROM User
-            WHERE UserRole.Name LIKE '%Manager%' AND IsActive = true AND Email != null
-            WITH USER_MODE
-        ]) {
+        for (User u : [SELECT Email FROM User
+            WHERE UserRole.Name LIKE '%Manager%' AND IsActive = true AND Email != null])
+        {
             managerEmails.add(u.Email.trim());
         }
         return managerEmails;
@@ -181,7 +179,6 @@ public without sharing class SiteVisitReportHandler {
         List<OrgWideEmailAddress> addresses = [
             SELECT Id FROM OrgWideEmailAddress
             WHERE Address = :Label.Arelia_OWD
-            WITH USER_MODE
             LIMIT 1
         ];
         if (!addresses.isEmpty()) {
@@ -196,7 +193,7 @@ public without sharing class SiteVisitReportHandler {
         Set<Id> docIds = new Set<Id>();
         for (ContentDocumentLink cdl : [
             SELECT ContentDocumentId FROM ContentDocumentLink
-            WHERE LinkedEntityId = :reportId WITH USER_MODE
+            WHERE LinkedEntityId = :reportId 
         ]) {
             docIds.add(cdl.ContentDocumentId);
         }
@@ -204,7 +201,7 @@ public without sharing class SiteVisitReportHandler {
         if (!docIds.isEmpty()) {
             for (ContentVersion cv : [
                 SELECT Id, Title, FileExtension, VersionData FROM ContentVersion
-                WHERE ContentDocumentId IN :docIds AND IsLatest = true WITH USER_MODE
+                WHERE ContentDocumentId IN :docIds AND IsLatest = true 
             ]) {
                 Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
                 efa.setFileName(cv.Title + '.' + cv.FileExtension);
@@ -214,7 +211,7 @@ public without sharing class SiteVisitReportHandler {
         }
 
         for (Attachment att : [
-            SELECT Id, Name, Body FROM Attachment WHERE ParentId = :reportId WITH USER_MODE
+            SELECT Id, Name, Body FROM Attachment WHERE ParentId = :reportId 
         ]) {
             Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
             efa.setFileName(att.Name);
@@ -328,7 +325,8 @@ public without sharing class SiteVisitReportHandler {
 
     private static Boolean shouldSendManagerEmail(Site_Visit_Report__c n, Site_Visit_Report__c o) {
         // A) First time approved (existing behavior)
-        Boolean firstTimeApproved = n.Site_Visit_Report_Status__c == 'Approved' &&
+        Boolean firstTimeApproved =
+            n.Site_Visit_Report_Status__c == 'Approved' &&
             o.Site_Visit_Report_Status__c != 'Approved';
 
         // B) Negotiation re-approval email:
@@ -400,7 +398,7 @@ public without sharing class SiteVisitReportHandler {
         }
         Map<Id, String> rtMap = new Map<Id, String>();
         if (!rtIds.isEmpty()) {
-            for (RecordType rt : [SELECT Id, DeveloperName FROM RecordType WHERE Id IN :rtIds WITH USER_MODE]) {
+            for (RecordType rt : [SELECT Id, DeveloperName FROM RecordType WHERE Id IN :rtIds ]) {
                 rtMap.put(rt.Id, rt.DeveloperName);
             }
         }
@@ -423,7 +421,7 @@ public without sharing class SiteVisitReportHandler {
         }
         if (!leadMap.isEmpty()) {
             try {
-                Database.update(leadMap.values(), AccessLevel.USER_MODE);
+                Database.update(leadMap.values());
             } catch (Exception ex) {
                  System.debug('Exception occurred: ' + ex.getMessage());
             }
@@ -446,7 +444,7 @@ public without sharing class SiteVisitReportHandler {
         }
         if (!oppMap.isEmpty()) {
             try {
-                Database.update(oppMap.values(), AccessLevel.USER_MODE);
+                Database.update(oppMap.values());
             } catch (Exception ex) {
                  System.debug('Exception occurred: ' + ex.getMessage());
             }

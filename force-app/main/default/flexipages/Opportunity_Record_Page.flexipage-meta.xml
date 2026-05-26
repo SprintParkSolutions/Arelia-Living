@@ -7,16 +7,28 @@
                     <name>actionNames</name>
                     <valueList>
                         <valueListItems>
-                            <value>Opportunity.Architecture_Approval</value>
+                            <value>Opportunity.Architect_Information</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Upload_Architecture_Design</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Upload_Proforma_Invoice</value>
                         </valueListItems>
                         <valueListItems>
                             <value>Opportunity.Send_Catalogue_Link</value>
                         </valueListItems>
                         <valueListItems>
+                            <value>Opportunity.Budget_Review</value>
+                        </valueListItems>
+                        <valueListItems>
                             <value>Opportunity.Payment_Terms</value>
                         </valueListItems>
                         <valueListItems>
-                            <value>Opportunity.Send_For_Manager_Approval</value>
+                            <value>Opportunity.Catalouge_Approval</value>
+                        </valueListItems>
+                        <valueListItems>
+                            <value>Opportunity.Send_Password</value>
                         </valueListItems>
                         <valueListItems>
                             <value>Opportunity.Tendor_Invitation</value>
@@ -65,6 +77,10 @@
                     <value>true</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
+                    <name>hideSlackAction</name>
+                    <value>false</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
                     <name>numVisibleActions</name>
                     <value>3</value>
                 </componentInstanceProperties>
@@ -81,6 +97,12 @@
             <componentInstance>
                 <componentName>areliaSplitPath</componentName>
                 <identifier>c_areliaSplitPath</identifier>
+            </componentInstance>
+        </itemInstances>
+        <itemInstances>
+            <componentInstance>
+                <componentName>opportunityVendorEstimator</componentName>
+                <identifier>c_opportunityVendorEstimator</identifier>
             </componentInstance>
         </itemInstances>
         <mode>Replace</mode>

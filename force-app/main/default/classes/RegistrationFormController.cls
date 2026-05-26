@@ -287,7 +287,7 @@ public without sharing class RegistrationFormController {
         }
 
         Id orgWideId = getOrgWideEmailAddressId();
-        if (orgWideId != null && UserInfo.getUserType() == 'Guest') {
+        if (orgWideId != null) {
             msg.setOrgWideEmailAddressId(orgWideId);
         }
     }
@@ -296,13 +296,8 @@ public without sharing class RegistrationFormController {
      * @description Gets Org-Wide Email Address ID used for outbound emails.
      */
     private static Id getOrgWideEmailAddressId() {
-        List<OrgWideEmailAddress> oweaList = [
-            SELECT Id
-            FROM OrgWideEmailAddress
-            WHERE Address = :Label.Arelia_OWD
-              AND IsAllowAllProfiles = true
-            LIMIT 1
-        ];
+        List<OrgWideEmailAddress> oweaList = [SELECT Id FROM OrgWideEmailAddress
+                            WHERE Address = :Label.Arelia_OWD LIMIT 1];
         return oweaList.isEmpty() ? null : oweaList[0].Id;
     }
 }

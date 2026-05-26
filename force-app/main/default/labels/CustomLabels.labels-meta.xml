@@ -124,7 +124,7 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Arelia Living Enrollment Members</shortDescription>
-        <value>tejaswaroopu@sprintpark.com,mohite.9804@gmail.com</value>
+        <value>monikagollu@gmail.com,shyamk@sprintpark.com</value>
     </labels>
     <labels>
         <fullName>Arelia_Living_Lead_Conversion_Approval_Email_Template</fullName>
@@ -321,7 +321,7 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Arelia OWD</shortDescription>
-        <value>nareshp@sprintpark.com</value>
+        <value>info@areliaspace.com</value>
     </labels>
     <labels>
         <fullName>Arelia_Project_Request_Already_Submitted</fullName>
@@ -547,7 +547,7 @@ Sat: By Appointment</value>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>LinkedIn_URL</shortDescription>
-        <value>https://www.linkedin.com/in/arelia-space-363053394/</value>
+        <value>https://www.linkedin.com/company/areliaspace/</value>
     </labels>
     <labels>
         <fullName>Management_Email_Addresses</fullName>
@@ -773,5 +773,61 @@ Sat: By Appointment</value>
         <protected>false</protected>
         <shortDescription>manager architecture approval</shortDescription>
         <value>/manager-architecture-approval</value>
+    </labels>
+    <labels>
+        <fullName>ARELIA_SPACE_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>ARELIA_SPACE_URL</shortDescription>
+        <value>https://www.areliaspace.com</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Living_Management_Members</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia Living Management Members</shortDescription>
+        <value>p.shyamsaikamal2003@gmail.com,bhavanae@sprintpark.com</value>
+    </labels>
+    <labels>
+        <fullName>Arelia_Site_Redirect_URL_Label</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Arelia_Site_Redirect_URL_Label</shortDescription>
+        <value>https://www.areliaspace.com</value>
+    </labels>
+    <labels>
+        <fullName>FORGOT_PASSWORD_PATH</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>FORGOT PASSWORD PATH</shortDescription>
+        <value>forgot-password</value>
+    </labels>
+    <labels>
+        <fullName>FORGOT_PASSWORD_TEMPLATE_ID</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>FORGOT PASSWORD TEMPLATE ID</shortDescription>
+        <value>00XU9000004R4zhMAC</value>
+    </labels>
+    <labels>
+        <fullName>PASSWORD_RESET_PATH</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>PASSWORD RESET PATH</shortDescription>
+        <value>set-password</value>
+    </labels>
+    <labels>
+        <fullName>PASSWORD_RESET_TEMPLATE_ID</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>PASSWORD RESET TEMPLATE ID</shortDescription>
+        <value>00XU9000004R4y5MAC</value>
+    </labels>
+    <labels>
+        <fullName>PASSWORD_RESET_URL</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>PASSWORD RESET URL</shortDescription>
+        <value>https://sprintpark--dev4.sandbox.my.site.com/Arelia/s/</value>
     </labels>
 </CustomLabels>
