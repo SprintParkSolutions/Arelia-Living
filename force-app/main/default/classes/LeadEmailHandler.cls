@@ -21,6 +21,9 @@
 @SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ExcessiveParameterList')
 public without sharing class LeadEmailHandler {
 
+    private static final String ARELIA_LEAD_RECORD_TYPE_DEVELOPER_NAME = 'Arelia';
+    private static Id cachedAreliaLeadRecordTypeId;
+
     // ----------------------------------------------------------------------
     // 🔁 Backwards-compatible wrapper (in case anything still calls sendEmailForLead)
     // ----------------------------------------------------------------------
@@ -32,7 +35,7 @@ public without sharing class LeadEmailHandler {
      * - Else if Project_Request_Submitted__c == true → acts like sendEnrollmentEmailOnSubmission
      */
     public static void sendEmailForLead(Lead leadRecord) {
-        if (leadRecord == null) {
+        if (!isAreliaLead(leadRecord)) {
             return;
         }
 
@@ -75,7 +78,7 @@ public without sharing class LeadEmailHandler {
             List<Messaging.SingleEmailMessage> emailMessages = new List<Messaging.SingleEmailMessage>();
 
             for (Lead leadRecord : leadRecords) {
-                if (leadRecord == null) {
+                if (!isAreliaLead(leadRecord)) {
                     continue;
                 }
 
@@ -148,7 +151,7 @@ public without sharing class LeadEmailHandler {
             List<Messaging.SingleEmailMessage> emailMessages = new List<Messaging.SingleEmailMessage>();
 
             for (Lead leadRecord : leadRecords) {
-                if (leadRecord == null || String.isBlank(leadRecord.Email)) {
+                if (!isAreliaLead(leadRecord) || String.isBlank(leadRecord.Email)) {
                     continue;
                 }
 
@@ -400,6 +403,36 @@ public without sharing class LeadEmailHandler {
     }
 
     /**
+    * Returns true when the Lead belongs to the Arelia Lead record type.
+    */
+    public static Boolean isAreliaLead(Lead leadRecord) {
+        if (leadRecord == null || leadRecord.RecordTypeId == null) {
+            return false;
+        }
+
+        Id areliaLeadRecordTypeId = getAreliaLeadRecordTypeId();
+        return areliaLeadRecordTypeId != null
+            && leadRecord.RecordTypeId == areliaLeadRecordTypeId;
+    }
+
+    private static Id getAreliaLeadRecordTypeId() {
+        if (cachedAreliaLeadRecordTypeId != null) {
+            return cachedAreliaLeadRecordTypeId;
+        }
+
+        Schema.RecordTypeInfo leadRecordTypeInfo = Schema.SObjectType.Lead
+            .getRecordTypeInfosByDeveloperName()
+            .get(ARELIA_LEAD_RECORD_TYPE_DEVELOPER_NAME);
+
+        if (leadRecordTypeInfo == null) {
+            return null;
+        }
+
+        cachedAreliaLeadRecordTypeId = leadRecordTypeInfo.getRecordTypeId();
+        return cachedAreliaLeadRecordTypeId;
+    }
+
+    /**
     * Called after Lead insert.
     * Sends:
     * 1) Welcome email to customer
@@ -422,7 +455,7 @@ public without sharing class LeadEmailHandler {
             List<String> enrollmentEmails = getRegistrationEnrollmentEmails();
 
             for (Lead leadRecord : leadRecords) {
-                if (leadRecord == null || leadRecord.Id == null) {
+                if (!isAreliaLead(leadRecord) || leadRecord.Id == null) {
                     continue;
                 }
 
@@ -485,9 +518,7 @@ public without sharing class LeadEmailHandler {
         String htmlBody = replaceRegistrationTokens(template.HtmlValue, data);
 
         Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
-        msg.setTargetObjectId(leadRecord.Id);
-        msg.setTreatTargetObjectAsRecipient(true);
-        msg.setToAddresses(new List<String>{ leadRecord.Email });
+        msg.setToAddresses(new List<String>{ leadRecord.Email.trim() });
 
         if (String.isNotBlank(subject)) {
             msg.setSubject(subject);
@@ -499,7 +530,7 @@ public without sharing class LeadEmailHandler {
             msg.setPlainTextBody(textBody);
         }
 
-        msg.setSaveAsActivity(true);
+        msg.setSaveAsActivity(false);
 
         Id orgWideId = getDefaultOrgWideEmailAddressId();
         if (orgWideId != null) {

@@ -15,6 +15,9 @@
     */
     @SuppressWarnings('PMD.CognitiveComplexity,PMD.ApexCRUDViolation,PMD.ApexUnitTestShouldNotUseSeeAllData')
     public with sharing class CreateProjectFromOpportunityHandler {
+
+        private static final String ARELIA_OPPORTUNITY_RECORD_TYPE_NAME = 'Arelia';
+        private static Id cachedAreliaOpportunityRecordTypeId;
     
         // ---------- Orchestrator: AFTER INSERT (send customer email) ----------
         public static void handleAfterInsert(List<Opportunity> newList) {
@@ -26,7 +29,7 @@
             // Collect only Opps where Primary_Contact__c is populated
             Set<Id> oppIdsWithPrimaryContact = new Set<Id>();
             for (Opportunity o : newList) {
-                if (o != null) {
+                if (isAreliaOpportunity(o)) {
                     oppIdsWithPrimaryContact.add(o.Id);
                 }
             }
@@ -151,7 +154,7 @@
             // ---------------------------------------------
             List<Opportunity> newlyGotPrimaryContact = new List<Opportunity>();
             for (Opportunity newOpp : newList) {
-                if (newOpp == null) {
+                if (!isAreliaOpportunity(newOpp)) {
                     continue;
                 }
                 Opportunity oldOpp = oldMap.get(newOpp.Id);
@@ -210,6 +213,33 @@
      
             // 7) Copy files only for newly created projects (unchanged behavior)
             if (!oppToNewProject.isEmpty()) {copyFilesFromOppToProject(oppToNewProject);}
+        }
+
+        private static Boolean isAreliaOpportunity(Opportunity opportunityRecord) {
+            if (opportunityRecord == null || opportunityRecord.RecordTypeId == null) {
+                return false;
+            }
+
+            Id areliaOpportunityRecordTypeId = getAreliaOpportunityRecordTypeId();
+            return areliaOpportunityRecordTypeId != null
+                && opportunityRecord.RecordTypeId == areliaOpportunityRecordTypeId;
+        }
+
+        private static Id getAreliaOpportunityRecordTypeId() {
+            if (cachedAreliaOpportunityRecordTypeId != null) {
+                return cachedAreliaOpportunityRecordTypeId;
+            }
+
+            Schema.RecordTypeInfo recordTypeInfo = Schema.SObjectType.Opportunity
+                .getRecordTypeInfosByName()
+                .get(ARELIA_OPPORTUNITY_RECORD_TYPE_NAME);
+
+            if (recordTypeInfo == null) {
+                return null;
+            }
+
+            cachedAreliaOpportunityRecordTypeId = recordTypeInfo.getRecordTypeId();
+            return cachedAreliaOpportunityRecordTypeId;
         }
     
         // ---------- Step 1: find Opps that just moved to Closed Won ----------

@@ -1,18 +1,21 @@
 /**
  * @description Trigger handler for Architecture_Design__c Manager Approval Emails.
- * Fixed: Moved utility methods to top-level to resolve "static can only be used on methods of a top level type".
+ * Fixed: Replaced single file VersionData attachment with setEntityAttachments to attach ALL files.
  */
 @SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class ArchitectureDesignTriggerHandler {
 
     private static final String STATUS_APPROVED         = 'Approved';
     private static final String TEMPLATE_DEVELOPER_NAME = 'Architecture_Manager_Approval';
+    private static final String ARELIA_OPPORTUNITY_RECORD_TYPE_NAME = 'Arelia';
+    private static Id cachedAreliaOpportunityRecordTypeId;
 
     // --- Inner Classes ---
 
     private class EmailContext {
         public Map<Id, Architecture_Design__c> designMap;
-        public Map<Id, ContentVersion> fileMap;
+        // CHANGED: Now holds a List of ContentVersion IDs instead of a single ContentVersion
+        public Map<Id, List<Id>> fileIdsMap; 
         public EmailTemplate template;
         public List<String> toAddresses;
         public Id orgWideId;
@@ -26,7 +29,6 @@ public without sharing class ArchitectureDesignTriggerHandler {
 
         for (Architecture_Design__c newRec : newList) {
             Architecture_Design__c oldRec = oldMap.get(newRec.Id);
-            // Check if Status changed to 'Approved'
             if (newRec.Status__c == STATUS_APPROVED && (oldRec == null || oldRec.Status__c != STATUS_APPROVED)) {
                 approvedDesignIds.add(newRec.Id);
             }
@@ -46,7 +48,8 @@ public without sharing class ArchitectureDesignTriggerHandler {
         }
 
         ctx.designMap = queryDesignData(designIds);
-        ctx.fileMap = mapDesignToLatestFile(designIds);
+        // CHANGED: Call the new method that fetches ALL file IDs
+        ctx.fileIdsMap = mapDesignToFileVersions(designIds);
 
         List<Messaging.SingleEmailMessage> emails = generateEmails(designIds, ctx);
         
@@ -64,7 +67,7 @@ public without sharing class ArchitectureDesignTriggerHandler {
     private static EmailContext loadEmailContext() {
         EmailContext ctx = new EmailContext();
         
-        ctx.toAddresses = parseEmailsFromLabel(Label.Arelia_Living_Enrollment_Members);
+        ctx.toAddresses = parseEmailsFromLabel(Label.Arelia_Living_Management_Members);
         if (ctx.toAddresses.isEmpty()) {
             return null;
         }
@@ -92,6 +95,7 @@ public without sharing class ArchitectureDesignTriggerHandler {
                    Status__c,        
                    Comments__c,      
                    Opportunity__c,
+                   Opportunity__r.RecordTypeId,
                    Opportunity__r.Name, 
                    Opportunity__r.Project_Description__c,
                    Opportunity__r.Site_Space__c,
@@ -107,34 +111,49 @@ public without sharing class ArchitectureDesignTriggerHandler {
         ]);
     }
 
-    private static Map<Id, ContentVersion> mapDesignToLatestFile(List<Id> designIds) {
-        Map<Id, Id> designIdToDocId = new Map<Id, Id>();
-        Set<Id> docIds = new Set<Id>();
+    /**
+     * @description Fetches ALL linked files for the given Architecture Designs.
+     * Maps the Design ID to a List of ContentVersion IDs for safe attachment.
+     */
+    private static Map<Id, List<Id>> mapDesignToFileVersions(List<Id> designIds) {
+        Map<Id, List<Id>> designToCvIds = new Map<Id, List<Id>>();
+        Map<Id, Set<Id>> designToDocIds = new Map<Id, Set<Id>>();
+        Set<Id> allDocIds = new Set<Id>();
 
+        // 1. Get all Document Links for the designs
         for (ContentDocumentLink cdl : [SELECT LinkedEntityId, ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId IN :designIds]) {
-            if (!designIdToDocId.containsKey(cdl.LinkedEntityId)) {
-                designIdToDocId.put(cdl.LinkedEntityId, cdl.ContentDocumentId);
-                docIds.add(cdl.ContentDocumentId);
+            if (!designToDocIds.containsKey(cdl.LinkedEntityId)) {
+                designToDocIds.put(cdl.LinkedEntityId, new Set<Id>());
             }
+            designToDocIds.get(cdl.LinkedEntityId).add(cdl.ContentDocumentId);
+            allDocIds.add(cdl.ContentDocumentId);
         }
 
-        Map<Id, ContentVersion> docIdToLatest = new Map<Id, ContentVersion>();
-        if (!docIds.isEmpty()) {
-            for (ContentVersion cv : [SELECT ContentDocumentId, VersionData, Title, FileExtension FROM ContentVersion WHERE ContentDocumentId IN :docIds AND IsLatest = true]) {
-                docIdToLatest.put(cv.ContentDocumentId, cv);
-            }
+        if (allDocIds.isEmpty()) {
+            return designToCvIds;
         }
 
-        Map<Id, ContentVersion> result = new Map<Id, ContentVersion>();
-        for(Id designId : designIds) {
-            if(designIdToDocId.containsKey(designId)) {
-                Id docId = designIdToDocId.get(designId);
-                if(docIdToLatest.containsKey(docId)) {
-                    result.put(designId, docIdToLatest.get(docId));
+        // 2. Get the actual Version IDs 
+        Map<Id, Id> docIdToCvId = new Map<Id, Id>();
+        for (ContentVersion cv : [SELECT Id, ContentDocumentId FROM ContentVersion WHERE ContentDocumentId IN :allDocIds AND IsLatest = true]) {
+            docIdToCvId.put(cv.ContentDocumentId, cv.Id);
+        }
+
+        // 3. Map back Design ID -> List of ContentVersion IDs
+        for (Id designId : designIds) {
+            if (designToDocIds.containsKey(designId)) {
+                List<Id> cvIds = new List<Id>();
+                for (Id docId : designToDocIds.get(designId)) {
+                    if (docIdToCvId.containsKey(docId)) {
+                        cvIds.add(docIdToCvId.get(docId));
+                    }
+                }
+                if (!cvIds.isEmpty()) {
+                    designToCvIds.put(designId, cvIds);
                 }
             }
         }
-        return result;
+        return designToCvIds;
     }
 
     // --- Email Construction ---
@@ -144,34 +163,67 @@ public without sharing class ArchitectureDesignTriggerHandler {
 
         for (Id designId : designIds) {
             Architecture_Design__c design = ctx.designMap.get(designId);
-            if (design == null) {
+            if (design == null || !shouldHandleDesign(design)) {
                 continue;
             }
 
             Messaging.SingleEmailMessage mail = buildSingleEmail(design, ctx);
             
-            // Attach File if exists
-            if (ctx.fileMap.containsKey(designId)) {
-                ContentVersion cv = ctx.fileMap.get(designId);
-                Messaging.EmailFileAttachment attach = new Messaging.EmailFileAttachment();
-                attach.setFileName(cv.Title + '.' + cv.FileExtension);
-                attach.setBody(cv.VersionData);
-                mail.setFileAttachments(new Messaging.EmailFileAttachment[] { attach });
+            // CHANGED: Attach ALL Files using native EntityAttachments
+            if (ctx.fileIdsMap != null && ctx.fileIdsMap.containsKey(designId)) {
+                mail.setEntityAttachments(ctx.fileIdsMap.get(designId));
             }
+            
             emails.add(mail);
         }
         return emails;
     }
 
+    private static Boolean shouldHandleDesign(Architecture_Design__c design) {
+        if (design == null) {
+            return false;
+        }
+
+        if (design.Opportunity__c == null) {
+            return true;
+        }
+
+        return isAreliaOpportunityRecordType(design.Opportunity__r == null
+            ? null
+            : design.Opportunity__r.RecordTypeId);
+    }
+
+    private static Boolean isAreliaOpportunityRecordType(Id recordTypeId) {
+        if (recordTypeId == null) {
+            return false;
+        }
+
+        Id areliaOpportunityRecordTypeId = getAreliaOpportunityRecordTypeId();
+        return areliaOpportunityRecordTypeId != null
+            && recordTypeId == areliaOpportunityRecordTypeId;
+    }
+
+    private static Id getAreliaOpportunityRecordTypeId() {
+        if (cachedAreliaOpportunityRecordTypeId != null) {
+            return cachedAreliaOpportunityRecordTypeId;
+        }
+
+        Schema.RecordTypeInfo recordTypeInfo = Schema.SObjectType.Opportunity
+            .getRecordTypeInfosByName()
+            .get(ARELIA_OPPORTUNITY_RECORD_TYPE_NAME);
+
+        if (recordTypeInfo == null) {
+            return null;
+        }
+
+        cachedAreliaOpportunityRecordTypeId = recordTypeInfo.getRecordTypeId();
+        return cachedAreliaOpportunityRecordTypeId;
+    }
+
     private static Messaging.SingleEmailMessage buildSingleEmail(Architecture_Design__c design, EmailContext ctx) {
-        // 1. Prepare Merge Data
         Map<String, String> placeholders = prepareMergeMap(design, ctx.siteBase);
 
-        // 2. Replace Body Placeholders
-        // FIX: Calling static method directly (moved from inner class)
         String html = applyReplacements(ctx.template.HtmlValue, placeholders);
-        
-        // 3. Replace Subject Placeholders
         String subject = safeReplace(ctx.template.Subject, '{{{leadName}}}', design.Opportunity__r?.Lead_Name__c);
 
         Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
@@ -184,13 +236,9 @@ public without sharing class ArchitectureDesignTriggerHandler {
         return mail;
     }
 
-    /**
-     * @description Prepares the map of tokens to values. 
-     */
     private static Map<String, String> prepareMergeMap(Architecture_Design__c des, String siteBase) {
         Map<String, String> m = new Map<String, String>();
         
-        // 1. Calculations
         String supervisorName = '';
         if (des.Opportunity__r != null && des.Opportunity__r.Supervisor_User__r != null) {
             String f = des.Opportunity__r.Supervisor_User__r.FirstName;
@@ -206,7 +254,6 @@ public without sharing class ArchitectureDesignTriggerHandler {
         String clientName = (des.Opportunity__r != null && des.Opportunity__r.Lead_Name__c != null) 
                             ? des.Opportunity__r.Lead_Name__c : 'Valued Client';
 
-        // 2. Populate Map
         m.put('[PROJECT_NAME]', projectName);
         m.put('[PROJECT_DESCRIPTION]', getField(des.Opportunity__r?.Project_Description__c));
         m.put('[SITE_SPACE]', getField(des.Opportunity__r?.Site_Space__c));
@@ -255,7 +302,7 @@ public without sharing class ArchitectureDesignTriggerHandler {
         }
     }
 
-    // --- REPLACEMENT UTILITIES (Moved to Top Level) ---
+    // --- REPLACEMENT UTILITIES ---
 
     private static String safeReplace(String source, String token, String value) {
         if (source == null || String.isBlank(token)) {

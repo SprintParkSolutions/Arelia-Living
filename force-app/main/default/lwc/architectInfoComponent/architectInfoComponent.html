@@ -2,19 +2,21 @@
   @description       : 
   @author            : ChangeMeIn@UserSettingsUnder.SFDoc
   @group             : 
-  @last modified on  : 05-11-2026
+  @last modified on  : 05-12-2026
   @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
 -->
 <template>
-    <lightning-card title="Architect Info">
-        <div class="slds-p-around_medium">
-            <h2 class="slds-text-heading_small slds-m-bottom_medium"><strong>Architect Contact Details</strong></h2>
-            
-            <template if:true={isLoading}>
-                <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
-            </template>
-            
-            <div class="slds-form slds-form_stacked">
+    <div class="modal-wrapper">
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+        </template>
+        
+        <div class="full-bleed-header">
+            <h2>Architect Contact Details</h2>
+        </div>
+        
+        <div class="standard-body">
+            <div class="input-wrapper">
                 <lightning-input 
                     label="Architect Name" 
                     value={architectName} 
@@ -22,7 +24,9 @@
                     data-field="name" 
                     required>
                 </lightning-input>
-                
+            </div>
+            
+            <div class="input-wrapper">
                 <lightning-input 
                     type="email" 
                     label="Architect Email" 
@@ -33,7 +37,9 @@
                     message-when-pattern-mismatch="Please Enter Valid Mail Address" 
                     required>
                 </lightning-input>
-                
+            </div>
+            
+            <div class="input-wrapper">
                 <lightning-input 
                     type="tel" 
                     label="Architect Contact Number" 
@@ -45,15 +51,12 @@
                     required>
                 </lightning-input>
             </div>
-            
-            <div class="slds-m-top_medium slds-text-align_right">
-                <lightning-button 
-                    variant="brand" 
-                    label="Submit" 
-                    onclick={handleSubmit} 
-                    disabled={isLoading}>
-                </lightning-button>
-            </div>
         </div>
-    </lightning-card>
+        
+        <div class="full-bleed-footer">
+            <button class="submit-btn" onclick={handleSubmit} disabled={isLoading}>
+                Submit
+            </button>
+        </div>
+    </div>
 </template>

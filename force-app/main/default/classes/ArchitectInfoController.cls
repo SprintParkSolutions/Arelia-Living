@@ -5,6 +5,9 @@
  * @last modified on  : 05-11-2026
 **/
 public with sharing class ArchitectInfoController {
+
+    private static final String ARELIA_OPPORTUNITY_RECORD_TYPE_NAME = 'Arelia';
+    private static Id cachedAreliaOpportunityRecordTypeId;
     
     @AuraEnabled
     public static void updateAndSendEmail(Id recordId, String architectName, String architectEmail, String architectPhone) {
@@ -18,6 +21,19 @@ public with sharing class ArchitectInfoController {
         Savepoint sp = Database.setSavepoint();
 
         try {
+            Opportunity existingOpportunity = [
+                SELECT Id, RecordTypeId
+                FROM Opportunity
+                WHERE Id = :recordId
+                LIMIT 1
+            ];
+
+            if (!isAreliaOpportunity(existingOpportunity)) {
+                throw new AuraHandledException(
+                    'Architect email is supported only for Arelia opportunities.'
+                );
+            }
+
             // 1. Update the Opportunity Record (Enforcing FLS with 'as user')
             Opportunity oppToUpdate = new Opportunity(
                 Id = recordId,
@@ -88,5 +104,32 @@ public with sharing class ArchitectInfoController {
             auraException.setMessage(e.getMessage());
             throw auraException;
         }
+    }
+
+    private static Boolean isAreliaOpportunity(Opportunity opportunityRecord) {
+        if (opportunityRecord == null || opportunityRecord.RecordTypeId == null) {
+            return false;
+        }
+
+        Id areliaOpportunityRecordTypeId = getAreliaOpportunityRecordTypeId();
+        return areliaOpportunityRecordTypeId != null
+            && opportunityRecord.RecordTypeId == areliaOpportunityRecordTypeId;
+    }
+
+    private static Id getAreliaOpportunityRecordTypeId() {
+        if (cachedAreliaOpportunityRecordTypeId != null) {
+            return cachedAreliaOpportunityRecordTypeId;
+        }
+
+        Schema.RecordTypeInfo recordTypeInfo = Schema.SObjectType.Opportunity
+            .getRecordTypeInfosByName()
+            .get(ARELIA_OPPORTUNITY_RECORD_TYPE_NAME);
+
+        if (recordTypeInfo == null) {
+            return null;
+        }
+
+        cachedAreliaOpportunityRecordTypeId = recordTypeInfo.getRecordTypeId();
+        return cachedAreliaOpportunityRecordTypeId;
     }
 }

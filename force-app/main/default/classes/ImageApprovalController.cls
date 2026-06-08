@@ -1,9 +1,13 @@
 /**
  * @description Controller for Client Image Approval LWC and Public Site.
  * Handles uploading design bundles, sending emails, and processing client decisions.
+ * FIX: Replaced VersionData queries with setEntityAttachments to allow Guest Users to send multiple files.
  */
 @SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class ImageApprovalController {
+
+    private static final String ARELIA_OPPORTUNITY_RECORD_TYPE_NAME = 'Arelia';
+    private static Id cachedAreliaOpportunityRecordTypeId;
 
     // ============================================================================
     // INNER CLASSES & WRAPPERS
@@ -23,7 +27,6 @@ public without sharing class ImageApprovalController {
     private class RecipientInfo {
         public String email;
         public String name;
-        
     }
 
     private class NotificationData {
@@ -48,6 +51,8 @@ public without sharing class ImageApprovalController {
         }
 
         try {
+            assertAreliaOpportunityRecordType(recordId);
+
             // 1. Create Record with Budget
             Architecture_Design__c designRec = createDesignRecord(recordId, fileIds[0], budget);
             
@@ -68,15 +73,12 @@ public without sharing class ImageApprovalController {
         }
     }
 
-    // --- Helpers for sendDesignBundle (Reduces Complexity) ---
-
     private static Architecture_Design__c createDesignRecord(Id recordId, String mainFileId, Decimal budget) {
         Architecture_Design__c designRec = new Architecture_Design__c();
         linkDesignToParent(designRec, recordId);
         designRec.Secure_Token__c = UUID.randomUUID().toString();
         designRec.Status__c = 'Sent';
         designRec.Related_File_Id__c = mainFileId;
-        // THIS IS WHERE BUDGET IS SAVED
         designRec.Architecture_Budget__c = budget; 
         insert designRec;
         return designRec;
@@ -128,38 +130,29 @@ public without sharing class ImageApprovalController {
         mail.setSubject(subject);
         mail.setHtmlBody(htmlBody);
         
-        // Use Helper to get Attachments
-        List<Messaging.EmailFileAttachment> attachments = createAttachments(fileIds);
-        
-        if (!attachments.isEmpty()) {
-            mail.setFileAttachments(attachments);
+        // FIX: Use setEntityAttachments to securely attach ALL files
+        List<Id> cvIds = getVersionIds(fileIds);
+        if (!cvIds.isEmpty()) {
+            mail.setEntityAttachments(cvIds);
         }
+        
         Messaging.sendEmail(new Messaging.SingleEmailMessage[] { mail });
     }
 
     /**
-     * @description Reusable helper to create attachments from File IDs.
-     * Reduces code duplication and cognitive complexity.
+     * @description FIX: Retrieves ContentVersion Ids directly. 
+     * Bypasses Guest User 'VersionData' restrictions and heap limits.
      */
-    private static List<Messaging.EmailFileAttachment> createAttachments(List<String> fileIds) {
-        List<Messaging.EmailFileAttachment> attachments = new List<Messaging.EmailFileAttachment>();
+    private static List<Id> getVersionIds(List<String> fileIds) {
+        List<Id> cvIds = new List<Id>();
         if (fileIds == null || fileIds.isEmpty()) {
-            return attachments;
+            return cvIds;
         }
 
-        List<ContentVersion> versionFiles = [
-            SELECT Title, FileExtension, VersionData 
-            FROM ContentVersion 
-            WHERE ContentDocumentId IN :fileIds AND IsLatest = true
-        ];
-
-        for (ContentVersion cv : versionFiles) {
-            Messaging.EmailFileAttachment attach = new Messaging.EmailFileAttachment();
-            attach.setFileName(cv.Title + '.' + cv.FileExtension);
-            attach.setBody(cv.VersionData);
-            attachments.add(attach);
+        for (ContentVersion cv : [SELECT Id FROM ContentVersion WHERE ContentDocumentId IN :fileIds AND IsLatest = true]) {
+            cvIds.add(cv.Id);
         }
-        return attachments;
+        return cvIds;
     }
 
     // ============================================================================
@@ -209,51 +202,47 @@ public without sharing class ImageApprovalController {
     // ============================================================================
 
     @AuraEnabled(cacheable=true)
-public static Map<String, String> getFileByToken(String token) {
-    try {
-        // Query design + Parent Project/Opportunity details
-        Architecture_Design__c design = [
-            SELECT Id, Status__c, Comments__c, 
-                   Project__r.Name, 
-                   Opportunity__r.Name, Opportunity__r.Lead_Name__c 
-            FROM Architecture_Design__c 
-            WHERE Secure_Token__c = :token 
-            LIMIT 1
-        ];
+    public static Map<String, String> getFileByToken(String token) {
+        try {
+            Architecture_Design__c design = [
+                SELECT Id, Status__c, Comments__c, 
+                       Project__r.Name, 
+                       Opportunity__r.Name, Opportunity__r.Lead_Name__c 
+                FROM Architecture_Design__c 
+                WHERE Secure_Token__c = :token 
+                LIMIT 1
+            ];
 
-        Map<String, String> result = new Map<String, String>();
-        
-        // 1. Status & Comments
-        result.put('status', design.Status__c);
-        result.put('comments', design.Comments__c);
+            Map<String, String> result = new Map<String, String>();
+            result.put('status', design.Status__c);
+            result.put('comments', design.Comments__c);
 
-        // 2. Resolve Project Name (Check Project first, then Opportunity)
-        String projectName = 'Architectural Design'; // Default fallback
-        if (design.Project__r != null) {
-            projectName = design.Project__r.Name;
-        } else if (design.Opportunity__r != null) {
-            projectName = design.Opportunity__r.Name;
+            String projectName = 'Architectural Design'; 
+            if (design.Project__r != null) {
+                projectName = design.Project__r.Name;
+            } else if (design.Opportunity__r != null) {
+                projectName = design.Opportunity__r.Name;
+            }
+            result.put('projectName', projectName);
+
+            String clientName = 'Valued Client';
+            if (design.Opportunity__r != null && design.Opportunity__r.Lead_Name__c != null) {
+                clientName = design.Opportunity__r.Lead_Name__c;
+            }
+            result.put('clientName', clientName);
+
+            return result;
+        } catch (Exception e) {
+            throw new AuraHandledException('Invalid Link or Record Not Found');
         }
-        result.put('projectName', projectName);
-
-        // 3. Resolve Client Name (for greeting)
-        String clientName = 'Valued Client';
-        if (design.Opportunity__r != null && design.Opportunity__r.Lead_Name__c != null) {
-            clientName = design.Opportunity__r.Lead_Name__c;
-        }
-        result.put('clientName', clientName);
-
-        return result;
-    } catch (Exception e) {
-        throw new AuraHandledException('Invalid Link or Record Not Found');
     }
-}
 
     @AuraEnabled
     public static void submitDecision(String token, String status, String comments) {
         try {
             Architecture_Design__c design = [
                 SELECT Id, Status__c, Comments__c, Related_File_Id__c,
+                       Opportunity__r.RecordTypeId,
                        Opportunity__r.Name, Opportunity__r.Lead_Name__c, 
                        Opportunity__r.Project_Description__c, Opportunity__r.Site_Space__c,
                        Opportunity__r.Primary_Contact__r.Email, 
@@ -265,6 +254,13 @@ public static Map<String, String> getFileByToken(String token) {
                 FROM Architecture_Design__c 
                 WHERE Secure_Token__c = :token LIMIT 1
             ];
+
+            if (design.Opportunity__r != null &&
+                !isAreliaOpportunityRecordType(design.Opportunity__r.RecordTypeId)) {
+                throw new AuraHandledException(
+                    'Image approval is supported only for Arelia opportunities.'
+                );
+            }
 
             design.Status__c = status;
             design.Comments__c = String.isNotBlank(comments) ? comments : 'Approved By Client';
@@ -284,7 +280,6 @@ public static Map<String, String> getFileByToken(String token) {
         try {
             List<String> toAddresses = getNotificationRecipients(design);
             
-            // If no supervisor email found, do nothing (or log it)
             if (toAddresses.isEmpty()) {
                 System.debug('No Supervisor Email found. Notification skipped.');
                 return;
@@ -298,7 +293,7 @@ public static Map<String, String> getFileByToken(String token) {
 
             Messaging.SingleEmailMessage mail = buildNotificationEmail(et, toAddresses, data);
 
-            // Fetch & Attach Files
+            // Fetch & Attach ALL Files securely
             Set<Id> docIds = new Set<Id>();
             for(ContentDocumentLink link : [SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = :design.Id]) {
                 docIds.add(link.ContentDocumentId);
@@ -309,9 +304,11 @@ public static Map<String, String> getFileByToken(String token) {
                 for(Id idVal : docIds) {
                     fileIdList.add((String)idVal);
                 }
-                List<Messaging.EmailFileAttachment> attachments = createAttachments(fileIdList);
-                if (!attachments.isEmpty()) {
-                    mail.setFileAttachments(attachments);
+                
+                // FIX: Retrieve IDs and use setEntityAttachments to avoid Guest User binary access error
+                List<Id> cvIds = getVersionIds(fileIdList);
+                if (!cvIds.isEmpty()) {
+                    mail.setEntityAttachments(cvIds);
                 }
             }
 
@@ -370,6 +367,57 @@ public static Map<String, String> getFileByToken(String token) {
     // ============================================================================
     // 5. GENERIC HELPERS
     // ============================================================================
+
+    private static void assertAreliaOpportunityRecordType(Id recordId) {
+        if (recordId == null) {
+            return;
+        }
+
+        String sObjName = recordId.getSObjectType().getDescribe().getName();
+        if (sObjName != 'Opportunity') {
+            return;
+        }
+
+        Opportunity opp = [
+            SELECT Id, RecordTypeId
+            FROM Opportunity
+            WHERE Id = :recordId
+            LIMIT 1
+        ];
+
+        if (!isAreliaOpportunityRecordType(opp.RecordTypeId)) {
+            throw new AuraHandledException(
+                'Image approval is supported only for Arelia opportunities.'
+            );
+        }
+    }
+
+    private static Boolean isAreliaOpportunityRecordType(Id recordTypeId) {
+        if (recordTypeId == null) {
+            return false;
+        }
+
+        Id areliaOpportunityRecordTypeId = getAreliaOpportunityRecordTypeId();
+        return areliaOpportunityRecordTypeId != null
+            && recordTypeId == areliaOpportunityRecordTypeId;
+    }
+
+    private static Id getAreliaOpportunityRecordTypeId() {
+        if (cachedAreliaOpportunityRecordTypeId != null) {
+            return cachedAreliaOpportunityRecordTypeId;
+        }
+
+        Schema.RecordTypeInfo recordTypeInfo = Schema.SObjectType.Opportunity
+            .getRecordTypeInfosByName()
+            .get(ARELIA_OPPORTUNITY_RECORD_TYPE_NAME);
+
+        if (recordTypeInfo == null) {
+            return null;
+        }
+
+        cachedAreliaOpportunityRecordTypeId = recordTypeInfo.getRecordTypeId();
+        return cachedAreliaOpportunityRecordTypeId;
+    }
 
     private static void linkDesignToParent(Architecture_Design__c designRec, Id recordId) {
         String sObjName = recordId.getSObjectType().getDescribe().getName();

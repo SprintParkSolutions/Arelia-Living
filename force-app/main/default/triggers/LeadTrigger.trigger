@@ -11,11 +11,22 @@
 trigger LeadTrigger on Lead (before insert, after insert, after update) { // NOPMD
 
     if (Trigger.isAfter && Trigger.isInsert) {
-        LeadEmailHandler.sendRegistrationEmailsOnCreate(Trigger.new);
+        List<Lead> areliaInsertedLeads = new List<Lead>();
+        for (Lead leadRecord : Trigger.new) {
+            if (LeadEmailHandler.isAreliaLead(leadRecord)) {
+                areliaInsertedLeads.add(leadRecord);
+            }
+        }
+
+        if (!areliaInsertedLeads.isEmpty()) {
+            LeadEmailHandler.sendRegistrationEmailsOnCreate(areliaInsertedLeads);
+        }
     }
 
     if (Trigger.isAfter && Trigger.isUpdate) {
 
+        List<Lead> areliaUpdatedLeads = new List<Lead>();
+        Map<Id, Lead> areliaOldMap = new Map<Id, Lead>();
         List<Lead> submittedLeads = new List<Lead>();
         List<Lead> approvedLeads  = new List<Lead>();
         List<Lead> leadsForSupervisorAssignment = new List<Lead>();
@@ -23,6 +34,13 @@ trigger LeadTrigger on Lead (before insert, after insert, after update) { // NOP
 
         for (Lead leadRecord : Trigger.new) {
             Lead oldRecord = Trigger.oldMap.get(leadRecord.Id);
+
+            if (!LeadEmailHandler.isAreliaLead(leadRecord)) {
+                continue;
+            }
+
+            areliaUpdatedLeads.add(leadRecord);
+            areliaOldMap.put(leadRecord.Id, oldRecord);
 
             // 1. Submission logic
             Boolean wasSubmitted = (oldRecord != null && oldRecord.Project_Request_Submitted__c == true);
@@ -67,7 +85,7 @@ trigger LeadTrigger on Lead (before insert, after insert, after update) { // NOP
         if (!leadsForSupervisorAssignment.isEmpty()) {
             LeadAssignmentEmailHandler.handleSupervisorAssignment(
                 leadsForSupervisorAssignment,
-                Trigger.oldMap
+                areliaOldMap
             );
         }
 
@@ -75,6 +93,8 @@ trigger LeadTrigger on Lead (before insert, after insert, after update) { // NOP
             LeadAppointmentEmailHandler.sendAppointmentEmailsOnUpdate(appointmentLeads);
         }
 
-        WhatsAppChatRelinker.onAfterUpdate(Trigger.new, Trigger.oldMap);
+        if (!areliaUpdatedLeads.isEmpty()) {
+            WhatsAppChatRelinker.onAfterUpdate(areliaUpdatedLeads, areliaOldMap);
+        }
     }
 }

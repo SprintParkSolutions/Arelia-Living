@@ -6,7 +6,9 @@
 @SuppressWarnings('PMD.CognitiveComplexity')
 public without sharing class RegistrationFormController {
 
+    private static final String ARELIA_LEAD_RECORD_TYPE_DEVELOPER_NAME = 'Arelia';
     private static EmailTemplate cachedVerificationTemplate;
+    private static Id cachedAreliaLeadRecordTypeId;
 
     // ----------------------------------------------------------------------
     // Public API – Send OTP verification email
@@ -21,17 +23,21 @@ public without sharing class RegistrationFormController {
      */
     @AuraEnabled
     public static void sendVerificationEmail(String email, String verificationCode) {
-        validateEmail(email);
-        ensureVerificationCodeProvided(verificationCode);
+        try {
+            validateEmail(email);
+            ensureVerificationCodeProvided(verificationCode);
 
-        EmailTemplate template = requireVerificationTemplate();
-        Messaging.SingleEmailMessage msg =
-            buildVerificationEmailMessage(email, verificationCode, template);
+            EmailTemplate template = requireVerificationTemplate();
+            Messaging.SingleEmailMessage msg =
+                buildVerificationEmailMessage(email, verificationCode, template);
 
-        setOrgWideAddressForGuest(msg);
-        msg.setSaveAsActivity(true);
+            setOrgWideAddressForGuest(msg);
+            msg.setSaveAsActivity(true);
 
-        Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
+            Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ msg });
+        } catch (Exception ex) {
+            throw toAuraHandledException(ex);
+        }
     }
 
     /*
@@ -42,6 +48,18 @@ public without sharing class RegistrationFormController {
      */
     @AuraEnabled
     public static Id registerLead(Map<String, Object> payload) {
+        try {
+            return registerLeadInternal(payload);
+        } catch (Exception ex) {
+            throw toAuraHandledException(ex);
+        }
+    }
+
+    public static Id registerLeadFromApi(Map<String, Object> payload) {
+        return registerLeadInternal(payload);
+    }
+
+    private static Id registerLeadInternal(Map<String, Object> payload) {
         validatePayload(payload);
 
         String firstName   = (String) payload.get('firstName');
@@ -75,7 +93,7 @@ public without sharing class RegistrationFormController {
                 !srList[0].getErrors().isEmpty()) {
                 msg = srList[0].getErrors()[0].getMessage();
             }
-            throw new AuraHandledException(msg);
+            throw new RegistrationFormException(msg);
         }
 
         return srList[0].getId();
@@ -91,7 +109,7 @@ public without sharing class RegistrationFormController {
      */
     private static void ensureVerificationCodeProvided(String verificationCode) {
         if (String.isBlank(verificationCode)) {
-            throw new AuraHandledException('Verification code is required.');
+            throw new RegistrationFormException('Verification code is required.');
         }
     }
 
@@ -102,13 +120,13 @@ public without sharing class RegistrationFormController {
     private static EmailTemplate requireVerificationTemplate() {
         EmailTemplate tpl = getVerificationTemplate();
         if (tpl == null) {
-            throw new AuraHandledException(
+            throw new RegistrationFormException(
                 'Verification email template is not configured. Please contact support.'
             );
         }
 
         if (String.isBlank(tpl.Body) && String.isBlank(tpl.HtmlValue)) {
-            throw new AuraHandledException(
+            throw new RegistrationFormException(
                 'Verification email template has no body. Please contact support.'
             );
         }
@@ -202,7 +220,7 @@ public without sharing class RegistrationFormController {
      */
     private static void validatePayload(Map<String, Object> payload) {
         if (payload == null || payload.isEmpty()) {
-            throw new AuraHandledException('Registration payload cannot be empty.');
+            throw new RegistrationFormException('Registration payload cannot be empty.');
         }
     }
 
@@ -213,7 +231,7 @@ public without sharing class RegistrationFormController {
      */
     private static void validateNameFields(String firstName, String lastName) {
         if (String.isBlank(firstName) || String.isBlank(lastName)) {
-            throw new AuraHandledException('First Name and Last Name are required.');
+            throw new RegistrationFormException('First Name and Last Name are required.');
         }
     }
 
@@ -223,12 +241,12 @@ public without sharing class RegistrationFormController {
      */
     private static void validateEmail(String email) {
         if (String.isBlank(email)) {
-            throw new AuraHandledException('Email is required.');
+            throw new RegistrationFormException('Email is required.');
         }
 
         String trimmed = email.trim();
         if (!trimmed.contains('@') || !trimmed.contains('.')) {
-            throw new AuraHandledException('Please provide a valid email address.');
+            throw new RegistrationFormException('Please provide a valid email address.');
         }
     }
 
@@ -252,8 +270,10 @@ public without sharing class RegistrationFormController {
         String finalCompany = String.isBlank(companyName)
             ? 'Self-' + firstName + ' ' + lastName
             : companyName.trim();
+        Id leadRecordTypeId = getAreliaLeadRecordTypeId();
 
         return new Lead(
+            RecordTypeId = leadRecordTypeId,
             FirstName = firstName != null ? firstName.trim() : null,
             LastName  = lastName != null ? lastName.trim() : null,
             Email     = email != null ? email.trim() : null,
@@ -263,15 +283,44 @@ public without sharing class RegistrationFormController {
     }
 
     /*
+     * @description Returns the Lead Record Type Id for the Arelia lead flow.
+     * @return Lead RecordType Id.
+     */
+    private static Id getAreliaLeadRecordTypeId() {
+        if (cachedAreliaLeadRecordTypeId != null) {
+            return cachedAreliaLeadRecordTypeId;
+        }
+
+        Schema.RecordTypeInfo leadRecordTypeInfo = Schema.SObjectType.Lead
+            .getRecordTypeInfosByDeveloperName()
+            .get(ARELIA_LEAD_RECORD_TYPE_DEVELOPER_NAME);
+
+        if (leadRecordTypeInfo == null) {
+            throw new RegistrationFormException(
+                'Arelia Lead record type is not available. Please contact support.'
+            );
+        }
+
+        cachedAreliaLeadRecordTypeId = leadRecordTypeInfo.getRecordTypeId();
+        return cachedAreliaLeadRecordTypeId;
+    }
+
+    /*
      * @description Ensures the running user has create permission on Lead.
      */
     private static void assertCanCreateLead() {
         if (!Schema.sObjectType.Lead.isCreateable()) {
-            throw new AuraHandledException(
+            throw new RegistrationFormException(
                 'You do not have permission to create Lead records.'
             );
         }
     }
+
+    private static AuraHandledException toAuraHandledException(Exception ex) {
+        return new AuraHandledException(ex == null ? 'Unexpected error occurred.' : ex.getMessage());
+    }
+
+    public class RegistrationFormException extends Exception {}
 
     // ----------------------------------------------------------------------
     // Org-Wide Email Helper

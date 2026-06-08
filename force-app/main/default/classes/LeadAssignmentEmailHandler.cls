@@ -15,6 +15,10 @@ public without sharing class LeadAssignmentEmailHandler {
      * @pmd.reducesCognitiveComplexity True
      */
     public static void handleSupervisorAssignment(List<Lead> newList, Map<Id, Lead> oldMap) {
+        if (newList == null || newList.isEmpty() || oldMap == null) {
+            return;
+        }
+
         List<Messaging.SingleEmailMessage> emailsToSend = new List<Messaging.SingleEmailMessage>();
         EmailTemplate template = getEmailTemplate();
 
@@ -23,6 +27,10 @@ public without sharing class LeadAssignmentEmailHandler {
         }
 
         for (Lead newLead : newList) {
+            if (!LeadEmailHandler.isAreliaLead(newLead)) {
+                continue;
+            }
+
             Lead oldLead = oldMap.get(newLead.Id);
 
             if (isSupervisorNewlyAssigned(oldLead, newLead)) {
@@ -66,7 +74,9 @@ public without sharing class LeadAssignmentEmailHandler {
      * @pmd.comment Isolates logical condition for readability and testing
      */
     private static Boolean isSupervisorNewlyAssigned(Lead oldLead, Lead newLead) {
-        return oldLead.Supervisor_User__c == null && newLead.Supervisor_User__c != null;
+        return (oldLead == null || oldLead.Supervisor_User__c == null)
+            && newLead != null
+            && newLead.Supervisor_User__c != null;
     }
 
     /**
